@@ -14,6 +14,7 @@ const port = process.env.PORT || 3000;
 // 3. Thiết lập Middleware
 app.use(cors()); // Cho phép Front-end truy cập (Trong môi trường production cần cấu hình chi tiết hơn)
 app.use(express.json()); // Middleware để đọc JSON từ body request (rất quan trọng cho API POST/PUT)
+app.use("/uploads", express.static("uploads"));
 
 // 4. Định tuyến API Thử nghiệm
 app.get("/", (req, res) => {
