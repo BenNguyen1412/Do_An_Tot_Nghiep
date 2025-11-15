@@ -67,10 +67,10 @@ onUnmounted(() => {
       </div>
 
       <!-- Sign In Button -->
-      <button class="sign-in-btn">
+      <router-link to="/login" class="sign-in-btn">
         <span class="icon">👤</span>
         <span>Sign in</span>
-      </button>
+      </router-link>
     </div>
   </header>
 </template>
