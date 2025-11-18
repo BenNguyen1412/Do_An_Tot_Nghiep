@@ -2,9 +2,11 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from 'vue-toastification'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const toast = useToast()
 
 const userType = ref<'user' | 'enterprise' | 'owner'>('user')
 const name = ref('')
@@ -44,16 +46,25 @@ const handleSignUp = async () => {
   })
 
   if (result.success) {
-    // Redirect based on role
-    if (userType.value === 'user') {
-      router.push('/')
-    } else if (userType.value === 'enterprise') {
-      router.push('/enterprise/dashboard')
-    } else if (userType.value === 'owner') {
-      router.push('/owner/dashboard')
-    }
+    // Hiển thị thông báo thành công
+    toast.success('Tạo tài khoản thành công! Đang chuyển hướng...', {
+      timeout: 2000,
+    })
+
+    // Chuyển hướng sau 2 giây
+    setTimeout(() => {
+      if (userType.value === 'user') {
+        router.push('/')
+      } else if (userType.value === 'enterprise') {
+        router.push('/enterprise/dashboard')
+      } else if (userType.value === 'owner') {
+        router.push('/owner/dashboard')
+      }
+    }, 2000)
   } else {
     errorMessage.value = result.error || 'Đăng ký thất bại'
+    // Hiển thị thông báo lỗi
+    toast.error(errorMessage.value)
   }
 }
 

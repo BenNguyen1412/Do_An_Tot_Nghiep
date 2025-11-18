@@ -2,57 +2,45 @@ import axios from 'axios'
 
 const axiosInstance = axios.create({
   baseURL: 'http://localhost:8000/api',
-  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000,
 })
 
 // Request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    console.log('Request:', config.method?.toUpperCase(), config.url)
+    console.log('Request data:', config.data)
+
     return config
   },
   (error) => {
+    console.error('Request error:', error)
     return Promise.reject(error)
   },
 )
 
 // Response interceptor
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    console.error('API Error:', error.response?.data || error.message)
+  (response) => {
+    console.log('Response:', response.status, response.config.url)
+    return response
+  },
+  (error) => {
+    console.error('Response error:', error.response?.status, error.config?.url)
+    console.error('Error details:', error.response?.data)
 
-    const originalRequest = error.config
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-
-      try {
-        const refreshToken = localStorage.getItem('refresh_token')
-
-        // ✅ FIX: Gửi đúng format body
-        const response = await axios.post('http://localhost:8000/api/auth/refresh', {
-          refresh_token: refreshToken,
-        })
-
-        const { access_token } = response.data
-        localStorage.setItem('access_token', access_token)
-
-        originalRequest.headers.Authorization = `Bearer ${access_token}`
-        return axiosInstance(originalRequest)
-      } catch (refreshError) {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
-        return Promise.reject(refreshError)
-      }
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
     }
 
     return Promise.reject(error)

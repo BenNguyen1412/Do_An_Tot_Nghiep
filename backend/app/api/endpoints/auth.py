@@ -1,117 +1,72 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta
-
 from app.core.database import get_db
+from app.core.security import verify_password, get_password_hash, create_access_token
 from app.core.config import settings
-from app.core.security import create_access_token, create_refresh_token, decode_token
-from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse
+from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
 from app.crud import user as crud_user
+from app.models.user import User
 
 router = APIRouter()
 
-
-@router.post("/signup", response_model=TokenResponse)
-def signup(user_create: UserCreate, db: Session = Depends(get_db)):
-    """
-    Register new user
-    """
-    # Check if user already exists
-    existing_user = crud_user.get_user_by_email(db, email=user_create.email)
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    # Kiểm tra email đã tồn tại
+    existing_user = crud_user.get_user_by_email(db, email=user_data.email)
     if existing_user:
+        print(f"❌ Email đã tồn tại: {user_data.email}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email đã được đăng ký"
         )
     
-    # Create new user
-    user = crud_user.create_user(db, user_create)
+    # Hash mật khẩu
+    hashed_password = get_password_hash(user_data.password)
     
-    # Create tokens
-    access_token = create_access_token(
-        data={"sub": str(user.id), "email": user.email, "role": user.role.value}
-    )
-    refresh_token = create_refresh_token(
-        data={"sub": str(user.id)}
-    )
+    # Tạo user mới với mật khẩu đã hash
+    user_data_dict = user_data.model_dump()
+    user_data_dict['password'] = hashed_password
     
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        user=UserResponse.from_orm(user)
-    )
+    # Tạo user trong database
+    db_user = crud_user.create_user(db, user_data_dict)
+    
+    return db_user
 
-
-@router.post("/login", response_model=TokenResponse)
-def login(user_login: UserLogin, db: Session = Depends(get_db)):
-    """
-    Login user
-    """
-    # Authenticate user
-    user = crud_user.authenticate_user(
-        db, 
-        email=user_login.email, 
-        password=user_login.password,
-        role=user_login.role
-    )
+@router.post("/login", response_model=Token)
+async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
+    print(f"🔑 Login attempt: {user_credentials.email}")
+    
+    # Tìm user theo email
+    user = crud_user.get_user_by_email(db, email=user_credentials.email)
     
     if not user:
+        print(f"❌ User không tồn tại: {user_credentials.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email, mật khẩu hoặc loại tài khoản không đúng"
+            detail="Email hoặc mật khẩu không đúng",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Create tokens
-    access_token = create_access_token(
-        data={"sub": str(user.id), "email": user.email, "role": user.role.value}
-    )
-    refresh_token = create_refresh_token(
-        data={"sub": str(user.id)}
-    )
-    
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        user=UserResponse.from_orm(user)
-    )
-
-
-@router.post("/refresh")
-def refresh_token(
-    refresh_token: str = Body(..., embed=True),  # ← FIX: Nhận body đúng format
-    db: Session = Depends(get_db)
-):
-    """
-    Refresh access token
-    """
-    payload = decode_token(refresh_token)
-    
-    if not payload or payload.get("type") != "refresh":
+    # Verify mật khẩu
+    if not verify_password(user_credentials.password, user.hashed_password):
+        print(f"❌ Sai mật khẩu cho: {user_credentials.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+            detail="Email hoặc mật khẩu không đúng",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user_id = int(payload.get("sub"))
-    user = crud_user.get_user_by_id(db, user_id)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    # Create new access token
+    # Tạo access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(user.id), "email": user.email, "role": user.role.value}
+        data={"sub": user.email, "user_id": user.id, "role": user.role},
+        expires_delta=access_token_expires
     )
     
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
-@router.post("/logout")
-def logout():
-    """
-    Logout user (client should remove tokens)
-    """
-    return {"message": "Successfully logged out"}
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user
+    }

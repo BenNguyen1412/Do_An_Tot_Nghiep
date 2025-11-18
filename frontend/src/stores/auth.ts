@@ -1,177 +1,114 @@
+import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import axios from '@/utils/axios'
-import { useRouter } from 'vue-router'
-
-interface User {
-  id: number
-  email: string
-  full_name: string
-  role: 'user' | 'enterprise' | 'owner'
-  phone_number?: string
-  address?: string
-  avatar_url?: string
-}
-
-interface LoginCredentials {
-  email: string
-  password: string
-  role: 'user' | 'enterprise' | 'owner'
-}
-
-interface SignupData {
-  email: string
-  password: string
-  full_name: string
-  role: 'user' | 'enterprise' | 'owner'
-  phone_number?: string
-}
+import axiosInstance from '@/utils/axios'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<User | null>(null)
-  const accessToken = ref<string | null>(null)
-  const refreshToken = ref<string | null>(null)
+  const user = ref<any>(null)
+  const token = ref(localStorage.getItem('token') || '')
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  const isAuthenticated = computed(() => !!accessToken.value && !!user.value)
-  const userRole = computed(() => user.value?.role)
-
-  // Khởi tạo từ localStorage
-  const initAuth = () => {
-    const savedUser = localStorage.getItem('user')
-    const savedAccessToken = localStorage.getItem('access_token')
-    const savedRefreshToken = localStorage.getItem('refresh_token')
-
-    if (savedUser && savedAccessToken) {
-      user.value = JSON.parse(savedUser)
-      accessToken.value = savedAccessToken
-      refreshToken.value = savedRefreshToken
-    }
-  }
-
-  // Đăng ký
-  const signup = async (data: SignupData) => {
+  const signup = async (userData: {
+    email: string
+    password: string
+    full_name: string
+    phone_number?: string
+    role: string
+  }) => {
     isLoading.value = true
     error.value = null
 
     try {
-      const response = await axios.post('/auth/signup', data)
+      console.log('Sending signup request with data:', userData)
 
-      const { user: userData, access_token, refresh_token } = response.data
+      // Gọi API register
+      const response = await axiosInstance.post('/auth/register', userData)
 
-      // Lưu vào state
-      user.value = userData
-      accessToken.value = access_token
-      refreshToken.value = refresh_token
+      console.log('Signup response:', response.data)
 
-      // Lưu vào localStorage
-      localStorage.setItem('user', JSON.stringify(userData))
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
+      if (response.data) {
+        user.value = response.data.user || response.data
+        token.value = response.data.access_token || ''
 
-      return { success: true, data: response.data }
+        if (token.value) {
+          localStorage.setItem('token', token.value)
+          localStorage.setItem('user', JSON.stringify(user.value))
+        }
+
+        return { success: true, data: response.data }
+      }
     } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Đăng ký thất bại'
-      return { success: false, error: error.value }
+      console.error('Signup error:', err)
+      console.error('Error response:', err.response)
+
+      const errorMessage = err.response?.data?.detail || 'Đăng ký thất bại. Vui lòng thử lại.'
+      error.value = errorMessage
+
+      return { success: false, error: errorMessage }
     } finally {
       isLoading.value = false
     }
   }
 
-  // Đăng nhập
-  const login = async (credentials: LoginCredentials) => {
+  const login = async (credentials: { email: string; password: string }) => {
     isLoading.value = true
     error.value = null
 
     try {
-      const response = await axios.post('/auth/login', credentials)
+      console.log('Sending login request')
 
-      const { user: userData, access_token, refresh_token } = response.data
+      const response = await axiosInstance.post('/auth/login', credentials)
 
-      // Lưu vào state
-      user.value = userData
-      accessToken.value = access_token
-      refreshToken.value = refresh_token
+      console.log('Login response:', response.data)
 
-      // Lưu vào localStorage
-      localStorage.setItem('user', JSON.stringify(userData))
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
+      if (response.data) {
+        user.value = response.data.user
+        token.value = response.data.access_token
 
-      return { success: true, data: response.data }
+        localStorage.setItem('token', token.value)
+        localStorage.setItem('user', JSON.stringify(user.value))
+
+        return { success: true }
+      }
     } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Đăng nhập thất bại'
-      return { success: false, error: error.value }
+      console.error('Login error:', err)
+
+      const errorMessage = err.response?.data?.detail || 'Đăng nhập thất bại'
+      error.value = errorMessage
+
+      return { success: false, error: errorMessage }
     } finally {
       isLoading.value = false
     }
   }
 
-  // Đăng xuất
-  const logout = async () => {
-    try {
-      await axios.post('/auth/logout')
-    } catch (err) {
-      console.error('Logout error:', err)
-    } finally {
-      // Clear state
-      user.value = null
-      accessToken.value = null
-      refreshToken.value = null
-
-      // Clear localStorage
-      localStorage.removeItem('user')
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
-    }
+  const logout = () => {
+    user.value = null
+    token.value = ''
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
   }
 
-  // Lấy thông tin user hiện tại
-  const getCurrentUser = async () => {
-    if (!accessToken.value) return
+  const checkAuth = () => {
+    const storedToken = localStorage.getItem('token')
+    const storedUser = localStorage.getItem('user')
 
-    try {
-      const response = await axios.get('/auth/me')
-      user.value = response.data
-      localStorage.setItem('user', JSON.stringify(response.data))
-    } catch (err) {
-      console.error('Get current user error:', err)
-      logout()
+    if (storedToken && storedUser) {
+      token.value = storedToken
+      user.value = JSON.parse(storedUser)
+      return true
     }
-  }
-
-  // Cập nhật profile
-  const updateProfile = async (data: Partial<User>) => {
-    isLoading.value = true
-    error.value = null
-
-    try {
-      const response = await axios.put('/auth/profile', data)
-      user.value = response.data
-      localStorage.setItem('user', JSON.stringify(response.data))
-
-      return { success: true, data: response.data }
-    } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Cập nhật thất bại'
-      return { success: false, error: error.value }
-    } finally {
-      isLoading.value = false
-    }
+    return false
   }
 
   return {
     user,
-    accessToken,
-    isAuthenticated,
-    userRole,
+    token,
     isLoading,
     error,
-    initAuth,
     signup,
     login,
     logout,
-    getCurrentUser,
-    updateProfile,
+    checkAuth,
   }
 })
