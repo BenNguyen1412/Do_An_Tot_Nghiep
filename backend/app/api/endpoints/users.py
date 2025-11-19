@@ -69,3 +69,25 @@ async def delete_user(user_id: int, db: Session = Depends(get_db)):
             detail="User không tồn tại"
         )
     return {"message": "Xóa user thành công"}
+
+@router.post("/test-hash")
+async def test_password_hash(password: str):
+    """
+    Endpoint test để kiểm tra password hashing
+    """
+    from app.core.security import get_password_hash, verify_password
+    
+    hashed = get_password_hash(password)
+    
+    return {
+        "original_password": password,
+        "hashed_password": hashed,
+        "hash_length": len(hashed),
+        "is_bcrypt_format": hashed.startswith("$2b$"),
+        "verify_result": verify_password(password, hashed),
+        "info": {
+            "algorithm": "bcrypt",
+            "cost_factor": "12 (default)",
+            "note": "Mỗi lần hash sẽ tạo ra kết quả khác nhau do salt ngẫu nhiên"
+        }
+    }
