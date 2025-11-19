@@ -1,69 +1,64 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import timedelta
 from app.core.database import get_db
-from app.core.security import verify_password, get_password_hash, create_access_token
-from app.core.config import settings
-from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
+from app.core.security import verify_password, create_access_token
+from app.schemas.user import UserLogin, UserRegister, UserResponse, Token
 from app.crud import user as crud_user
-from app.models.user import User
 
 router = APIRouter()
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    # Kiểm tra email đã tồn tại
+async def register(user_data: UserRegister, db: Session = Depends(get_db)):
+    """
+    Đăng ký tài khoản mới
+    """
+    print(f"📝 Register attempt: {user_data.email}")
+    
+    # Kiểm tra email đã tồn tại chưa
     existing_user = crud_user.get_user_by_email(db, email=user_data.email)
     if existing_user:
-        print(f"❌ Email đã tồn tại: {user_data.email}")
+        print(f"❌ Email already exists: {user_data.email}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email đã được đăng ký"
+            detail="Email đã được sử dụng"
         )
     
-    # Hash mật khẩu
-    hashed_password = get_password_hash(user_data.password)
+    # Tạo user mới (CRUD sẽ tự hash password)
+    user = crud_user.create_user(db, user_data)
+    print(f"✅ User created successfully: {user.email}")
     
-    # Tạo user mới với mật khẩu đã hash
-    user_data_dict = user_data.model_dump()
-    user_data_dict['password'] = hashed_password
-    
-    # Tạo user trong database
-    db_user = crud_user.create_user(db, user_data_dict)
-    
-    return db_user
+    return user
 
 @router.post("/login", response_model=Token)
-async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
-    print(f"🔑 Login attempt: {user_credentials.email}")
+async def login(user_login: UserLogin, db: Session = Depends(get_db)):
+    """
+    Đăng nhập
+    """
+    print(f"🔑 Login attempt: {user_login.email}")
     
-    # Tìm user theo email
-    user = crud_user.get_user_by_email(db, email=user_credentials.email)
-    
+    # Kiểm tra user có tồn tại không
+    user = crud_user.get_user_by_email(db, email=user_login.email)
     if not user:
-        print(f"❌ User không tồn tại: {user_credentials.email}")
+        print(f"❌ User không tồn tại: {user_login.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email hoặc mật khẩu không đúng",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Email hoặc mật khẩu không chính xác"
         )
     
-    # Verify mật khẩu
-    if not verify_password(user_credentials.password, user.hashed_password):
-        print(f"❌ Sai mật khẩu cho: {user_credentials.email}")
+    # Kiểm tra mật khẩu
+    if not verify_password(user_login.password, user.hashed_password):
+        print(f"❌ Sai mật khẩu cho user: {user_login.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email hoặc mật khẩu không đúng",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Email hoặc mật khẩu không chính xác"
         )
+    
+    print(f"✅ Login successful: {user.email}")
     
     # Tạo access token
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email, "user_id": user.id, "role": user.role},
-        expires_delta=access_token_expires
+        data={"sub": user.email, "user_id": user.id}
     )
-    
     
     return {
         "access_token": access_token,

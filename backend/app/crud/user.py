@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.user import User
+from app.schemas.user import UserRegister
+from app.core.security import get_password_hash
 from typing import Optional
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
@@ -14,25 +16,27 @@ def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
     """
     return db.query(User).filter(User.id == user_id).first()
 
-def create_user(db: Session, user_data: dict) -> User:
+def create_user(db: Session, user_data: UserRegister) -> User:
     """
     Tạo user mới
     
     Args:
         db: Database session
-        user_data: Dictionary chứa thông tin user (đã có password hash)
+        user_data: UserRegister schema object
     
     Returns:
         User object đã tạo
     """
+    # Hash password
+    hashed_password = get_password_hash(user_data.password)
+    
+    # Tạo user object
     db_user = User(
-        email=user_data['email'],
-        hashed_password=user_data['password'],  # ← ĐỔI THÀNH hashed_password
-        full_name=user_data['full_name'],
-        phone_number=user_data.get('phone_number'),
-        role=user_data.get('role', 'user'),
-        address=user_data.get('address'),
-        avatar_url=user_data.get('avatar_url'),
+        email=user_data.email,
+        hashed_password=hashed_password,
+        full_name=user_data.full_name,
+        phone_number=user_data.phone_number,
+        role=user_data.role,
         is_active=True
     )
     

@@ -1,46 +1,48 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-const userType = ref<'user' | 'enterprise' | 'owner'>('user')
 const email = ref('')
 const password = ref('')
-const rememberMe = ref(false)
-const showPassword = ref(false)
-
+const isLoading = ref(false)
 const errorMessage = ref('')
-const isSubmitting = computed(() => authStore.isLoading)
+const showPassword = ref(false)
+const rememberMe = ref(false)
+const userType = ref('user')
+const isSubmitting = ref(false)
 
 const handleLogin = async () => {
-  errorMessage.value = ''
-
-  // Validation
   if (!email.value || !password.value) {
-    errorMessage.value = 'Vui lòng điền đầy đủ thông tin'
+    errorMessage.value = 'Vui lòng nhập đầy đủ thông tin'
     return
   }
 
-  const result = await authStore.login({
-    email: email.value,
-    password: password.value,
-    role: userType.value,
-  })
+  isLoading.value = true
+  isSubmitting.value = true
+  errorMessage.value = ''
 
-  if (result.success) {
-    // Redirect based on role
-    if (userType.value === 'user') {
-      router.push('/')
-    } else if (userType.value === 'enterprise') {
-      router.push('/enterprise/dashboard')
-    } else if (userType.value === 'owner') {
-      router.push('/owner/dashboard')
+  try {
+    await authStore.login({
+      email: email.value,
+      password: password.value,
+    })
+    router.push('/')
+  } catch (error: unknown) {
+    console.error('Login failed:', error)
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response?: { data?: { detail?: string } } }
+      errorMessage.value =
+        axiosError.response?.data?.detail || 'Đăng nhập thất bại. Vui lòng thử lại!'
+    } else {
+      errorMessage.value = 'Đăng nhập thất bại. Vui lòng thử lại!'
     }
-  } else {
-    errorMessage.value = result.error || 'Đăng nhập thất bại'
+  } finally {
+    isLoading.value = false
+    isSubmitting.value = false
   }
 }
 

@@ -11,6 +11,7 @@ const toast = useToast()
 const userType = ref<'user' | 'enterprise' | 'owner'>('user')
 const name = ref('')
 const email = ref('')
+const phone = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const showPassword = ref(false)
@@ -25,45 +26,42 @@ const handleSignUp = async () => {
   // Validation
   if (!name.value || !email.value || !password.value || !confirmPassword.value) {
     errorMessage.value = 'Vui lòng điền đầy đủ thông tin'
+    toast.error('Vui lòng điền đầy đủ thông tin')
     return
   }
 
   if (password.value.length < 6) {
     errorMessage.value = 'Mật khẩu phải có ít nhất 6 ký tự'
+    toast.error('Mật khẩu phải có ít nhất 6 ký tự')
     return
   }
 
   if (password.value !== confirmPassword.value) {
     errorMessage.value = 'Mật khẩu xác nhận không khớp'
+    toast.error('Mật khẩu xác nhận không khớp')
     return
   }
 
-  const result = await authStore.signup({
+  const result = await authStore.register({
     email: email.value,
     password: password.value,
     full_name: name.value,
+    phone_number: phone.value || undefined,
     role: userType.value,
   })
 
   if (result.success) {
     // Hiển thị thông báo thành công
-    toast.success('Tạo tài khoản thành công! Đang chuyển hướng...', {
+    toast.success('🎉 Tạo tài khoản thành công!', {
       timeout: 2000,
     })
 
-    // Chuyển hướng sau 2 giây
+    // Chuyển hướng về trang login sau 2 giây
     setTimeout(() => {
-      if (userType.value === 'user') {
-        router.push('/')
-      } else if (userType.value === 'enterprise') {
-        router.push('/enterprise/dashboard')
-      } else if (userType.value === 'owner') {
-        router.push('/owner/dashboard')
-      }
+      router.push('/login')
     }, 2000)
   } else {
     errorMessage.value = result.error || 'Đăng ký thất bại'
-    // Hiển thị thông báo lỗi
     toast.error(errorMessage.value)
   }
 }

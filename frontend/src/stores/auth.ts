@@ -1,81 +1,61 @@
-import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import axiosInstance from '@/utils/axios'
+import { ref, computed } from 'vue'
+import axios from '@/utils/axios'
+
+interface User {
+  id: number
+  email: string
+  full_name: string
+  phone_number: string | null
+  is_active: boolean
+  role: string
+}
+
+interface LoginCredentials {
+  email: string
+  password: string
+}
+
+interface RegisterData {
+  email: string
+  password: string
+  full_name: string
+  phone_number?: string
+  role?: 'user' | 'enterprise' | 'owner'
+}
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<any>(null)
-  const token = ref(localStorage.getItem('token') || '')
+  const token = ref<string | null>(localStorage.getItem('token'))
+  const user = ref<User | null>(null)
   const isLoading = ref(false)
-  const error = ref<string | null>(null)
 
-  const signup = async (userData: {
-    email: string
-    password: string
-    full_name: string
-    phone_number?: string
-    role: string
-  }) => {
+  const isAuthenticated = computed(() => !!token.value)
+
+  const login = async (credentials: LoginCredentials) => {
     isLoading.value = true
-    error.value = null
-
     try {
-      console.log('Sending signup request with data:', userData)
+      const response = await axios.post('/api/auth/login', credentials)
 
-      // Gọi API register
-      const response = await axiosInstance.post('/auth/register', userData)
+      token.value = response.data.access_token
+      user.value = response.data.user
 
-      console.log('Signup response:', response.data)
+      localStorage.setItem('token', response.data.access_token)
+      localStorage.setItem('user', JSON.stringify(response.data.user))
 
-      if (response.data) {
-        user.value = response.data.user || response.data
-        token.value = response.data.access_token || ''
-
-        if (token.value) {
-          localStorage.setItem('token', token.value)
-          localStorage.setItem('user', JSON.stringify(user.value))
-        }
-
-        return { success: true, data: response.data }
-      }
-    } catch (err: any) {
-      console.error('Signup error:', err)
-      console.error('Error response:', err.response)
-
-      const errorMessage = err.response?.data?.detail || 'Đăng ký thất bại. Vui lòng thử lại.'
-      error.value = errorMessage
-
-      return { success: false, error: errorMessage }
+      return response.data
     } finally {
       isLoading.value = false
     }
   }
 
-  const login = async (credentials: { email: string; password: string }) => {
+  const register = async (userData: RegisterData) => {
     isLoading.value = true
-    error.value = null
-
     try {
-      console.log('Sending login request')
-
-      const response = await axiosInstance.post('/auth/login', credentials)
-
-      console.log('Login response:', response.data)
-
-      if (response.data) {
-        user.value = response.data.user
-        token.value = response.data.access_token
-
-        localStorage.setItem('token', token.value)
-        localStorage.setItem('user', JSON.stringify(user.value))
-
-        return { success: true }
-      }
-    } catch (err: any) {
-      console.error('Login error:', err)
-
-      const errorMessage = err.response?.data?.detail || 'Đăng nhập thất bại'
-      error.value = errorMessage
-
+      const response = await axios.post('/api/auth/register', userData)
+      return { success: true, data: response.data }
+    } catch (error: any) {
+      console.error('Register error:', error)
+      const errorMessage = error.response?.data?.detail || 'Đăng ký thất bại. Vui lòng thử lại!'
       return { success: false, error: errorMessage }
     } finally {
       isLoading.value = false
@@ -83,32 +63,30 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const logout = () => {
+    token.value = null
     user.value = null
-    token.value = ''
     localStorage.removeItem('token')
     localStorage.removeItem('user')
   }
 
-  const checkAuth = () => {
+  const initAuth = () => {
     const storedToken = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
 
     if (storedToken && storedUser) {
       token.value = storedToken
       user.value = JSON.parse(storedUser)
-      return true
     }
-    return false
   }
 
   return {
-    user,
     token,
+    user,
+    isAuthenticated,
     isLoading,
-    error,
-    signup,
     login,
+    register,
     logout,
-    checkAuth,
+    initAuth,
   }
 })

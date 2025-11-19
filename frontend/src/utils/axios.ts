@@ -1,50 +1,48 @@
 import axios from 'axios'
 
-const axiosInstance = axios.create({
-  baseURL: 'http://localhost:8000/api',
+const instance = axios.create({
+  baseURL: 'http://localhost:8000',
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
 })
 
 // Request interceptor
-axiosInstance.interceptors.request.use(
+instance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-
-    console.log('Request:', config.method?.toUpperCase(), config.url)
-    console.log('Request data:', config.data)
-
     return config
   },
   (error) => {
-    console.error('Request error:', error)
     return Promise.reject(error)
   },
 )
 
 // Response interceptor
-axiosInstance.interceptors.response.use(
+instance.interceptors.response.use(
   (response) => {
-    console.log('Response:', response.status, response.config.url)
     return response
   },
   (error) => {
-    console.error('Response error:', error.response?.status, error.config?.url)
-    console.error('Error details:', error.response?.data)
-
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+    // Đảm bảo lỗi được throw đúng cách để component có thể catch
+    if (error.response) {
+      // Server trả về response với status code lỗi
+      console.error('API Error:', error.response.data)
+      return Promise.reject(error)
+    } else if (error.request) {
+      // Request được gửi nhưng không nhận được response
+      console.error('Network Error:', error.request)
+      return Promise.reject(new Error('Lỗi kết nối mạng'))
+    } else {
+      // Lỗi khác
+      console.error('Error:', error.message)
+      return Promise.reject(error)
     }
-
-    return Promise.reject(error)
   },
 )
 
-export default axiosInstance
+export default instance
