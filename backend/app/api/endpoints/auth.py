@@ -9,13 +9,9 @@ router = APIRouter()
 
 @router.post("/login", response_model=Token)
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    """Login endpoint"""
     
     # Clean email
     email = user_data.email.strip().lower()
-    
-    print(f"🔐 LOGIN ATTEMPT:")
-    print(f"   Email: {email}")
     
     # Find user
     user = db.query(User).filter(User.email == email).first()
@@ -24,20 +20,16 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
         print(f"❌ User not found: {email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email không tồn tại trong hệ thống"
+            detail="Email không tồn tại"  
         )
-    
-    print(f"✅ User found: {user.email}")
     
     # Verify password
     if not verify_password(user_data.password, user.hashed_password):
         print(f"❌ Wrong password")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Mật khẩu không chính xác"
+            detail="Mật khẩu không chính xác" 
         )
-    
-    print(f"✅ Password correct")
     
     # Check if active
     if not user.is_active:
@@ -67,31 +59,36 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/register", response_model=Token)
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    """Register endpoint"""
+    """Register new user"""
     
     # Clean email
     email = user_data.email.strip().lower()
-    
-    print(f"📝 REGISTER ATTEMPT:")
-    print(f"   Email: {email}")
-    print(f"   Full name: {user_data.full_name}")
-    print(f"   Role: {user_data.role}")
-    
     # Check if email exists
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
-        print(f"❌ Email already exists")
+        print(f"❌ Email already exists: {email}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email đã được đăng ký. Vui lòng sử dụng email khác."
         )
     
+    # Validate role
+    valid_roles = ['user', 'owner', 'enterprise']
+    if user_data.role not in valid_roles:
+        print(f"❌ Invalid role: {user_data.role}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Role không hợp lệ. Chỉ chấp nhận: {', '.join(valid_roles)}"
+        )
+    
     # Create new user
+    hashed_password = get_password_hash(user_data.password)
+    
     new_user = User(
         email=email,
-        hashed_password=get_password_hash(user_data.password),
-        full_name=user_data.full_name,
-        phone_number=user_data.phone_number,
+        hashed_password=hashed_password,
+        full_name=user_data.full_name.strip(),
+        phone_number=user_data.phone_number.strip() if user_data.phone_number else None,
         role=user_data.role,
         is_active=True
     )
@@ -99,8 +96,6 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
-    print(f"✅ User created: {new_user.email}")
     
     # Create token
     access_token = create_access_token(data={"sub": new_user.email})

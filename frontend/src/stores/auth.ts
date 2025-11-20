@@ -7,7 +7,8 @@ interface User {
   email: string
   full_name: string
   role: string
-  phone_number?: string
+  phone_number?: string | null
+  is_active: boolean
 }
 
 interface LoginResponse {
@@ -30,7 +31,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  // Initialize auth from localStorage
+  // Initialize from localStorage
   const initAuth = () => {
     const storedToken = localStorage.getItem('token')
     const storedUser = localStorage.getItem('user')
@@ -39,48 +40,30 @@ export const useAuthStore = defineStore('auth', () => {
       try {
         token.value = storedToken
         user.value = JSON.parse(storedUser)
-        console.log('✅ Auth initialized from storage:', user.value)
+        console.log('✅ Auth initialized:', user.value)
       } catch (e) {
-        console.error('❌ Failed to parse stored user:', e)
+        console.error('❌ Failed to parse user:', e)
         logout()
       }
     }
   }
 
-  // Check if user is authenticated
-  const checkAuth = (): boolean => {
-    const storedToken = localStorage.getItem('token')
-    const storedUser = localStorage.getItem('user')
-
-    if (storedToken && storedUser) {
-      try {
-        if (!user.value) {
-          token.value = storedToken
-          user.value = JSON.parse(storedUser)
-        }
-        return true
-      } catch (e) {
-        console.error('❌ Failed to parse stored user:', e)
-        logout()
-        return false
-      }
-    }
-
-    return false
-  }
-
-  // Signup function
+  // Signup
   const signup = async (userData: SignupData) => {
-    console.log('🔵 AUTH STORE: signup called with:', userData)
+    console.log('📝 AUTH STORE - Signup called')
+    console.log('   Email:', userData.email)
+    console.log('   Full name:', userData.full_name)
+    console.log('   Role:', userData.role)
+
     isLoading.value = true
     error.value = null
 
     try {
-      console.log('🔵 AUTH STORE: Sending request to /auth/register')
+      console.log('📤 Sending POST request to /auth/register')
 
       const response = await axiosInstance.post<LoginResponse>('/auth/register', userData)
 
-      console.log('🔵 AUTH STORE: Response received:', response.data)
+      console.log('📥 Response received:', response.status)
 
       if (response.data) {
         user.value = response.data.user
@@ -89,13 +72,14 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('token', token.value)
         localStorage.setItem('user', JSON.stringify(user.value))
 
-        console.log('✅ AUTH STORE: Signup successful')
+        console.log('✅ Signup successful!')
+
         return { success: true, data: response.data }
       }
 
       return { success: false, error: 'Đăng ký thất bại' }
     } catch (err: unknown) {
-      console.error('❌ AUTH STORE: Signup error:', err)
+      console.error('❌ Signup error:', err)
 
       let errorMessage = 'Đăng ký thất bại. Vui lòng thử lại.'
 
@@ -110,34 +94,39 @@ export const useAuthStore = defineStore('auth', () => {
         const detail = error.response?.data?.detail
         const status = error.response?.status
 
-        if (status === 400 && detail?.includes('đã tồn tại')) {
+        console.log('   Error status:', status)
+        console.log('   Error detail:', detail)
+
+        if (status === 400 && detail?.includes('đã')) {
           errorMessage = 'Email đã được đăng ký. Vui lòng sử dụng email khác.'
+        } else if (status === 422) {
+          errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.'
         } else if (detail) {
           errorMessage = detail
         }
       }
 
       error.value = errorMessage
-      console.log('❌ AUTH STORE: Error message:', errorMessage)
       return { success: false, error: errorMessage }
     } finally {
       isLoading.value = false
-      console.log('🔵 AUTH STORE: isLoading set to false')
     }
   }
 
-  // Login function
+  // Login
   const login = async (credentials: { email: string; password: string }) => {
-    console.log('🔐 AUTH STORE: login called for:', credentials.email)
+    console.log('🔐 AUTH STORE - Login called')
+    console.log('   Email:', credentials.email)
+
     isLoading.value = true
     error.value = null
 
     try {
-      console.log('🔐 AUTH STORE: Sending request to /auth/login')
+      console.log('📤 Sending POST request to /auth/login')
 
       const response = await axiosInstance.post<LoginResponse>('/auth/login', credentials)
 
-      console.log('✅ AUTH STORE: Login successful:', response.data)
+      console.log('📥 Response received:', response.status)
 
       if (response.data) {
         user.value = response.data.user
@@ -146,12 +135,14 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('token', token.value)
         localStorage.setItem('user', JSON.stringify(user.value))
 
+        console.log('✅ Login successful!')
+
         return { success: true }
       }
 
       return { success: false, error: 'Đăng nhập thất bại' }
     } catch (err: unknown) {
-      console.error('❌ AUTH STORE: Login error:', err)
+      console.error('❌ Login error:', err)
 
       let errorMessage = 'Đăng nhập thất bại'
 
@@ -161,33 +152,19 @@ export const useAuthStore = defineStore('auth', () => {
             status?: number
             data?: { detail?: string }
           }
-          message?: string
         }
 
         const status = error.response?.status
         const detail = error.response?.data?.detail
 
+        console.log('   Error status:', status)
+        console.log('   Error detail:', detail)
+
         if (status === 401) {
-          if (detail?.includes('không tồn tại') || detail?.includes('User không tồn tại')) {
-            errorMessage = 'Email không tồn tại trong hệ thống'
-          } else if (detail?.includes('mật khẩu') || detail?.includes('password')) {
-            errorMessage = 'Mật khẩu không chính xác'
-          } else {
-            errorMessage = 'Email hoặc mật khẩu không đúng'
+          if (detail) {
+            errorMessage = detail
           }
-        } else if (status === 404) {
-          errorMessage = 'Email không tồn tại trong hệ thống'
-        } else if (status === 422) {
-          errorMessage = 'Dữ liệu đăng nhập không hợp lệ'
-        } else if (status === 500) {
-          errorMessage = 'Lỗi server. Vui lòng thử lại sau.'
-        } else if (detail) {
-          errorMessage = detail
-        } else if (error.message) {
-          errorMessage = error.message
         }
-      } else if (err instanceof Error) {
-        errorMessage = err.message
       }
 
       error.value = errorMessage
@@ -197,9 +174,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Logout function
+  // Logout
   const logout = () => {
-    console.log('🚪 AUTH STORE: Logging out')
+    console.log('🚪 Logout')
     user.value = null
     token.value = ''
     localStorage.removeItem('token')
@@ -210,16 +187,13 @@ export const useAuthStore = defineStore('auth', () => {
   initAuth()
 
   return {
-    // State
     user,
     token,
     isLoading,
     error,
-    // Actions
     signup,
     login,
     logout,
-    checkAuth,
     initAuth,
   }
 })

@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 import HomePage from '@/views/HomePage.vue'
 import LoginPage from '@/views/auth/LoginPage.vue'
 import SignUpPage from '@/views/auth/SignUpPage.vue'
@@ -43,48 +42,48 @@ const router = createRouter({
   ],
 })
 
-// Navigation guard
+// Simple navigation guard
 router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore()
-
-  // Kiểm tra authentication từ localStorage
   const token = localStorage.getItem('token')
   const userStr = localStorage.getItem('user')
-  const isAuthenticated = !!(token && userStr)
-
-  let userRole = null
-  if (userStr) {
-    try {
-      const user = JSON.parse(userStr)
-      userRole = user.role
-    } catch (e) {
-      console.error('Error parsing user:', e)
-    }
-  }
 
   console.log('🔍 Router Guard:', {
     to: to.path,
-    isAuthenticated,
-    userRole,
+    from: from.path,
+    hasToken: !!token,
+    hasUser: !!userStr,
   })
 
-  // Chỉ kiểm tra routes yêu cầu authentication
+  // Check if route requires authentication
   if (to.meta.requiresAuth) {
-    if (!isAuthenticated) {
-      console.log('❌ Not authenticated, redirecting to login')
+    if (!token || !userStr) {
+      console.log('❌ Not authenticated, redirect to login')
       return next('/login')
     }
 
-    if (to.meta.role && to.meta.role !== userRole) {
-      console.log('❌ Wrong role, redirecting to correct home')
-      return next(`/${userRole}/home`)
+    // Check role
+    try {
+      const user = JSON.parse(userStr)
+      if (to.meta.role && to.meta.role !== user.role) {
+        console.log('❌ Wrong role, redirect to correct home')
+        return next(`/${user.role}/home`)
+      }
+    } catch (e) {
+      console.error('Error parsing user:', e)
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      return next('/login')
     }
   }
 
-  // Nếu đã login mà vào login/signup → redirect về home
-  if ((to.path === '/login' || to.path === '/signup') && isAuthenticated) {
-    console.log('✅ Already authenticated, redirecting to home')
-    return next(`/${userRole}/home`)
+  if ((to.path === '/login' || to.path === '/signup') && token && userStr) {
+    try {
+      const user = JSON.parse(userStr)
+      console.log('✅ Already logged in, redirect to home')
+      return next(`/${user.role}/home`)
+    } catch (e) {
+      console.error('Error parsing user:', e)
+    }
   }
 
   next()

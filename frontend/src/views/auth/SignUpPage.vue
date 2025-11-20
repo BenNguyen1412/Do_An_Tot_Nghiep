@@ -42,7 +42,7 @@ const handleSignUp = async () => {
     return
   }
 
-  const result = await authStore.register({
+  const result = await authStore.signup({
     email: email.value,
     password: password.value,
     full_name: name.value,

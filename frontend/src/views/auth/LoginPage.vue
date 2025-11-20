@@ -21,15 +21,29 @@ const isSubmitting = computed(() => authStore.isLoading)
 
 // Handle login
 const handleLogin = async () => {
-  console.log('🔐 Login attempt started')
+  console.log('🔐 LOGIN PAGE - handleLogin called')
+  console.log('   Email:', email.value)
+  console.log('   Selected role:', userType.value)
 
   // Clear previous error
   errorMessage.value = ''
 
   // Validation
   if (!email.value || !password.value) {
-    errorMessage.value = 'Vui lòng nhập đầy đủ thông tin'
-    toast.error('Vui lòng nhập đầy đủ thông tin')
+    const msg = 'Vui lòng nhập đầy đủ thông tin'
+    errorMessage.value = msg
+
+    console.log('🔔 Attempting to show toast...')
+    console.log('   Toast object:', toast)
+    console.log('   Message:', msg)
+
+    try {
+      toast.error(`❌ ${msg}`)
+      console.log('✅ Toast.error called successfully')
+    } catch (e) {
+      console.error('❌ Toast.error failed:', e)
+    }
+
     console.log('❌ Validation failed: Missing fields')
     return
   }
@@ -37,102 +51,141 @@ const handleLogin = async () => {
   // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email.value)) {
-    errorMessage.value = 'Email không hợp lệ'
-    toast.error('Email không hợp lệ')
+    const msg = 'Email không hợp lệ'
+    errorMessage.value = msg
+
+    console.log('🔔 Attempting to show toast...')
+    try {
+      toast.error(`❌ ${msg}`)
+      console.log('✅ Toast.error called successfully')
+    } catch (e) {
+      console.error('❌ Toast.error failed:', e)
+    }
+
     console.log('❌ Validation failed: Invalid email format')
     return
   }
 
-  console.log('✅ Validation passed')
-  console.log('📧 Email:', email.value)
-  console.log('👤 Selected user type:', userType.value)
+  console.log('✅ Validation passed, calling authStore.login...')
 
   try {
-    console.log('🔄 Calling authStore.login...')
-
     const result = await authStore.login({
       email: email.value,
       password: password.value,
     })
 
-    console.log('📦 Login result:', result)
+    console.log('📦 LOGIN PAGE - Result received:', result)
 
     if (result.success) {
-      // Get user role from auth store
-      const userRole = authStore.user?.role
+      // Get actual user role from auth store
+      const actualRole = authStore.user?.role
       console.log('✅ Login successful!')
-      console.log('👤 User role:', userRole)
-      console.log('👤 User data:', authStore.user)
+      console.log('👤 Actual user role:', actualRole)
+      console.log('🎯 Selected role:', userType.value)
+
+      // ✅ CHECK ROLE: So sánh role thực tế với role đã chọn
+      if (actualRole !== userType.value) {
+        console.log('❌ Role mismatch!')
+
+        // Logout user
+        authStore.logout()
+
+        // Show error with role names
+        const roleNames: Record<string, string> = {
+          user: 'User',
+          owner: 'Owner',
+          enterprise: 'Enterprise',
+        }
+
+        const roleName = roleNames[actualRole as keyof typeof roleNames] || actualRole
+
+        const msg = `Tài khoản này là ${roleName}. Vui lòng chọn đúng loại tài khoản.`
+        errorMessage.value = msg
+
+        console.log('🔔 Attempting to show toast...')
+        console.log('   Message:', msg)
+
+        try {
+          toast.error(`❌ ${msg}`, {
+            timeout: 4000,
+          })
+          console.log('✅ Toast.error called successfully')
+        } catch (e) {
+          console.error('❌ Toast.error failed:', e)
+        }
+
+        return
+      }
+
+      // Role matched - proceed with login
+      console.log('✅ Role matched!')
 
       // Show success message
-      toast.success('✅ Đăng nhập thành công!', {
-        timeout: 2000,
-      })
+      console.log('🔔 Attempting to show toast...')
+
+      try {
+        toast.success('✅ Đăng nhập thành công!', {
+          timeout: 2000,
+        })
+        console.log('✅ Toast.success called successfully')
+      } catch (e) {
+        console.error('❌ Toast.success failed:', e)
+      }
 
       // Redirect based on role
       setTimeout(() => {
-        let redirectPath = '/user/home' // default
+        let redirectPath = '/user/home'
 
-        if (userRole === 'owner') {
+        if (actualRole === 'owner') {
           redirectPath = '/owner/home'
-          console.log('🏠 Redirecting to Owner Home...')
-        } else if (userRole === 'enterprise') {
+        } else if (actualRole === 'enterprise') {
           redirectPath = '/enterprise/home'
-          console.log('🏢 Redirecting to Enterprise Home...')
-        } else {
-          redirectPath = '/user/home'
-          console.log('👤 Redirecting to User Home...')
         }
 
         console.log('🔄 Redirecting to:', redirectPath)
         router.push(redirectPath)
       }, 1000)
     } else {
-      // Login failed
+      // ✅ LOGIN FAILED
+      console.log('❌ LOGIN PAGE - Login failed')
+      console.log('   Error from store:', result.error)
+
       const error = result.error || 'Đăng nhập thất bại. Vui lòng thử lại!'
       errorMessage.value = error
-      toast.error(error)
-      console.log('❌ Login failed:', error)
-    }
-  } catch (error: unknown) {
-    console.error('❌ Unexpected error during login:', error)
 
-    let errorMsg = 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại!'
+      // ✅ HIỂN THỊ TOAST ERROR
+      console.log('🔔 Attempting to show toast...')
+      console.log('   Toast object exists:', !!toast)
+      console.log('   Toast.error exists:', typeof toast.error)
+      console.log('   Message:', error)
 
-    if (error && typeof error === 'object') {
-      if ('response' in error) {
-        const axiosError = error as {
-          response?: {
-            status?: number
-            data?: { detail?: string }
-          }
-          message?: string
-        }
-
-        const status = axiosError.response?.status
-        const detail = axiosError.response?.data?.detail
-
-        if (status === 401) {
-          errorMsg = detail || 'Email hoặc mật khẩu không đúng'
-        } else if (status === 404) {
-          errorMsg = 'Email không tồn tại trong hệ thống'
-        } else if (status === 422) {
-          errorMsg = 'Dữ liệu đăng nhập không hợp lệ'
-        } else if (status === 500) {
-          errorMsg = 'Lỗi server. Vui lòng thử lại sau.'
-        } else if (detail) {
-          errorMsg = detail
-        } else if (axiosError.message) {
-          errorMsg = axiosError.message
-        }
-      } else if ('message' in error) {
-        errorMsg = (error as Error).message
+      try {
+        const toastResult = toast.error(`❌ ${error}`, {
+          timeout: 4000,
+        })
+        console.log('✅ Toast.error called successfully')
+        console.log('   Toast result:', toastResult)
+      } catch (e) {
+        console.error('❌ Toast.error failed:', e)
+        console.error('   Error details:', e)
       }
     }
+  } catch (error: unknown) {
+    // ✅ CATCH UNEXPECTED ERROR
+    console.error('🔥 LOGIN PAGE - Unexpected error:', error)
 
+    const errorMsg = 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại!'
     errorMessage.value = errorMsg
-    toast.error(errorMsg)
-    console.log('❌ Error message:', errorMsg)
+
+    // ✅ HIỂN THỊ TOAST ERROR
+    console.log('🔔 Attempting to show toast...')
+
+    try {
+      toast.error(`❌ ${errorMsg}`)
+      console.log('✅ Toast.error called successfully')
+    } catch (e) {
+      console.error('❌ Toast.error failed:', e)
+    }
   }
 }
 

@@ -5,26 +5,20 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
 })
 
 // Request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    console.log('📤 AXIOS REQUEST:')
-    console.log('   Method:', config.method?.toUpperCase())
-    console.log('   Full URL:', config.baseURL + config.url)
-    console.log('   Data:', config.data)
-
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-
+    console.log('📤 Axios Request:', config.method?.toUpperCase(), config.url)
     return config
   },
   (error) => {
-    console.error('❌ AXIOS REQUEST ERROR:', error)
+    console.error('❌ Request Error:', error)
     return Promise.reject(error)
   },
 )
@@ -32,17 +26,22 @@ axiosInstance.interceptors.request.use(
 // Response interceptor
 axiosInstance.interceptors.response.use(
   (response) => {
-    console.log('📥 AXIOS RESPONSE:')
-    console.log('   Status:', response.status)
-    console.log('   Data:', response.data)
+    console.log('📥 Axios Response:', response.status, response.config.url)
     return response
   },
   (error) => {
-    console.error('❌ AXIOS RESPONSE ERROR:')
-    console.error('   Status:', error.response?.status)
-    console.error('   URL:', error.config?.baseURL + error.config?.url)
-    console.error('   Data:', error.response?.data)
+    console.error('❌ Axios Response Error:', error)
 
+    // ✅ LOG CHI TIẾT ERROR
+    if (error.response) {
+      console.error('   Status:', error.response.status)
+      console.error('   Data:', error.response.data)
+      console.error('   Headers:', error.response.headers)
+    } else if (error.request) {
+      console.error('   No response received:', error.request)
+    } else {
+      console.error('   Error:', error.message)
+    }
     return Promise.reject(error)
   },
 )
