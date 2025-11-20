@@ -1,4 +1,3 @@
-<!-- filepath: c:\Users\PC\Desktop\DO_AN_TOT_NGHIEP\frontend\src\views\HomePage.vue -->
 <script setup lang="ts">
 import AppHeader from '@/components/layout/AppHeader.vue'
 import HeroSection from '@/components/home/HeroSection.vue'
@@ -9,8 +8,10 @@ import AppFooter from '@/components/layout/AppFooter.vue'
 </script>
 
 <template>
-  <div class="home-page">
+  <div class="user-home-page">
+    <!-- Header cho User: Home, Court + Time + Username -->
     <AppHeader />
+
     <HeroSection />
     <CourtList />
     <StatsSection />
@@ -20,7 +21,7 @@ import AppFooter from '@/components/layout/AppFooter.vue'
 </template>
 
 <style scoped>
-.home-page {
+.user-home-page {
   min-height: 100vh;
 }
 </style>

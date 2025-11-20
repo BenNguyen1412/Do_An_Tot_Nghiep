@@ -1,61 +1,62 @@
-import sys
-import os
-
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-# Set UTF-8 encoding for output
-if sys.platform == 'win32':
-    sys.stdout.reconfigure(encoding='utf-8')
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session
+from app.core.database import SessionLocal
 from app.models.user import User
-from app.core.config import settings
+from app.core.security import verify_password
 
-def main():
-    # Create engine
-    engine = create_engine(settings.DATABASE_URL, echo=False)
-    SessionLocal = sessionmaker(bind=engine)
-    
-    # Query users
-    db = SessionLocal()
+def check_all_users():
+    """Kiểm tra toàn bộ tài khoản trong hệ thống"""
+    db: Session = SessionLocal()
     
     try:
+        print("=" * 100)
+        print("DANH SÁCH TÀI KHOẢN TRONG HỆ THỐNG")
+        print("=" * 100)
+        
         users = db.query(User).all()
         
-        print("\n" + "="*80)
-        print(f"📊 TỔNG SỐ USERS: {len(users)}")
-        print("="*80 + "\n")
-        
         if not users:
-            print("❌ Không có user nào trong database!")
+            print("\n❌ Không có tài khoản nào trong hệ thống")
             return
         
+        print(f"\n✅ Tìm thấy {len(users)} tài khoản\n")
+        
         for idx, user in enumerate(users, 1):
-            print(f"👤 USER #{idx}")
-            print(f"   ID: {user.id}")
-            print(f"   Email: {user.email}")
-            print(f"   Họ Tên: {user.full_name}")
-            print(f"   Loại TK: {user.role.value}")
-            print(f"   SĐT: {user.phone_number or 'Chưa có'}")
-            print(f"   Địa chỉ: {user.address or 'Chưa có'}")
-            print(f"   Ngày tạo: {user.created_at}")
-            print("-" * 80)
+            print(f"\n{'='*100}")
+            print(f"TÀI KHOẢN #{idx}")
+            print(f"{'='*100}")
+            print(f"📧 Email:           {user.email}")
+            print(f"👤 Họ tên:          {user.full_name}")
+            print(f"📞 Số điện thoại:   {user.phone_number or 'Chưa cập nhật'}")
+            print(f"🔑 Role:            {user.role.upper()}")
+            print(f"✅ Trạng thái:      {'Đang hoạt động' if user.is_active else 'Bị khóa'}")
+            print(f"🔐 Hash password:   {user.hashed_password[:50]}...")
+            print(f"   Độ dài hash:     {len(user.hashed_password)} ký tự")
+            print(f"   Định dạng:       {'✅ bcrypt' if user.hashed_password.startswith('$2b$') else '❌ Không hợp lệ'}")
+            
+            # Test password mặc định
+            test_passwords = ['123456', 'password', '12345678']
+            print(f"\n🔍 Test với password phổ biến:")
+            for pwd in test_passwords:
+                is_match = verify_password(pwd, user.hashed_password)
+                status = "✅ ĐÚNG" if is_match else "❌ Sai"
+                print(f"   - '{pwd}': {status}")
         
-        # Statistics by role
-        print("\n📈 THỐNG KÊ THEO LOẠI TÀI KHOẢN:")
+        print(f"\n{'='*100}")
+        print("THỐNG KÊ THEO ROLE")
+        print(f"{'='*100}")
+        
         from collections import Counter
-        role_counts = Counter(user.role.value for user in users)
-        for role, count in role_counts.items():
-            print(f"   {role}: {count} người")
+        role_counts = Counter(user.role for user in users)
         
-        print("\n" + "="*80 + "\n")
+        for role, count in role_counts.items():
+            print(f"📊 {role.upper()}: {count} tài khoản")
+        
+        print(f"\n{'='*100}\n")
         
     except Exception as e:
-        print(f"❌ Lỗi: {e}")
+        print(f"\n❌ Lỗi: {e}")
     finally:
         db.close()
 
 if __name__ == "__main__":
-    main()
+    check_all_users()

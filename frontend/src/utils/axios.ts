@@ -1,48 +1,50 @@
 import axios from 'axios'
 
-const instance = axios.create({
-  baseURL: 'http://localhost:8000',
-  timeout: 10000,
+const axiosInstance = axios.create({
+  baseURL: 'http://localhost:8000/api',
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000,
 })
 
 // Request interceptor
-instance.interceptors.request.use(
+axiosInstance.interceptors.request.use(
   (config) => {
+    console.log('📤 AXIOS REQUEST:')
+    console.log('   Method:', config.method?.toUpperCase())
+    console.log('   Full URL:', config.baseURL + config.url)
+    console.log('   Data:', config.data)
+
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
     return config
   },
   (error) => {
+    console.error('❌ AXIOS REQUEST ERROR:', error)
     return Promise.reject(error)
   },
 )
 
 // Response interceptor
-instance.interceptors.response.use(
+axiosInstance.interceptors.response.use(
   (response) => {
+    console.log('📥 AXIOS RESPONSE:')
+    console.log('   Status:', response.status)
+    console.log('   Data:', response.data)
     return response
   },
   (error) => {
-    // Đảm bảo lỗi được throw đúng cách để component có thể catch
-    if (error.response) {
-      // Server trả về response với status code lỗi
-      console.error('API Error:', error.response.data)
-      return Promise.reject(error)
-    } else if (error.request) {
-      // Request được gửi nhưng không nhận được response
-      console.error('Network Error:', error.request)
-      return Promise.reject(new Error('Lỗi kết nối mạng'))
-    } else {
-      // Lỗi khác
-      console.error('Error:', error.message)
-      return Promise.reject(error)
-    }
+    console.error('❌ AXIOS RESPONSE ERROR:')
+    console.error('   Status:', error.response?.status)
+    console.error('   URL:', error.config?.baseURL + error.config?.url)
+    console.error('   Data:', error.response?.data)
+
+    return Promise.reject(error)
   },
 )
 
-export default instance
+export default axiosInstance

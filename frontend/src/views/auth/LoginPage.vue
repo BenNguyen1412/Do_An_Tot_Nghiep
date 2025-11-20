@@ -1,52 +1,144 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from 'vue-toastification'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const toast = useToast()
 
+// Form state
 const email = ref('')
 const password = ref('')
-const isLoading = ref(false)
-const errorMessage = ref('')
 const showPassword = ref(false)
 const rememberMe = ref(false)
-const userType = ref('user')
-const isSubmitting = ref(false)
+const userType = ref<'user' | 'enterprise' | 'owner'>('user')
 
+// UI state
+const errorMessage = ref('')
+const isSubmitting = computed(() => authStore.isLoading)
+
+// Handle login
 const handleLogin = async () => {
+  console.log('🔐 Login attempt started')
+
+  // Clear previous error
+  errorMessage.value = ''
+
+  // Validation
   if (!email.value || !password.value) {
     errorMessage.value = 'Vui lòng nhập đầy đủ thông tin'
+    toast.error('Vui lòng nhập đầy đủ thông tin')
+    console.log('❌ Validation failed: Missing fields')
     return
   }
 
-  isLoading.value = true
-  isSubmitting.value = true
-  errorMessage.value = ''
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email.value)) {
+    errorMessage.value = 'Email không hợp lệ'
+    toast.error('Email không hợp lệ')
+    console.log('❌ Validation failed: Invalid email format')
+    return
+  }
+
+  console.log('✅ Validation passed')
+  console.log('📧 Email:', email.value)
+  console.log('👤 Selected user type:', userType.value)
 
   try {
-    await authStore.login({
+    console.log('🔄 Calling authStore.login...')
+
+    const result = await authStore.login({
       email: email.value,
       password: password.value,
     })
-    router.push('/')
-  } catch (error: unknown) {
-    console.error('Login failed:', error)
-    if (error && typeof error === 'object' && 'response' in error) {
-      const axiosError = error as { response?: { data?: { detail?: string } } }
-      errorMessage.value =
-        axiosError.response?.data?.detail || 'Đăng nhập thất bại. Vui lòng thử lại!'
+
+    console.log('📦 Login result:', result)
+
+    if (result.success) {
+      // Get user role from auth store
+      const userRole = authStore.user?.role
+      console.log('✅ Login successful!')
+      console.log('👤 User role:', userRole)
+      console.log('👤 User data:', authStore.user)
+
+      // Show success message
+      toast.success('✅ Đăng nhập thành công!', {
+        timeout: 2000,
+      })
+
+      // Redirect based on role
+      setTimeout(() => {
+        let redirectPath = '/user/home' // default
+
+        if (userRole === 'owner') {
+          redirectPath = '/owner/home'
+          console.log('🏠 Redirecting to Owner Home...')
+        } else if (userRole === 'enterprise') {
+          redirectPath = '/enterprise/home'
+          console.log('🏢 Redirecting to Enterprise Home...')
+        } else {
+          redirectPath = '/user/home'
+          console.log('👤 Redirecting to User Home...')
+        }
+
+        console.log('🔄 Redirecting to:', redirectPath)
+        router.push(redirectPath)
+      }, 1000)
     } else {
-      errorMessage.value = 'Đăng nhập thất bại. Vui lòng thử lại!'
+      // Login failed
+      const error = result.error || 'Đăng nhập thất bại. Vui lòng thử lại!'
+      errorMessage.value = error
+      toast.error(error)
+      console.log('❌ Login failed:', error)
     }
-  } finally {
-    isLoading.value = false
-    isSubmitting.value = false
+  } catch (error: unknown) {
+    console.error('❌ Unexpected error during login:', error)
+
+    let errorMsg = 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại!'
+
+    if (error && typeof error === 'object') {
+      if ('response' in error) {
+        const axiosError = error as {
+          response?: {
+            status?: number
+            data?: { detail?: string }
+          }
+          message?: string
+        }
+
+        const status = axiosError.response?.status
+        const detail = axiosError.response?.data?.detail
+
+        if (status === 401) {
+          errorMsg = detail || 'Email hoặc mật khẩu không đúng'
+        } else if (status === 404) {
+          errorMsg = 'Email không tồn tại trong hệ thống'
+        } else if (status === 422) {
+          errorMsg = 'Dữ liệu đăng nhập không hợp lệ'
+        } else if (status === 500) {
+          errorMsg = 'Lỗi server. Vui lòng thử lại sau.'
+        } else if (detail) {
+          errorMsg = detail
+        } else if (axiosError.message) {
+          errorMsg = axiosError.message
+        }
+      } else if ('message' in error) {
+        errorMsg = (error as Error).message
+      }
+    }
+
+    errorMessage.value = errorMsg
+    toast.error(errorMsg)
+    console.log('❌ Error message:', errorMsg)
   }
 }
 
+// Navigate to sign up page
 const goToSignUp = () => {
+  console.log('🔄 Navigating to Sign Up page')
   router.push('/signup')
 }
 </script>

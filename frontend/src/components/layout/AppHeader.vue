@@ -1,9 +1,29 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+// Props để custom header
+interface Props {
+  showManagement?: boolean
+  showAdvertisement?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  showManagement: false,
+  showAdvertisement: false,
+})
 
 const currentTime = ref('')
 const currentDate = ref('')
 const isScrolled = ref(false)
+
+// Check authentication
+const isAuthenticated = computed(() => !!authStore.user)
+const userName = computed(() => authStore.user?.full_name || '')
 
 const updateDateTime = () => {
   const now = new Date()
@@ -22,6 +42,11 @@ const updateDateTime = () => {
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 50
+}
+
+const handleLogout = () => {
+  authStore.logout()
+  router.push('/')
 }
 
 onMounted(() => {
@@ -49,9 +74,18 @@ onUnmounted(() => {
 
       <!-- Navigation -->
       <nav class="main-nav">
-        <router-link to="/" class="nav-link active">HOME</router-link>
+        <router-link to="/" class="nav-link">HOME</router-link>
         <router-link to="/court" class="nav-link">COURT</router-link>
-        <router-link to="/about" class="nav-link">ABOUT US</router-link>
+
+        <!-- Management link for Owner -->
+        <router-link v-if="props.showManagement" to="/owner/management" class="nav-link">
+          MANAGEMENT
+        </router-link>
+
+        <!-- Advertisement link for Enterprise -->
+        <router-link v-if="props.showAdvertisement" to="/enterprise/advertisement" class="nav-link">
+          ADVERTISEMENT
+        </router-link>
       </nav>
 
       <!-- Time & Date -->
@@ -66,8 +100,16 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Sign In Button -->
-      <router-link to="/login" class="sign-in-btn">
+      <!-- User Info or Sign In Button -->
+      <div v-if="isAuthenticated" class="user-section">
+        <div class="user-info">
+          <span class="user-icon">👤</span>
+          <span class="user-name">{{ userName }}</span>
+        </div>
+        <button class="logout-btn" @click="handleLogout" title="Logout">🚪</button>
+      </div>
+
+      <router-link v-else to="/login" class="sign-in-btn">
         <span class="icon">👤</span>
         <span>Sign in</span>
       </router-link>
@@ -168,11 +210,11 @@ onUnmounted(() => {
 }
 
 .nav-link:hover::after,
-.nav-link.active::after {
+.nav-link.router-link-active::after {
   width: 100%;
 }
 
-.nav-link.active {
+.nav-link.router-link-active {
   font-weight: 700;
 }
 
@@ -198,6 +240,56 @@ onUnmounted(() => {
   font-size: 1.2rem;
 }
 
+/* User Section */
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 10px 20px;
+  border-radius: 10px;
+  color: white;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.user-icon {
+  font-size: 1.3rem;
+}
+
+.user-name {
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+}
+
+.logout-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 1.3rem;
+  width: 45px;
+  height: 45px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+/* Sign In Button */
 .sign-in-btn {
   background: white;
   color: #2d5016;
@@ -212,6 +304,7 @@ onUnmounted(() => {
   gap: 10px;
   transition: all 0.3s;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
 }
 
 .sign-in-btn:hover {
@@ -248,6 +341,10 @@ onUnmounted(() => {
 
   .logo-section {
     flex: 1;
+  }
+
+  .user-name {
+    display: none;
   }
 }
 </style>
