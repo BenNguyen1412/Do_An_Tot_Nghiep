@@ -79,9 +79,7 @@ const handleLogin = async () => {
     if (result.success) {
       // Get actual user role from auth store
       const actualRole = authStore.user?.role
-      console.log('✅ Login successful!')
-      console.log('👤 Actual user role:', actualRole)
-      console.log('🎯 Selected role:', userType.value)
+      
 
       // ✅ CHECK ROLE: So sánh role thực tế với role đã chọn
       if (actualRole !== userType.value) {
@@ -97,9 +95,9 @@ const handleLogin = async () => {
           enterprise: 'Enterprise',
         }
 
-        const roleName = roleNames[actualRole as keyof typeof roleNames] || actualRole
+       
 
-        const msg = `Tài khoản này là ${roleName}. Vui lòng chọn đúng loại tài khoản.`
+        const msg = `Tài khoản không tồn tại. Vui lòng kiểm tra lại`
         errorMessage.value = msg
 
         console.log('🔔 Attempting to show toast...')
