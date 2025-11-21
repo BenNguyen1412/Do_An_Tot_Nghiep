@@ -17,7 +17,6 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).first()
     
     if not user:
-        print(f"❌ User not found: {email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email không tồn tại"  
@@ -25,7 +24,6 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     
     # Verify password
     if not verify_password(user_data.password, user.hashed_password):
-        print(f"❌ Wrong password")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Mật khẩu không chính xác" 
@@ -33,7 +31,6 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     
     # Check if active
     if not user.is_active:
-        print(f"❌ Account inactive")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Tài khoản đã bị khóa"
@@ -42,7 +39,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     # Create token
     access_token = create_access_token(data={"sub": user.email})
     
-    print(f"✅ Login successful")
+   
     
     return {
         "access_token": access_token,
@@ -66,7 +63,6 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     # Check if email exists
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
-        print(f"❌ Email already exists: {email}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email đã được đăng ký. Vui lòng sử dụng email khác."
@@ -75,7 +71,6 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     # Validate role
     valid_roles = ['user', 'owner', 'enterprise']
     if user_data.role not in valid_roles:
-        print(f"❌ Invalid role: {user_data.role}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Role không hợp lệ. Chỉ chấp nhận: {', '.join(valid_roles)}"
