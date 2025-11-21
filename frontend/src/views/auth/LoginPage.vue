@@ -88,7 +88,7 @@ const handleLogin = async () => {
         timeout: 4000,
       })
     }
-  } catch (error: unknown) {
+  } catch {
     const errorMsg = 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại!'
     errorMessage.value = errorMsg
     toast.error(`❌ ${errorMsg}`)
@@ -200,20 +200,51 @@ const goToSignUp = () => {
                 @click="showPassword = !showPassword"
                 :disabled="isSubmitting"
               >
-                {{ showPassword ? '👁️' : '🔒' }}
+                <svg
+                  v-if="showPassword"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  class="icon-svg"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+                <svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  class="icon-svg"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                  />
+                </svg>
               </button>
             </div>
 
-            <!-- Remember & Forgot -->
+            <!-- Remember -->
             <div class="form-options">
               <label class="remember-checkbox">
                 <input v-model="rememberMe" type="checkbox" :disabled="isSubmitting" />
                 <span class="checkbox-text">Remember</span>
               </label>
-              <a href="#" class="forgot-link">
-                <span class="lock-icon">🔒</span>
-                Forgot password
-              </a>
             </div>
 
             <!-- Submit Button -->
@@ -225,8 +256,14 @@ const goToSignUp = () => {
 
           <!-- Sign Up Link -->
           <div class="signup-section">
-            <span class="signup-text">Don't have an account? </span>
-            <a @click="goToSignUp" class="signup-link">Sign up!</a>
+            <div class="signup-row">
+              <span class="signup-text">Don't have an account? </span>
+              <a @click="goToSignUp" class="signup-link">Sign up!</a>
+            </div>
+            <div class="admin-row">
+              <span class="signup-text">If you are admin? </span>
+              <router-link to="/admin/login" class="admin-link">Sign in!</router-link>
+            </div>
           </div>
         </div>
       </div>
@@ -455,15 +492,25 @@ const goToSignUp = () => {
   border: none;
   cursor: pointer;
   padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.input-icon.clickable:hover {
+.input-icon.clickable .icon-svg {
+  width: 20px;
+  height: 20px;
+  color: #999;
+  transition: color 0.3s;
+}
+
+.input-icon.clickable:hover .icon-svg {
   color: #4a7c2c;
 }
 
 .form-options {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-top: -4px;
 }
@@ -482,25 +529,6 @@ const goToSignUp = () => {
   height: 18px;
   cursor: pointer;
   accent-color: #4a7c2c;
-}
-
-.forgot-link {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #666;
-  text-decoration: none;
-  font-size: 0.95rem;
-  font-weight: 500;
-  transition: color 0.3s;
-}
-
-.forgot-link:hover {
-  color: #2d5016;
-}
-
-.lock-icon {
-  font-size: 1rem;
 }
 
 .submit-btn {
@@ -552,6 +580,17 @@ const goToSignUp = () => {
   margin-top: 20px;
   font-size: 0.9rem;
   padding-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.signup-row,
+.admin-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
 }
 
 .signup-text {
@@ -568,6 +607,19 @@ const goToSignUp = () => {
 
 .signup-link:hover {
   color: #4a7c2c;
+  text-decoration: underline;
+}
+
+.admin-link {
+  color: #dc2626;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.admin-link:hover {
+  color: #b91c1c;
   text-decoration: underline;
 }
 

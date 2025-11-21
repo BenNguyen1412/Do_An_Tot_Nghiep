@@ -7,6 +7,7 @@ class UserRole(str, enum.Enum):
     user = "user"
     enterprise = "enterprise"
     owner = "owner"
+    admin = "admin"
 
 class User(Base):
     __tablename__ = "users"
