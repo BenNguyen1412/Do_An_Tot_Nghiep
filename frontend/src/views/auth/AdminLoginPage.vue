@@ -70,7 +70,7 @@ const handleAdminLogin = async () => {
 
       // Redirect to admin dashboard
       setTimeout(() => {
-        router.push('/admin/dashboard')
+        router.push('/admin/profile')
       }, 1000)
     } else {
       const error = result.error || 'Đăng nhập thất bại. Vui lòng thử lại!'

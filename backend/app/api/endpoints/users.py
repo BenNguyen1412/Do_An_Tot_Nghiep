@@ -14,10 +14,11 @@ async def get_users(
     db: Session = Depends(get_db)
 ):
     """
-    Lấy danh sách users với phân trang
+    Lấy danh sách users với phân trang (không bao gồm admin)
     """
-    users = db.query(crud_user.User).offset(skip).limit(limit).all()
-    total = db.query(crud_user.User).count()
+    # Lọc bỏ users có role = 'admin'
+    users = db.query(crud_user.User).filter(crud_user.User.role != 'admin').offset(skip).limit(limit).all()
+    total = db.query(crud_user.User).filter(crud_user.User.role != 'admin').count()
     
     return {
         "users": users,
@@ -46,15 +47,27 @@ async def update_user(
     """
     Cập nhật thông tin user
     """
-    # Chỉ update các field không None
-    update_data = user_data.model_dump(exclude_unset=True)
-    
-    user = crud_user.update_user(db, user_id, update_data)
-    if not user:
+    # Kiểm tra user có tồn tại không
+    existing_user = crud_user.get_user_by_id(db, user_id)
+    if not existing_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User không tồn tại"
         )
+    
+    # Chỉ update các field không None
+    update_data = user_data.model_dump(exclude_unset=True)
+    
+    # Nếu update email, kiểm tra email đã tồn tại chưa (trừ email của chính user đó)
+    if 'email' in update_data:
+        email_check = crud_user.get_user_by_email(db, update_data['email'])
+        if email_check and email_check.id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email đã được sử dụng bởi tài khoản khác"
+            )
+    
+    user = crud_user.update_user(db, user_id, update_data)
     return user
 
 @router.delete("/{user_id}")

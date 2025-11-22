@@ -174,6 +174,87 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Update Profile
+  const updateProfile = async (
+    userId: number,
+    profileData: {
+      full_name?: string
+      phone_number?: string
+      email?: string
+      password?: string
+    },
+  ) => {
+    console.log('✏️ AUTH STORE - Update profile called')
+    console.log('   User ID:', userId)
+    console.log('   Profile Data:', profileData)
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+      console.log('📤 Sending PUT request to /users/' + userId)
+      console.log('   Request payload:', JSON.stringify(profileData))
+
+      const response = await axiosInstance.put<User>(`/users/${userId}`, profileData)
+
+      console.log('📥 Response received:', response.status)
+      console.log('   Response data:', response.data)
+
+      if (response.data) {
+        // Update user in store
+        user.value = response.data
+        localStorage.setItem('user', JSON.stringify(user.value))
+
+        console.log('✅ Profile update successful!')
+
+        return { success: true, data: response.data }
+      }
+
+      return { success: false, error: 'Cập nhật thất bại' }
+    } catch (err: unknown) {
+      console.error('❌ Update profile error:', err)
+
+      let errorMessage = 'Cập nhật thất bại. Vui lòng thử lại.'
+
+      if (err && typeof err === 'object' && 'response' in err) {
+        const error = err as {
+          response?: {
+            status?: number
+            data?: { detail?: string | Array<{ msg: string; type: string }> }
+          }
+        }
+
+        const detail = error.response?.data?.detail
+        const status = error.response?.status
+
+        console.log('   Error status:', status)
+        console.log('   Error detail:', detail)
+        console.log('   Full error response:', error.response?.data)
+
+        if (status === 404) {
+          errorMessage = 'Không tìm thấy người dùng.'
+        } else if (status === 400) {
+          if (typeof detail === 'string' && detail.includes('Email')) {
+            errorMessage = 'Email đã được sử dụng.'
+          } else if (typeof detail === 'string') {
+            errorMessage = detail
+          } else if (Array.isArray(detail)) {
+            errorMessage = detail.map((d) => d.msg).join(', ')
+          }
+        } else if (typeof detail === 'string') {
+          errorMessage = detail
+        } else if (Array.isArray(detail)) {
+          errorMessage = detail.map((d) => d.msg).join(', ')
+        }
+      }
+
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // Logout
   const logout = () => {
     console.log('🚪 Logout')
@@ -194,6 +275,7 @@ export const useAuthStore = defineStore('auth', () => {
     signup,
     login,
     logout,
+    updateProfile,
     initAuth,
   }
 })

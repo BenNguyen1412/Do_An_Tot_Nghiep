@@ -45,6 +45,31 @@ const router = createRouter({
       component: () => import('@/views/enterprise/EnterpriseHomePage.vue'),
       meta: { requiresAuth: true, role: 'enterprise' },
     },
+    // Admin routes
+    {
+      path: '/admin/profile',
+      name: 'admin-profile',
+      component: () => import('@/views/admin/AdminProfilePage.vue'),
+      meta: { requiresAuth: true, role: 'admin' },
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: () => import('@/views/admin/AdminUsersPage.vue'),
+      meta: { requiresAuth: true, role: 'admin' },
+    },
+    {
+      path: '/admin/courts',
+      name: 'admin-courts',
+      component: () => import('@/views/admin/AdminCourtPage.vue'),
+      meta: { requiresAuth: true, role: 'admin' },
+    },
+    {
+      path: '/admin/requests',
+      name: 'admin-requests',
+      component: () => import('@/views/admin/AdminRequestPage.vue'),
+      meta: { requiresAuth: true, role: 'admin' },
+    },
   ],
 })
 
@@ -72,6 +97,10 @@ router.beforeEach((to, from, next) => {
       const user = JSON.parse(userStr)
       if (to.meta.role && to.meta.role !== user.role) {
         console.log('❌ Wrong role, redirect to correct home')
+        // Redirect admin to profile, others to their home
+        if (user.role === 'admin') {
+          return next('/admin/profile')
+        }
         return next(`/${user.role}/home`)
       }
     } catch (e) {
@@ -86,7 +115,24 @@ router.beforeEach((to, from, next) => {
     try {
       const user = JSON.parse(userStr)
       console.log('✅ Already logged in, redirect to home')
+      // Redirect admin to profile page, others to their home page
+      if (user.role === 'admin') {
+        return next('/admin/profile')
+      }
       return next(`/${user.role}/home`)
+    } catch (e) {
+      console.error('Error parsing user:', e)
+    }
+  }
+
+  // Redirect admin login page if already logged in as admin
+  if (to.path === '/admin/login' && token && userStr) {
+    try {
+      const user = JSON.parse(userStr)
+      if (user.role === 'admin') {
+        console.log('✅ Admin already logged in, redirect to dashboard')
+        return next('/admin/profile')
+      }
     } catch (e) {
       console.error('Error parsing user:', e)
     }

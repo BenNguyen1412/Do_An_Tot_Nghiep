@@ -54,6 +54,11 @@ def update_user(db: Session, user_id: int, user_data: dict) -> Optional[User]:
     if not db_user:
         return None
     
+    # Hash password if it's being updated
+    if 'password' in user_data:
+        user_data['hashed_password'] = get_password_hash(user_data['password'])
+        del user_data['password']
+    
     for key, value in user_data.items():
         if hasattr(db_user, key):
             setattr(db_user, key, value)
