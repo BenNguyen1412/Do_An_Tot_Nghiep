@@ -33,13 +33,7 @@ def check_all_users():
             print(f"   Độ dài hash:     {len(user.hashed_password)} ký tự")
             print(f"   Định dạng:       {'✅ bcrypt' if user.hashed_password.startswith('$2b$') else '❌ Không hợp lệ'}")
             
-            # Test password mặc định
-            test_passwords = ['123456', 'password', '12345678']
-            print(f"\n🔍 Test với password phổ biến:")
-            for pwd in test_passwords:
-                is_match = verify_password(pwd, user.hashed_password)
-                status = "✅ ĐÚNG" if is_match else "❌ Sai"
-                print(f"   - '{pwd}': {status}")
+            
         
         print(f"\n{'='*100}")
         print("THỐNG KÊ THEO ROLE")
