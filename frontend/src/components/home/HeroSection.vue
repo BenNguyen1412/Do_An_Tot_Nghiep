@@ -136,18 +136,6 @@ const goToEnterpriseSignup = () => {
           pro, we've got the perfect court for you!
         </p>
 
-        <!-- Call to Action Buttons -->
-        <div class="cta-buttons">
-          <router-link to="/court" class="btn-primary">
-            <span class="btn-icon">🎾</span>
-            <span>Explore Courts</span>
-          </router-link>
-          <router-link to="/signup" class="btn-secondary">
-            <span class="btn-icon">✨</span>
-            <span>Get Started</span>
-          </router-link>
-        </div>
-
         <!-- Features Grid -->
         <div class="hero-features">
           <div class="feature-item">
