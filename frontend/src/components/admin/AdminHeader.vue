@@ -55,7 +55,7 @@ const userInitials = computed(() => {
 
 const getRoleDisplay = (role?: string) => {
   const roleMap: Record<string, string> = {
-    admin: 'Super Admin',
+    admin: 'Admin',
     user: 'User',
     owner: 'Owner',
     enterprise: 'Enterprise',
