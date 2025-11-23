@@ -62,37 +62,49 @@
         <div class="stat-card">
           <div class="stat-icon blue">👥</div>
           <div class="stat-content">
-            <div class="stat-value">1,247</div>
+            <div class="stat-value">{{ isLoadingStats ? '...' : totalUsers }}</div>
             <div class="stat-label">Total Users</div>
           </div>
-          <div class="stat-trend up">+12.5%</div>
+          <div class="stat-trend up">{{ activeUsers + inactiveUsers }}</div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon green">🏟️</div>
+          <div class="stat-icon green">✓</div>
           <div class="stat-content">
-            <div class="stat-value">48</div>
-            <div class="stat-label">Active Courts</div>
+            <div class="stat-value">{{ isLoadingStats ? '...' : activeUsers }}</div>
+            <div class="stat-label">Active Users</div>
           </div>
-          <div class="stat-trend up">+5.2%</div>
+          <div class="stat-trend up">
+            {{
+              isLoadingStats || totalUsers === 0
+                ? '-'
+                : Math.round((activeUsers / totalUsers) * 100) + '%'
+            }}
+          </div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon orange">📋</div>
+          <div class="stat-icon orange">👤</div>
           <div class="stat-content">
-            <div class="stat-value">23</div>
-            <div class="stat-label">Pending Requests</div>
+            <div class="stat-value">{{ isLoadingStats ? '...' : inactiveUsers }}</div>
+            <div class="stat-label">Inactive Users</div>
+          </div>
+          <div class="stat-trend">
+            {{
+              isLoadingStats || totalUsers === 0
+                ? '-'
+                : Math.round((inactiveUsers / totalUsers) * 100) + '%'
+            }}
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon purple">🏟️</div>
+          <div class="stat-content">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Total Courts</div>
           </div>
           <div class="stat-trend">-</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon purple">💰</div>
-          <div class="stat-content">
-            <div class="stat-value">$45.2K</div>
-            <div class="stat-label">Revenue</div>
-          </div>
-          <div class="stat-trend up">+18.7%</div>
         </div>
       </div>
 
@@ -230,9 +242,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AdminDashboardLayout from '@/layouts/AdminDashboardLayout.vue'
 import { useAuthStore } from '@/stores/auth'
+import axiosInstance from '@/utils/axios'
 
 const authStore = useAuthStore()
 
@@ -243,6 +256,12 @@ const editModalTitle = ref('')
 const editValue = ref('')
 const isUpdating = ref(false)
 const updateError = ref('')
+
+// Stats state
+const totalUsers = ref(0)
+const activeUsers = ref(0)
+const inactiveUsers = ref(0)
+const isLoadingStats = ref(false)
 
 // Computed properties
 const userInitials = computed(() => {
@@ -329,6 +348,74 @@ const saveChanges = async () => {
     isUpdating.value = false
   }
 }
+
+// Interface for user
+interface User {
+  id: number
+  email: string
+  full_name: string
+  role: string
+  is_active: boolean
+}
+
+// Load statistics
+const loadStats = async () => {
+  console.log('🔄 Starting loadStats...')
+  isLoadingStats.value = true
+
+  try {
+    console.log('📤 Calling API /users...')
+    // Load tất cả users để tính toán chính xác
+    // API đã lọc bỏ admin rồi
+    const response = await axiosInstance.get('/users', {
+      params: {
+        skip: 0,
+        limit: 100, // Backend giới hạn tối đa 100
+      },
+    })
+
+    console.log('📥 API Response:', response.data)
+
+    if (response.data) {
+      const users: User[] = response.data.users
+      const total = response.data.total
+
+      console.log('Processing users:', users)
+
+      totalUsers.value = total
+
+      // Tính số lượng active và inactive từ danh sách users nhận được
+      activeUsers.value = users.filter((u: User) => u.is_active).length
+      inactiveUsers.value = users.filter((u: User) => !u.is_active).length
+
+      console.log('✅ Stats loaded successfully:', {
+        totalUsers: totalUsers.value,
+        activeUsers: activeUsers.value,
+        inactiveUsers: inactiveUsers.value,
+        usersLength: users.length,
+      })
+    } else {
+      console.warn('⚠️ No data in response')
+    }
+  } catch (error) {
+    console.error('❌ Load stats error:', error)
+    totalUsers.value = 0
+    activeUsers.value = 0
+    inactiveUsers.value = 0
+  } finally {
+    isLoadingStats.value = false
+    console.log('✅ loadStats completed. Final values:', {
+      totalUsers: totalUsers.value,
+      activeUsers: activeUsers.value,
+      inactiveUsers: inactiveUsers.value,
+    })
+  }
+}
+
+// Load stats on mount
+onMounted(() => {
+  loadStats()
+})
 </script>
 
 <style scoped>

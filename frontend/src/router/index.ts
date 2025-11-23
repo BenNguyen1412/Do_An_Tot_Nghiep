@@ -85,6 +85,21 @@ router.beforeEach((to, from, next) => {
     hasUser: !!userStr,
   })
 
+  // Redirect authenticated users from home page to their dashboard
+  if (to.path === '/' && token && userStr) {
+    try {
+      const user = JSON.parse(userStr)
+      console.log('🏠 Authenticated user accessing home, redirect to dashboard')
+      // Redirect to appropriate dashboard based on role
+      if (user.role === 'admin') {
+        return next('/admin/profile')
+      }
+      return next(`/${user.role}/home`)
+    } catch (e) {
+      console.error('Error parsing user:', e)
+    }
+  }
+
   // Check if route requires authentication
   if (to.meta.requiresAuth) {
     if (!token || !userStr) {

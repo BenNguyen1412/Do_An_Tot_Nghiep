@@ -25,6 +25,29 @@ let timeInterval: number | null = null
 // Check authentication
 const isAuthenticated = computed(() => !!authStore.user)
 
+// Compute home link based on user role
+const homeLink = computed(() => {
+  if (!authStore.user) {
+    return '/'
+  }
+
+  const role = authStore.user.role
+
+  // Map role to home page
+  switch (role) {
+    case 'user':
+      return '/user/home'
+    case 'owner':
+      return '/owner/home'
+    case 'enterprise':
+      return '/enterprise/home'
+    case 'admin':
+      return '/admin/profile'
+    default:
+      return '/'
+  }
+})
+
 const updateDateTime = () => {
   const now = new Date()
 
@@ -81,7 +104,7 @@ onUnmounted(() => {
 
       <!-- Navigation -->
       <nav class="main-nav">
-        <router-link to="/" class="nav-link">HOME</router-link>
+        <router-link :to="homeLink" class="nav-link">HOME</router-link>
         <router-link to="/court" class="nav-link">COURT</router-link>
 
         <!-- Management link for Owner -->
