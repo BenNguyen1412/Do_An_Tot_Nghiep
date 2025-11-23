@@ -126,6 +126,12 @@ router.beforeEach((to, from, next) => {
     }
   }
 
+  // Allow signup with specific role parameter even if logged in (for partner registration)
+  if (to.path === '/signup' && to.query.role && token && userStr) {
+    console.log('🔓 Allowing signup access with role parameter')
+    return next()
+  }
+
   if ((to.path === '/login' || to.path === '/signup') && token && userStr) {
     try {
       const user = JSON.parse(userStr)

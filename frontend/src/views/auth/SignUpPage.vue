@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const toast = useToast()
 
 const userType = ref<'user' | 'enterprise' | 'owner'>('user')
+
+// Check if role is passed via query parameter
+onMounted(() => {
+  const roleParam = route.query.role as string
+  if (roleParam === 'enterprise' || roleParam === 'owner') {
+    userType.value = roleParam
+  }
+})
 const name = ref('')
 const email = ref('')
 const phone = ref('')
