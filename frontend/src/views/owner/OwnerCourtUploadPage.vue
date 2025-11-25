@@ -1041,8 +1041,9 @@ input[type='time']::-webkit-datetime-edit-ampm-field {
 /* Facilities */
 .facilities-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px;
+  justify-items: stretch;
 }
 
 .facility-btn {
