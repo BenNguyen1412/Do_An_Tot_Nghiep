@@ -389,6 +389,7 @@ const formatCurrency = (value: string | number) => {
                   type="time"
                   class="slot-time-input"
                   placeholder="Bắt đầu"
+                  pattern="[0-9]{2}:[0-9]{2}"
                 />
               </div>
 
@@ -401,6 +402,7 @@ const formatCurrency = (value: string | number) => {
                   type="time"
                   class="slot-time-input"
                   placeholder="Kết thúc"
+                  pattern="[0-9]{2}:[0-9]{2}"
                 />
               </div>
 
@@ -471,12 +473,22 @@ const formatCurrency = (value: string | number) => {
         <div class="form-grid" style="margin-top: 24px">
           <div class="form-group">
             <label class="form-label">Giờ mở cửa</label>
-            <input v-model="courtForm.opening_time" type="time" class="form-input" />
+            <input
+              v-model="courtForm.opening_time"
+              type="time"
+              class="form-input"
+              pattern="[0-9]{2}:[0-9]{2}"
+            />
           </div>
 
           <div class="form-group">
             <label class="form-label">Giờ đóng cửa</label>
-            <input v-model="courtForm.closing_time" type="time" class="form-input" />
+            <input
+              v-model="courtForm.closing_time"
+              type="time"
+              class="form-input"
+              pattern="[0-9]{2}:[0-9]{2}"
+            />
           </div>
         </div>
       </div>
@@ -793,6 +805,14 @@ const formatCurrency = (value: string | number) => {
   font-family: inherit;
 }
 
+.form-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+}
+
+.form-input::-webkit-datetime-edit-ampm-field {
+  display: none;
+}
+
 .form-input:focus,
 .form-textarea:focus {
   outline: none;
@@ -887,6 +907,18 @@ const formatCurrency = (value: string | number) => {
   border-radius: 8px;
   font-size: 0.95rem;
   transition: all 0.3s ease;
+}
+
+.slot-time-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+}
+
+.slot-time-input::-webkit-datetime-edit-ampm-field {
+  display: none;
+}
+
+input[type='time']::-webkit-datetime-edit-ampm-field {
+  display: none;
 }
 
 .slot-time-input:focus {
