@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import UserDropdown from './UserDropdown.vue'
+
+const route = useRoute()
 
 const authStore = useAuthStore()
 
@@ -110,7 +113,12 @@ onUnmounted(() => {
         <router-link to="/court" class="nav-link">COURT</router-link>
 
         <!-- Management link for Owner -->
-        <router-link v-if="props.showManagement" to="/owner/management/revenue" class="nav-link">
+        <router-link
+          v-if="props.showManagement"
+          to="/owner/management/revenue"
+          class="nav-link"
+          :class="{ 'router-link-active': route.path.startsWith('/owner/management') }"
+        >
           MANAGEMENT
         </router-link>
 
