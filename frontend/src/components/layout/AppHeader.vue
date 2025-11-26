@@ -95,7 +95,9 @@ onUnmounted(() => {
     <div class="header-container">
       <!-- Logo -->
       <div class="logo-section">
-        <div class="logo-icon">🏓</div>
+        <div class="logo-icon">
+          <img src="/Logo.png" alt="Logo" />
+        </div>
         <div class="logo-text">
           <span class="pickleball">Pickleball</span>
           <span class="brand">NP SPORTCLUB</span>
@@ -225,26 +227,45 @@ onUnmounted(() => {
 .logo-section {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   cursor: pointer;
-  transition: transform 0.3s ease;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .logo-section:hover {
   transform: scale(1.05);
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.25),
+    0 0 30px rgba(255, 255, 255, 0.1);
 }
 
 .logo-icon {
-  font-size: 2.8rem;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3));
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 4px 12px rgba(255, 255, 255, 0.3)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
   animation: float 3s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+
+.logo-icon:hover {
+  transform: scale(1.1);
+}
+
+.logo-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: brightness(1.1);
 }
 
 @keyframes float {
@@ -273,11 +294,13 @@ onUnmounted(() => {
 }
 
 .brand {
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: 2.5px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  background: linear-gradient(to right, #ffffff, #e0e0e0);
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 50%, #ffffff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

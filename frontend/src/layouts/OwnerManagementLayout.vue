@@ -48,7 +48,9 @@ const isActive = (path: string) => {
     <aside class="sidebar" :class="{ collapsed: !isSidebarOpen }">
       <div class="sidebar-header">
         <div class="logo-section">
-          <div class="logo-icon">🏓</div>
+          <div class="logo-icon">
+            <img src="/Logo.png" alt="Logo" />
+          </div>
           <transition name="fade">
             <div v-if="isSidebarOpen" class="logo-text">
               <span class="logo-title">Owner Panel</span>
@@ -187,8 +189,24 @@ const isActive = (path: string) => {
 }
 
 .logo-icon {
-  font-size: 2rem;
+  width: 70px;
+  height: 70px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 6px rgba(255, 255, 255, 0.2));
+  transition: transform 0.3s ease;
+}
+
+.logo-icon:hover {
+  transform: scale(1.1);
+}
+
+.logo-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .logo-text {
