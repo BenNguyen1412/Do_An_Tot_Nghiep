@@ -16,13 +16,13 @@ const menuItems = [
   {
     id: 'revenue',
     label: 'Thống kê doanh thu',
-    icon: '📊',
+    icon: 'chart-bar',
     path: '/owner/management/revenue',
   },
   {
     id: 'courts',
     label: 'Đăng tải sân',
-    icon: '🏟️',
+    icon: 'building-stadium',
     path: '/owner/management/courts',
   },
 ]
@@ -58,7 +58,40 @@ const isActive = (path: string) => {
           class="nav-item"
           :class="{ active: isActive(item.path) }"
         >
-          <span class="nav-icon">{{ item.icon }}</span>
+          <span class="nav-icon">
+            <svg
+              v-if="item.icon === 'chart-bar'"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              width="24"
+              height="24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 3v18h18"
+              />
+              <rect x="7" y="13" width="3" height="5" rx="1" fill="#fbbf24" />
+              <rect x="12" y="9" width="3" height="9" rx="1" fill="#10b981" />
+              <rect x="17" y="5" width="3" height="13" rx="1" fill="#3b82f6" />
+            </svg>
+            <svg
+              v-else-if="item.icon === 'building-stadium'"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              width="24"
+              height="24"
+            >
+              <rect x="4" y="10" width="16" height="8" rx="2" fill="#10b981" />
+              <rect x="7" y="6" width="10" height="4" rx="2" fill="#fbbf24" />
+              <rect x="9" y="2" width="6" height="4" rx="2" fill="#3b82f6" />
+            </svg>
+          </span>
           <transition name="fade">
             <span v-if="isSidebarOpen" class="nav-label">{{ item.label }}</span>
           </transition>
@@ -143,7 +176,17 @@ const isActive = (path: string) => {
   left: 0;
   top: 0;
   bottom: 0;
-  z-index: 1000;
+  z-index: 999;
+}
+
+@media (max-width: 1440px) {
+  .sidebar {
+    width: 240px;
+  }
+
+  .sidebar.collapsed {
+    width: 70px;
+  }
 }
 
 .sidebar.collapsed {
@@ -259,10 +302,21 @@ const isActive = (path: string) => {
   transition: margin-left 0.3s ease;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .sidebar.collapsed ~ .main-wrapper {
   margin-left: 80px;
+}
+
+@media (max-width: 1440px) {
+  .main-wrapper {
+    margin-left: 240px;
+  }
+
+  .sidebar.collapsed ~ .main-wrapper {
+    margin-left: 70px;
+  }
 }
 
 /* Top Bar */
@@ -276,6 +330,16 @@ const isActive = (path: string) => {
   position: sticky;
   top: 80px;
   z-index: 100;
+  min-width: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 1440px) {
+  .top-bar {
+    padding: 16px 24px;
+    gap: 16px;
+    top: 70px;
+  }
 }
 
 .toggle-btn {
@@ -303,6 +367,8 @@ const isActive = (path: string) => {
 
 .top-bar-title {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .top-bar-title h1 {
@@ -310,6 +376,15 @@ const isActive = (path: string) => {
   font-weight: 700;
   color: #1f2937;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 1440px) {
+  .top-bar-title h1 {
+    font-size: 1.2rem;
+  }
 }
 
 .user-info {
@@ -373,7 +448,7 @@ const isActive = (path: string) => {
 /* Responsive */
 @media (max-width: 1024px) {
   .sidebar {
-    width: 80px;
+    width: 70px;
   }
 
   .sidebar.collapsed {
@@ -382,15 +457,19 @@ const isActive = (path: string) => {
   }
 
   .main-wrapper {
-    margin-left: 80px;
+    margin-left: 70px;
   }
 
-  .sidebar.collapsed + .main-wrapper {
+  .sidebar.collapsed ~ .main-wrapper {
     margin-left: 0;
   }
 
   .user-details {
     display: none;
+  }
+
+  .top-bar {
+    top: 70px;
   }
 }
 

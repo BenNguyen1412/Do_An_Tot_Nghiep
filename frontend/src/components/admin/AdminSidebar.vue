@@ -2,7 +2,17 @@
   <div class="admin-sidebar">
     <div class="sidebar-header">
       <div class="logo-container">
-        <div class="logo-icon">🏓</div>
+        <img
+          src="/Logo.png"
+          alt="Logo"
+          class="logo-icon"
+          style="
+            height: 40px;
+            width: auto;
+            filter: drop-shadow(0 4px 8px rgba(65, 105, 225, 0.4));
+            animation: pulse 3s ease-in-out infinite;
+          "
+        />
         <div class="logo-text">
           <span class="logo-brand">NP SPORTCLUB</span>
           <span class="logo-subtitle">Admin Portal</span>
