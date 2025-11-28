@@ -2,11 +2,15 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import UserProfileModal from '@/components/user/UserProfileModal.vue'
+import BookingHistoryModal from '@/components/user/BookingHistoryModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
+const showProfileModal = ref(false)
+const showBookingModal = ref(false)
 
 const toggleDropdown = () => {
   isOpen.value = !isOpen.value
@@ -19,12 +23,12 @@ const handleLogout = () => {
 }
 
 const goToProfile = () => {
-  router.push('/profile')
+  showProfileModal.value = true
   isOpen.value = false
 }
 
 const goToBookingHistory = () => {
-  router.push('/booking-history')
+  showBookingModal.value = true
   isOpen.value = false
 }
 
@@ -161,6 +165,10 @@ onUnmounted(() => {
         </div>
       </div>
     </transition>
+
+    <!-- Modals -->
+    <UserProfileModal :is-open="showProfileModal" @close="showProfileModal = false" />
+    <BookingHistoryModal :is-open="showBookingModal" @close="showBookingModal = false" />
   </div>
 </template>
 

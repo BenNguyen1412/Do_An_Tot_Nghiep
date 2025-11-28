@@ -1,0 +1,1300 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useToast } from 'vue-toastification'
+import { useAuthStore } from '@/stores/auth'
+
+const toast = useToast()
+const authStore = useAuthStore()
+
+// Time slots for pricing
+interface TimeSlot {
+  id: string
+  startTime: string
+  endTime: string
+  price: string
+}
+
+// Form data
+const courtForm = ref({
+  name: '',
+  address: '',
+  district: '',
+  city: '',
+  description: '',
+  opening_time: '06:00',
+  closing_time: '22:00',
+  facilities: [] as string[],
+  contact_phone: '',
+  contact_email: '',
+})
+
+const timeSlots = ref<TimeSlot[]>([])
+let nextSlotId = 1
+
+// Load user info on mount
+onMounted(() => {
+  if (authStore.user) {
+    courtForm.value.contact_phone = authStore.user.phone_number || ''
+    courtForm.value.contact_email = authStore.user.email || ''
+  }
+})
+
+const images = ref<File[]>([])
+const imagePreviews = ref<string[]>([])
+
+// Available facilities
+const availableFacilities = [
+  { id: 'parking', label: 'Bãi đỗ xe', icon: '🚗' },
+  { id: 'locker', label: 'Tủ khóa', icon: '🔐' },
+  { id: 'shower', label: 'Phòng tắm', icon: '🚿' },
+  { id: 'water', label: 'Nước uống', icon: '💧' },
+  { id: 'toilet', label: 'Nhà vệ sinh', icon: '🚻' },
+  { id: 'lighting', label: 'Đèn chiếu sáng', icon: '💡' },
+  { id: 'wifi', label: 'WiFi', icon: '📶' },
+  { id: 'shop', label: 'Cửa hàng', icon: '🏪' },
+]
+
+const isSaving = ref(false)
+
+const addTimeSlot = () => {
+  timeSlots.value.push({
+    id: String(nextSlotId++),
+    startTime: '',
+    endTime: '',
+    price: '',
+  })
+}
+
+const removeTimeSlot = (id: string) => {
+  const index = timeSlots.value.findIndex((slot) => slot.id === id)
+  if (index > -1) {
+    timeSlots.value.splice(index, 1)
+  }
+}
+
+const toggleFacility = (facilityId: string) => {
+  const index = courtForm.value.facilities.indexOf(facilityId)
+  if (index > -1) {
+    courtForm.value.facilities.splice(index, 1)
+  } else {
+    courtForm.value.facilities.push(facilityId)
+  }
+}
+
+const handleImageUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = Array.from(target.files || [])
+
+  if (images.value.length + files.length > 10) {
+    toast.error('Tối đa 10 hình ảnh')
+    return
+  }
+
+  files.forEach((file) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Chỉ chấp nhận file hình ảnh')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Kích thước ảnh không được vượt quá 5MB')
+      return
+    }
+
+    images.value.push(file)
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      imagePreviews.value.push(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+const removeImage = (index: number) => {
+  images.value.splice(index, 1)
+  imagePreviews.value.splice(index, 1)
+}
+
+const validateForm = () => {
+  if (!courtForm.value.name.trim()) {
+    toast.error('Vui lòng nhập tên sân')
+    return false
+  }
+
+  if (!courtForm.value.address.trim()) {
+    toast.error('Vui lòng nhập địa chỉ')
+    return false
+  }
+
+  if (!courtForm.value.district.trim()) {
+    toast.error('Vui lòng nhập quận/huyện')
+    return false
+  }
+
+  if (!courtForm.value.city.trim()) {
+    toast.error('Vui lòng nhập thành phố')
+    return false
+  }
+
+  // Validate time slots
+  if (timeSlots.value.length === 0) {
+    toast.error('Vui lòng thêm ít nhất một khung giờ')
+    return false
+  }
+
+  for (const slot of timeSlots.value) {
+    if (!slot.startTime || !slot.endTime) {
+      toast.error('Vui lòng nhập đầy đủ giờ bắt đầu và kết thúc cho tất cả khung giờ')
+      return false
+    }
+    if (slot.startTime >= slot.endTime) {
+      toast.error('Giờ kết thúc phải sau giờ bắt đầu')
+      return false
+    }
+    if (!slot.price || parseFloat(slot.price) <= 0) {
+      toast.error('Vui lòng nhập giá thuê hợp lệ cho tất cả khung giờ')
+      return false
+    }
+  }
+
+  // Validate time slots coverage
+  if (!courtForm.value.opening_time || !courtForm.value.closing_time) {
+    toast.error('Vui lòng nhập giờ mở cửa và đóng cửa')
+    return false
+  }
+
+  if (courtForm.value.opening_time >= courtForm.value.closing_time) {
+    toast.error('Giờ đóng cửa phải sau giờ mở cửa')
+    return false
+  }
+
+  // Check if time slots cover the entire opening hours
+  const openingTime = courtForm.value.opening_time
+  const closingTime = courtForm.value.closing_time
+  const sortedSlots = [...timeSlots.value].sort((a, b) => a.startTime.localeCompare(b.startTime))
+
+  // Check if first slot starts at opening time
+  if (sortedSlots[0].startTime !== openingTime) {
+    toast.error(
+      `Khung giờ đầu tiên phải bắt đầu từ giờ mở cửa (${openingTime}). Hiện tại bắt đầu từ ${sortedSlots[0].startTime}`,
+    )
+    return false
+  }
+
+  // Check if last slot ends at closing time
+  if (sortedSlots[sortedSlots.length - 1].endTime !== closingTime) {
+    toast.error(
+      `Khung giờ cuối cùng phải kết thúc vào giờ đóng cửa (${closingTime}). Hiện tại kết thúc lúc ${sortedSlots[sortedSlots.length - 1].endTime}`,
+    )
+    return false
+  }
+
+  // Check for gaps between time slots
+  for (let i = 0; i < sortedSlots.length - 1; i++) {
+    if (sortedSlots[i].endTime !== sortedSlots[i + 1].startTime) {
+      toast.error(
+        `Có khoảng trống giữa các khung giờ (${sortedSlots[i].endTime} - ${sortedSlots[i + 1].startTime}). Vui lòng điền đầy đủ tất cả khung giờ từ ${openingTime} đến ${closingTime}`,
+      )
+      return false
+    }
+  }
+
+  if (!courtForm.value.contact_phone.trim()) {
+    toast.error('Vui lòng nhập số điện thoại liên hệ')
+    return false
+  }
+
+  if (!/^[0-9]{10}$/.test(courtForm.value.contact_phone.trim())) {
+    toast.error('Số điện thoại phải gồm 10 chữ số')
+    return false
+  }
+
+  if (images.value.length < 5) {
+    toast.error(`Vui lòng tải lên ít nhất 5 hình ảnh (hiện tại: ${images.value.length}/5)`)
+    return false
+  }
+
+  return true
+}
+
+const handleSubmit = async () => {
+  if (!validateForm()) return
+
+  isSaving.value = true
+
+  try {
+    // TODO: Call API to create court with images
+    console.log('Court data:', courtForm.value)
+    console.log('Time slots:', timeSlots.value)
+    console.log('Images:', images.value)
+
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    toast.success('✅ Đăng tải sân thành công!')
+    resetForm()
+  } catch (error) {
+    console.error('Error creating court:', error)
+    toast.error('Đăng tải sân thất bại. Vui lòng thử lại!')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const resetForm = () => {
+  courtForm.value = {
+    name: '',
+    address: '',
+    district: '',
+    city: '',
+    description: '',
+    opening_time: '06:00',
+    closing_time: '22:00',
+    facilities: [],
+    contact_phone: authStore.user?.phone_number || '',
+    contact_email: authStore.user?.email || '',
+  }
+  timeSlots.value = []
+  nextSlotId = 1
+  images.value = []
+  imagePreviews.value = []
+}
+
+const formatCurrency = (value: string | number) => {
+  const numValue = typeof value === 'string' ? value.replace(/[^0-9]/g, '') : String(value)
+  const num = parseFloat(numValue)
+  if (isNaN(num)) return ''
+  return new Intl.NumberFormat('vi-VN').format(num)
+}
+</script>
+
+<template>
+  <div class="court-upload-page">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">🏟️ Đăng tải sân mới</h1>
+        <p class="page-subtitle">Điền đầy đủ thông tin để đăng tải sân của bạn</p>
+      </div>
+      <button class="preview-btn" type="button">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+          />
+        </svg>
+        Xem trước
+      </button>
+    </div>
+
+    <form @submit.prevent="handleSubmit" class="court-form">
+      <!-- Basic Information -->
+      <div class="form-section">
+        <div class="section-header">
+          <h2 class="section-title">📝 Thông tin cơ bản</h2>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label class="form-label required">Tên sân</label>
+            <input
+              v-model="courtForm.name"
+              type="text"
+              class="form-input"
+              placeholder="VD: Sân Pickleball VIP A1"
+            />
+          </div>
+
+          <div class="form-group full-width">
+            <label class="form-label required">Địa chỉ</label>
+            <input
+              v-model="courtForm.address"
+              type="text"
+              class="form-input"
+              placeholder="VD: 123 Nguyễn Văn A"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required">Quận/Huyện</label>
+            <input
+              v-model="courtForm.district"
+              type="text"
+              class="form-input"
+              placeholder="VD: Quận 1"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required">Thành phố</label>
+            <input
+              v-model="courtForm.city"
+              type="text"
+              class="form-input"
+              placeholder="VD: TP. Hồ Chí Minh"
+            />
+          </div>
+
+          <div class="form-group full-width">
+            <label class="form-label">Mô tả</label>
+            <textarea
+              v-model="courtForm.description"
+              class="form-textarea"
+              rows="4"
+              placeholder="Mô tả chi tiết về sân của bạn..."
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing & Hours -->
+      <div class="form-section">
+        <div class="section-header">
+          <h2 class="section-title">💰 Giá thuê theo khung giờ</h2>
+          <span class="section-subtitle">Thêm các khung giờ và giá thuê tương ứng</span>
+        </div>
+
+        <div v-if="timeSlots.length === 0" class="empty-slots">
+          <span class="empty-icon">📅</span>
+          <p class="empty-text">Chưa có khung giờ nào. Nhấn nút bên dưới để thêm.</p>
+        </div>
+
+        <div v-else class="time-slots-list">
+          <div
+            v-for="slot in timeSlots"
+            :key="slot.id"
+            class="time-slot-item"
+            :class="{
+              filled: slot.startTime && slot.endTime && slot.price && parseFloat(slot.price) > 0,
+            }"
+          >
+            <div class="slot-inputs">
+              <div class="slot-input-group">
+                <label class="slot-label">Từ giờ</label>
+                <input
+                  v-model="slot.startTime"
+                  type="time"
+                  class="slot-time-input"
+                  placeholder="Bắt đầu"
+                  pattern="[0-9]{2}:[0-9]{2}"
+                />
+              </div>
+
+              <span class="slot-separator">→</span>
+
+              <div class="slot-input-group">
+                <label class="slot-label">Đến giờ</label>
+                <input
+                  v-model="slot.endTime"
+                  type="time"
+                  class="slot-time-input"
+                  placeholder="Kết thúc"
+                  pattern="[0-9]{2}:[0-9]{2}"
+                />
+              </div>
+
+              <div class="slot-input-group slot-price-group">
+                <label class="slot-label">Giá thuê</label>
+                <div class="slot-price-input-wrapper">
+                  <input
+                    v-model="slot.price"
+                    type="number"
+                    class="slot-price-input"
+                    placeholder="VD: 150000"
+                    min="0"
+                    step="1000"
+                  />
+                  <span class="price-unit">VNĐ/giờ</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="remove-slot-btn"
+              @click="removeTimeSlot(slot.id)"
+              title="Xóa khung giờ"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
+
+            <div
+              v-if="slot.startTime && slot.endTime && slot.price && parseFloat(slot.price) > 0"
+              class="slot-preview"
+            >
+              ⏰ {{ slot.startTime }} - {{ slot.endTime }} •
+              {{ formatCurrency(slot.price) }} đồng/giờ
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="add-slot-btn" @click="addTimeSlot">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+            />
+          </svg>
+          <span>Thêm khung giờ</span>
+        </button>
+
+        <div class="form-grid" style="margin-top: 24px">
+          <div class="form-group">
+            <label class="form-label">Giờ mở cửa</label>
+            <input
+              v-model="courtForm.opening_time"
+              type="time"
+              class="form-input"
+              pattern="[0-9]{2}:[0-9]{2}"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Giờ đóng cửa</label>
+            <input
+              v-model="courtForm.closing_time"
+              type="time"
+              class="form-input"
+              pattern="[0-9]{2}:[0-9]{2}"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Facilities -->
+      <div class="form-section">
+        <div class="section-header">
+          <h2 class="section-title">🎯 Tiện ích</h2>
+          <span class="section-subtitle">Chọn các tiện ích có sẵn tại sân</span>
+        </div>
+
+        <div class="facilities-grid">
+          <button
+            v-for="facility in availableFacilities"
+            :key="facility.id"
+            type="button"
+            class="facility-btn"
+            :class="{ active: courtForm.facilities.includes(facility.id) }"
+            @click="toggleFacility(facility.id)"
+          >
+            <span class="facility-icon">{{ facility.icon }}</span>
+            <span class="facility-label">{{ facility.label }}</span>
+            <svg
+              v-if="courtForm.facilities.includes(facility.id)"
+              class="facility-check"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Images -->
+      <div class="form-section">
+        <div class="section-header">
+          <h2 class="section-title">📸 Hình ảnh</h2>
+          <span class="section-subtitle">Yêu cầu 5 ảnh chụp của sân muốn đăng tải</span>
+        </div>
+
+        <div class="images-section">
+          <div class="image-upload-area">
+            <input
+              type="file"
+              id="image-upload"
+              multiple
+              accept="image/*"
+              @change="handleImageUpload"
+              style="display: none"
+            />
+            <label for="image-upload" class="upload-label">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span>Thêm hình ảnh</span>
+            </label>
+          </div>
+
+          <div v-if="imagePreviews.length > 0" class="images-preview">
+            <div v-for="(preview, index) in imagePreviews" :key="index" class="preview-item">
+              <img :src="preview" :alt="'Preview ' + (index + 1)" />
+              <button type="button" class="remove-btn" @click="removeImage(index)">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+              <span v-if="index === 0" class="primary-badge">Ảnh chính</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Information -->
+      <div class="form-section">
+        <div class="section-header">
+          <h2 class="section-title">📞 Thông tin liên hệ</h2>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label required">Số điện thoại</label>
+            <input
+              v-model="courtForm.contact_phone"
+              type="tel"
+              class="form-input"
+              placeholder="VD: 0901234567"
+              maxlength="10"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input
+              v-model="courtForm.contact_email"
+              type="email"
+              class="form-input"
+              placeholder="VD: contact@example.com"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="form-actions">
+        <button type="button" class="btn-reset" @click="resetForm" :disabled="isSaving">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+          Hủy bỏ
+        </button>
+        <button type="submit" class="btn-submit" :disabled="isSaving">
+          <svg
+            v-if="!isSaving"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          <svg
+            v-else
+            class="animate-spin"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          {{ isSaving ? 'Đang đăng tải...' : 'Đăng tải sân' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</template>
+
+<style scoped>
+.court-upload-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Page Header */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+}
+
+.page-subtitle {
+  color: #6b7280;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.preview-btn {
+  padding: 12px 24px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.preview-btn:hover {
+  border-color: #2d5016;
+  color: #2d5016;
+  background: #f0fdf4;
+}
+
+.preview-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Form */
+.court-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-section {
+  background: white;
+  padding: 28px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.section-header {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.section-subtitle {
+  color: #6b7280;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.form-label.required::after {
+  content: ' *';
+  color: #ef4444;
+}
+
+.form-input,
+.form-textarea {
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.form-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+}
+
+.form-input::-webkit-datetime-edit-ampm-field {
+  display: none;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #2d5016;
+  box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
+}
+
+.form-textarea {
+  resize: vertical;
+}
+
+.form-hint {
+  font-size: 0.85rem;
+  color: #2d5016;
+  font-weight: 600;
+}
+
+/* Time Slots */
+.empty-slots {
+  padding: 48px 24px;
+  background: #f9fafb;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 3rem;
+}
+
+.empty-text {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.time-slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.time-slot-item {
+  padding: 20px;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.time-slot-item:hover {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.time-slot-item.filled {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #2d5016;
+}
+
+.slot-inputs {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr 1.5fr;
+  gap: 16px;
+  align-items: end;
+}
+
+.slot-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.slot-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.slot-time-input {
+  padding: 10px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.slot-time-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+}
+
+.slot-time-input::-webkit-datetime-edit-ampm-field {
+  display: none;
+}
+
+input[type='time']::-webkit-datetime-edit-ampm-field {
+  display: none;
+}
+
+.slot-time-input:focus {
+  outline: none;
+  border-color: #2d5016;
+  box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
+}
+
+.slot-separator {
+  font-size: 1.2rem;
+  color: #6b7280;
+  padding-bottom: 10px;
+}
+
+.slot-price-group {
+  flex: 1.5;
+}
+
+.slot-price-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding-right: 12px;
+  transition: all 0.3s ease;
+}
+
+.slot-price-input-wrapper:focus-within {
+  border-color: #2d5016;
+  box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
+}
+
+.slot-price-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.price-unit {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.remove-slot-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.remove-slot-btn:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+.remove-slot-btn svg {
+  width: 18px;
+  height: 18px;
+  color: #6b7280;
+}
+
+.remove-slot-btn:hover svg {
+  color: #ef4444;
+}
+
+.slot-preview {
+  font-size: 0.9rem;
+  color: #2d5016;
+  font-weight: 600;
+  padding: 10px 14px;
+  background: #dcfce7;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.add-slot-btn {
+  width: 100%;
+  padding: 14px 24px;
+  background: white;
+  border: 2px dashed #d1d5db;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.add-slot-btn:hover {
+  background: #f0fdf4;
+  border-color: #2d5016;
+  color: #2d5016;
+}
+
+.add-slot-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Facilities */
+.facilities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px;
+  justify-items: stretch;
+}
+
+.facility-btn {
+  padding: 16px;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.facility-btn:hover {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.facility-btn.active {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #2d5016;
+}
+
+.facility-icon {
+  font-size: 2rem;
+}
+
+.facility-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #374151;
+  text-align: center;
+}
+
+.facility-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  background: #2d5016;
+  color: white;
+  border-radius: 50%;
+  padding: 3px;
+}
+
+/* Images */
+.images-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.image-upload-area {
+  display: flex;
+  justify-content: center;
+}
+
+.upload-label {
+  padding: 32px 48px;
+  background: #f9fafb;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upload-label:hover {
+  background: #f0fdf4;
+  border-color: #2d5016;
+}
+
+.upload-label svg {
+  width: 48px;
+  height: 48px;
+  color: #6b7280;
+}
+
+.upload-label span {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.images-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.preview-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #e5e7eb;
+}
+
+.preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.remove-btn:hover {
+  background: #ef4444;
+}
+
+.remove-btn svg {
+  width: 16px;
+  height: 16px;
+  color: white;
+}
+
+.primary-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Form Actions */
+.form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 20px;
+}
+
+.btn-reset,
+.btn-submit {
+  padding: 14px 32px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.btn-reset {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+}
+
+.btn-reset:hover:not(:disabled) {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #2d5016 0%, #4a7c2c 100%);
+  color: white;
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(45, 80, 22, 0.3);
+}
+
+.btn-reset:disabled,
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-reset svg,
+.btn-submit svg {
+  width: 18px;
+  height: 18px;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .slot-inputs {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .slot-separator {
+    display: none;
+  }
+
+  .remove-slot-btn {
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .facilities-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .btn-reset,
+  .btn-submit {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>

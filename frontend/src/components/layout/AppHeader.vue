@@ -108,7 +108,7 @@ onUnmounted(() => {
         <router-link to="/court" class="nav-link">COURT</router-link>
 
         <!-- Management link for Owner -->
-        <router-link v-if="props.showManagement" to="/owner/management" class="nav-link">
+        <router-link v-if="props.showManagement" to="/owner/management/revenue" class="nav-link">
           MANAGEMENT
         </router-link>
 

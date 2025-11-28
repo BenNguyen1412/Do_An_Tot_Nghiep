@@ -39,6 +39,24 @@ const router = createRouter({
       component: () => import('@/views/owner/OwnerHomePage.vue'),
       meta: { requiresAuth: true, role: 'owner' },
     },
+    // Owner Management routes
+    {
+      path: '/owner/management',
+      component: () => import('@/layouts/OwnerManagementLayout.vue'),
+      meta: { requiresAuth: true, role: 'owner' },
+      children: [
+        {
+          path: 'revenue',
+          name: 'owner-revenue',
+          component: () => import('@/views/owner/OwnerRevenueStatisticsPage.vue'),
+        },
+        {
+          path: 'courts',
+          name: 'owner-courts',
+          component: () => import('@/views/owner/OwnerCourtUploadPage.vue'),
+        },
+      ],
+    },
     {
       path: '/enterprise/home',
       name: 'enterprise-home',
