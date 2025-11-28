@@ -216,6 +216,16 @@ onUnmounted(() => {
   backdrop-filter: blur(10px);
 }
 
+@media (max-width: 1440px) {
+  .app-header {
+    padding: 14px 24px;
+  }
+
+  .app-header.scrolled {
+    padding: 12px 24px;
+  }
+}
+
 .app-header.scrolled {
   padding: 14px 48px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
@@ -228,7 +238,13 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
-  gap: 32px;
+  gap: 20px;
+}
+
+@media (max-width: 1440px) {
+  .header-container {
+    gap: 16px;
+  }
 }
 
 /* Logo Section */
@@ -263,6 +279,13 @@ onUnmounted(() => {
   filter: drop-shadow(0 4px 12px rgba(255, 255, 255, 0.3)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
   animation: float 3s ease-in-out infinite;
   transition: transform 0.3s ease;
+}
+
+@media (max-width: 1440px) {
+  .logo-icon {
+    width: 70px;
+    height: 70px;
+  }
 }
 
 .logo-icon:hover {
@@ -314,6 +337,17 @@ onUnmounted(() => {
   background-clip: text;
 }
 
+@media (max-width: 1440px) {
+  .brand {
+    font-size: 1.3rem;
+    letter-spacing: 2px;
+  }
+
+  .pickleball {
+    font-size: 0.75rem;
+  }
+}
+
 /* Navigation */
 .main-nav {
   display: flex;
@@ -334,6 +368,14 @@ onUnmounted(() => {
   position: relative;
   background: transparent;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 1440px) {
+  .nav-link {
+    font-size: 0.9rem;
+    padding: 10px 20px;
+  }
 }
 
 .nav-link:hover {
@@ -473,14 +515,14 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1366px) {
   .datetime-section {
     display: none;
   }
 
   .header-container {
     grid-template-columns: auto 1fr auto;
-    gap: 24px;
+    gap: 20px;
   }
 }
 

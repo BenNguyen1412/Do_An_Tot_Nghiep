@@ -150,7 +150,13 @@ const goToUserLogin = () => {
         <div class="form-container">
           <!-- Logo with Admin Badge -->
           <div class="logo-section">
-            <div class="logo-icon">🏓</div>
+            <div class="logo-icon">
+              <img
+                src="/Logo.png"
+                alt="NP SPORTCLUB Logo"
+                style="width: 60px; height: 60px; object-fit: contain"
+              />
+            </div>
             <div class="logo-text">
               <span class="pickleball">Pickleball</span>
               <span class="brand">NP SPORTCLUB</span>
