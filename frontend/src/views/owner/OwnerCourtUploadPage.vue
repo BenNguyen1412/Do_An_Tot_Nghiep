@@ -273,7 +273,7 @@ const formatCurrency = (value: string | number) => {
   <div class="court-upload-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">🏟️ Đăng tải sân mới</h1>
+        <h1 class="page-title">🏟️ Đăng tải sân</h1>
         <p class="page-subtitle">Điền đầy đủ thông tin để đăng tải sân của bạn</p>
       </div>
       <button class="preview-btn" type="button">

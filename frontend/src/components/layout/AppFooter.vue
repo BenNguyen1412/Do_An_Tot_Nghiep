@@ -39,7 +39,9 @@ const supportLinks = [
         <!-- Company Info -->
         <div class="footer-section brand-section">
           <div class="footer-logo">
-            <div class="logo-icon">🏓</div>
+            <div class="logo-icon">
+              <img src="/Logo.png" alt="Logo" />
+            </div>
             <div class="logo-text">
               <span class="pickleball">Pickleball</span>
               <span class="brand">NP SPORTCLUB</span>
@@ -175,8 +177,24 @@ const supportLinks = [
 }
 
 .logo-icon {
-  font-size: 2.5rem;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  width: 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 3px 8px rgba(45, 80, 22, 0.3));
+  transition: transform 0.3s ease;
+}
+
+.logo-icon:hover {
+  transform: scale(1.08);
+}
+
+.logo-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: brightness(1.05);
 }
 
 .logo-text {

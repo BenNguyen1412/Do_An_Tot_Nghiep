@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-
-const router = useRouter()
+import AppHeader from '@/components/layout/AppHeader.vue'
 const route = useRoute()
 const authStore = useAuthStore()
 
@@ -11,15 +10,6 @@ const isSidebarOpen = ref(true)
 
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
-}
-
-const handleLogout = () => {
-  authStore.logout()
-  router.push('/')
-}
-
-const goToHome = () => {
-  router.push('/owner/home')
 }
 
 const menuItems = [
@@ -48,7 +38,9 @@ const isActive = (path: string) => {
     <aside class="sidebar" :class="{ collapsed: !isSidebarOpen }">
       <div class="sidebar-header">
         <div class="logo-section">
-          <div class="logo-icon">🏓</div>
+          <div class="logo-icon">
+            <img src="/Logo.png" alt="Logo" />
+          </div>
           <transition name="fade">
             <div v-if="isSidebarOpen" class="logo-text">
               <span class="logo-title">Owner Panel</span>
@@ -72,29 +64,12 @@ const isActive = (path: string) => {
           </transition>
         </router-link>
       </nav>
-
-      <div class="sidebar-footer">
-        <button class="footer-btn" @click="goToHome" :title="isSidebarOpen ? '' : 'Về trang chủ'">
-          <span class="btn-icon">🏠</span>
-          <transition name="fade">
-            <span v-if="isSidebarOpen" class="btn-label">Về trang chủ</span>
-          </transition>
-        </button>
-        <button
-          class="footer-btn logout"
-          @click="handleLogout"
-          :title="isSidebarOpen ? '' : 'Đăng xuất'"
-        >
-          <span class="btn-icon">🚪</span>
-          <transition name="fade">
-            <span v-if="isSidebarOpen" class="btn-label">Đăng xuất</span>
-          </transition>
-        </button>
-      </div>
     </aside>
 
     <!-- Main Content -->
     <div class="main-wrapper">
+      <!-- Header -->
+      <AppHeader :showManagement="true" />
       <!-- Top Bar -->
       <header class="top-bar">
         <button class="toggle-btn" @click="toggleSidebar">
@@ -187,8 +162,24 @@ const isActive = (path: string) => {
 }
 
 .logo-icon {
-  font-size: 2rem;
+  width: 70px;
+  height: 70px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 6px rgba(255, 255, 255, 0.2));
+  transition: transform 0.3s ease;
+}
+
+.logo-icon:hover {
+  transform: scale(1.1);
+}
+
+.logo-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .logo-text {
@@ -261,52 +252,6 @@ const isActive = (path: string) => {
   font-size: 0.95rem;
 }
 
-/* Sidebar Footer */
-.sidebar-footer {
-  padding: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.footer-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.footer-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateX(4px);
-}
-
-.footer-btn.logout {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-.footer-btn.logout:hover {
-  background: rgba(239, 68, 68, 0.3);
-}
-
-.btn-icon {
-  font-size: 1.2rem;
-  flex-shrink: 0;
-}
-
-.btn-label {
-  flex: 1;
-}
-
 /* Main Wrapper */
 .main-wrapper {
   flex: 1;
@@ -316,7 +261,7 @@ const isActive = (path: string) => {
   flex-direction: column;
 }
 
-.sidebar.collapsed + .main-wrapper {
+.sidebar.collapsed ~ .main-wrapper {
   margin-left: 80px;
 }
 
@@ -329,7 +274,7 @@ const isActive = (path: string) => {
   gap: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   position: sticky;
-  top: 0;
+  top: 80px;
   z-index: 100;
 }
 
