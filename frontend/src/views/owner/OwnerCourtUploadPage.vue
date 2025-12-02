@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
@@ -50,8 +50,25 @@ onMounted(async () => {
   }
 })
 
+// Refresh individual courts when component is activated (user switches back to this page)
+onActivated(async () => {
+  if (currentCourtId.value) {
+    await fetchIndividualCourts(currentCourtId.value)
+  }
+})
+
 const images = ref<File[]>([])
 const imagePreviews = ref<string[]>([])
+
+// Booking interface
+interface Booking {
+  id: number
+  booking_date: string
+  start_time: string
+  end_time: string
+  phone_number: string
+  status: string
+}
 
 // Edit mode
 const isEditMode = ref(false)
@@ -61,6 +78,7 @@ const individualCourts = ref<
     id: number
     name: string
     is_available: boolean
+    bookings?: Booking[]
   }>
 >([])
 
@@ -372,7 +390,16 @@ const loadCourtInfo = async (courtId: number) => {
 const fetchIndividualCourts = async (courtId: number) => {
   try {
     const response = await axiosInstance.get(`/courts/${courtId}/individual-courts`)
-    individualCourts.value = response.data
+    // Tính toán is_available dựa vào bookings thực tế
+    individualCourts.value = response.data.map(
+      (court: { id: number; name: string; bookings?: Booking[] }) => {
+        const hasActiveBooking = court.bookings?.some((b: Booking) => b.status === 'active')
+        return {
+          ...court,
+          is_available: !hasActiveBooking,
+        }
+      },
+    )
   } catch (error) {
     console.error('Error fetching individual courts:', error)
   }
