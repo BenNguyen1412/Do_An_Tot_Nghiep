@@ -206,6 +206,17 @@ async def create_booking(
             detail="Individual court not found",
         )
     
+    # If user is owner, they can create booking for their courts (manual booking)
+    # Otherwise, user is creating booking for themselves
+    if current_user.role == "owner":
+        # Check if the court belongs to this owner
+        court = court_crud.get_court(db, individual_court.court_id)
+        if not court or court.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't own this court",
+            )
+    
     # TODO: Add validation for overlapping bookings
     
     db_booking = court_crud.create_booking(db, booking, current_user.id)

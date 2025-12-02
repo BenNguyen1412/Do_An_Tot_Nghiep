@@ -64,6 +64,8 @@ const individualCourts = ref<
   }>
 >([])
 
+// Individual court editing - removed booking functionality
+
 // Available facilities
 const availableFacilities = [
   { id: 'parking', label: 'Bãi đỗ xe', icon: '🚗' },
@@ -375,6 +377,8 @@ const fetchIndividualCourts = async (courtId: number) => {
     console.error('Error fetching individual courts:', error)
   }
 }
+
+// Booking functionality removed - use Court List page for managing bookings
 
 const updateCourtInfo = async () => {
   if (!validateForm() || !currentCourtId.value) return
@@ -1038,7 +1042,10 @@ const formatTimeWithPeriod = (time: string) => {
           >
             <div class="court-header">
               <h3 class="court-name">{{ court.name }}</h3>
-              <span class="court-status available">
+              <span
+                class="court-status"
+                :class="{ available: court.is_available, booked: !court.is_available }"
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
@@ -1049,10 +1056,14 @@ const formatTimeWithPeriod = (time: string) => {
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     stroke-width="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    :d="
+                      court.is_available
+                        ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
+                        : 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+                    "
                   />
                 </svg>
-                Đang trống
+                {{ court.is_available ? 'Đang trống' : 'Đã đặt' }}
               </span>
             </div>
           </div>
@@ -1812,10 +1823,17 @@ input[type='time']::-webkit-outer-spin-button {
   color: white;
 }
 
+.court-status.booked {
+  background: #ef4444;
+  color: white;
+}
+
 .court-status svg {
   width: 16px;
   height: 16px;
 }
+
+/* Booking functionality removed - CSS cleaned up */
 
 .action-banner {
   display: flex;

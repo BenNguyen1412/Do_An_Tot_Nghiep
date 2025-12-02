@@ -17,11 +17,21 @@ interface Court {
   individual_courts?: IndividualCourt[]
 }
 
+interface Booking {
+  id: number
+  booking_date: string
+  start_time: string
+  end_time: string
+  phone_number: string
+  status: string
+}
+
 interface IndividualCourt {
   id: number
   court_id: number
   name: string
   is_available: boolean
+  bookings?: Booking[]
 }
 
 interface CourtItem {
@@ -31,9 +41,18 @@ interface CourtItem {
   bookedBy?: {
     phone: string
     timeSlot: string
+    bookingDate: string
   }
+  bookingId?: number
   isEditing: boolean
   tempName: string
+}
+
+interface BookingForm {
+  booking_date: string
+  start_time: string
+  end_time: string
+  phone_number: string
 }
 
 // Real data from API
@@ -42,8 +61,23 @@ const isLoading = ref(false)
 const venueInfo = ref({
   name: 'Chưa có sân',
   totalCourts: 0,
+  opening_time: '06:00',
+  closing_time: '22:00',
 })
 const myVenues = ref<Court[]>([])
+
+// Booking form state
+const bookingForms = ref<Record<number, BookingForm>>({})
+
+// Initialize booking form for a court
+const initBookingForm = (courtId: number) => {
+  bookingForms.value[courtId] = {
+    booking_date: '',
+    start_time: '',
+    end_time: '',
+    phone_number: '',
+  }
+}
 
 // Generate courts based on quantity
 const generateCourts = (quantity: number) => {
@@ -73,19 +107,58 @@ const fetchMyCourts = async () => {
       venueInfo.value = {
         name: firstVenue.name,
         totalCourts: firstVenue.court_quantity,
+        opening_time: firstVenue.opening_time,
+        closing_time: firstVenue.closing_time,
       }
 
-      // Convert individual courts to CourtItem format
-      if (firstVenue.individual_courts) {
-        courts.value = firstVenue.individual_courts.map((ic) => ({
-          id: ic.id,
-          name: ic.name,
-          isBooked: !ic.is_available,
-          isEditing: false,
-          tempName: ic.name,
-        }))
-      } else {
-        courts.value = generateCourts(firstVenue.court_quantity)
+      // Fetch individual courts with bookings for detailed info
+      try {
+        const detailResponse = await axiosInstance.get<IndividualCourt[]>(
+          `/courts/${firstVenue.id}/individual-courts`,
+        )
+
+        console.log('📊 Individual courts data:', detailResponse.data)
+
+        courts.value = detailResponse.data.map((ic) => {
+          const activeBooking = ic.bookings?.find((b) => b.status === 'active')
+          const hasActiveBooking = !!activeBooking
+
+          console.log(`⚽ Sân ${ic.name}:`, {
+            is_available: ic.is_available,
+            hasActiveBooking,
+            activeBooking,
+          })
+
+          return {
+            id: ic.id,
+            name: ic.name,
+            isBooked: hasActiveBooking,
+            bookedBy: activeBooking
+              ? {
+                  phone: activeBooking.phone_number,
+                  timeSlot: `${activeBooking.start_time} - ${activeBooking.end_time}`,
+                  bookingDate: new Date(activeBooking.booking_date).toLocaleDateString('vi-VN'),
+                }
+              : undefined,
+            bookingId: activeBooking?.id,
+            isEditing: false,
+            tempName: ic.name,
+          }
+        })
+      } catch (detailError) {
+        console.error('Error fetching individual courts details:', detailError)
+        // Fallback to basic info
+        if (firstVenue.individual_courts) {
+          courts.value = firstVenue.individual_courts.map((ic) => ({
+            id: ic.id,
+            name: ic.name,
+            isBooked: !ic.is_available,
+            isEditing: false,
+            tempName: ic.name,
+          }))
+        } else {
+          courts.value = generateCourts(firstVenue.court_quantity)
+        }
       }
     } else {
       courts.value = []
@@ -111,11 +184,17 @@ const bookedCourts = computed(() => courts.value.filter((c) => c.isBooked).lengt
 const startEditCourtName = (court: CourtItem) => {
   court.isEditing = true
   court.tempName = court.name
+  // Initialize booking form if court is available
+  if (!court.isBooked) {
+    initBookingForm(court.id)
+  }
 }
 
 const cancelEditCourtName = (court: CourtItem) => {
   court.isEditing = false
   court.tempName = court.name
+  // Clear booking form
+  delete bookingForms.value[court.id]
 }
 
 const saveCourtName = async (court: CourtItem) => {
@@ -125,18 +204,99 @@ const saveCourtName = async (court: CourtItem) => {
   }
 
   try {
-    // TODO: Call API to update court name
+    // Update court name
+    await axiosInstance.put(`/individual-courts/${court.id}`, {
+      name: court.tempName,
+    })
+
+    // If court is available and booking form is filled, create booking
+    if (!court.isBooked && bookingForms.value[court.id]) {
+      const form = bookingForms.value[court.id]
+
+      // Validate booking form if any field is filled
+      const hasBookingData =
+        form.booking_date || form.start_time || form.end_time || form.phone_number
+
+      if (hasBookingData) {
+        // Validate all fields are filled
+        if (!form.booking_date || !form.start_time || !form.end_time || !form.phone_number) {
+          toast.error('Vui lòng điền đầy đủ thông tin đặt sân hoặc để trống tất cả')
+          return
+        }
+
+        // Validate phone number
+        if (!/^\d{10}$/.test(form.phone_number)) {
+          toast.error('Số điện thoại phải gồm 10 chữ số')
+          return
+        }
+
+        // Validate time range
+        if (form.end_time <= form.start_time) {
+          toast.error('Giờ kết thúc phải sau giờ bắt đầu')
+          return
+        }
+
+        // Validate booking time within opening hours
+        if (
+          form.start_time < venueInfo.value.opening_time ||
+          form.end_time > venueInfo.value.closing_time
+        ) {
+          toast.error(
+            `Thời gian đặt sân phải nằm trong giờ mở cửa (${venueInfo.value.opening_time} - ${venueInfo.value.closing_time})`,
+          )
+          return
+        }
+
+        // Create booking
+        const bookingDate = new Date(form.booking_date)
+        await axiosInstance.post('/bookings', {
+          individual_court_id: court.id,
+          booking_date: bookingDate.toISOString(),
+          start_time: form.start_time,
+          end_time: form.end_time,
+          phone_number: form.phone_number,
+        })
+      }
+    }
+
     court.name = court.tempName
     court.isEditing = false
-    toast.success('Đã cập nhật tên sân')
+    delete bookingForms.value[court.id]
+
+    // Refresh courts list
+    await fetchMyCourts()
+
+    toast.success('Đã cập nhật thành công')
   } catch (error) {
-    console.error('Error updating court name:', error)
-    toast.error('Cập nhật tên sân thất bại')
+    console.error('Error updating court:', error)
+    const err = error as { response?: { data?: { detail?: string } } }
+    toast.error(err.response?.data?.detail || 'Cập nhật thất bại')
   }
 }
 
 const getCourtStatusClass = (court: CourtItem) => {
   return court.isBooked ? 'court-booked' : 'court-available'
+}
+
+const cancelBooking = async (court: CourtItem) => {
+  if (!court.bookingId) {
+    toast.error('Không tìm thấy thông tin đặt sân')
+    return
+  }
+
+  if (!confirm(`Bạn có chắc chắn muốn hủy đơn đặt sân "${court.name}"?`)) {
+    return
+  }
+
+  try {
+    await axiosInstance.delete(`/bookings/${court.bookingId}`)
+    toast.success('Đã hủy đơn đặt sân thành công')
+    await fetchMyCourts()
+  } catch (error) {
+    console.error('Error canceling booking:', error)
+    const err = error as { response?: { data?: { detail?: string } } }
+    toast.error(err.response?.data?.detail || 'Hủy đơn thất bại')
+  }
 }
 
 const refreshCourts = async () => {
@@ -312,147 +472,326 @@ const refreshCourts = async () => {
               <th>STT</th>
               <th>Tên sân</th>
               <th>Trạng thái</th>
+              <th>Ngày đặt</th>
               <th>Khung giờ</th>
               <th>SĐT người đặt</th>
               <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="court in courts" :key="court.id" :class="getCourtStatusClass(court)">
-              <td>{{ court.id }}</td>
-              <td class="court-name-cell">
-                <template v-if="!court.isEditing">
-                  <span class="court-name">{{ court.name }}</span>
-                </template>
-                <template v-else>
-                  <input
-                    v-model="court.tempName"
-                    type="text"
-                    class="court-name-input"
-                    @keyup.enter="saveCourtName(court)"
-                    @keyup.esc="cancelEditCourtName(court)"
-                  />
-                </template>
-              </td>
-              <td>
-                <span
-                  class="status-badge"
-                  :class="court.isBooked ? 'status-booked' : 'status-available'"
-                >
-                  <svg
-                    v-if="court.isBooked"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
-                  <svg
-                    v-else
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  {{ court.isBooked ? 'Đang được đặt' : 'Còn trống' }}
-                </span>
-              </td>
-              <td>
-                <span v-if="court.isBooked && court.bookedBy" class="time-slot">
-                  {{ court.bookedBy.timeSlot }}
-                </span>
-                <span v-else class="text-muted">—</span>
-              </td>
-              <td>
-                <a
-                  v-if="court.isBooked && court.bookedBy"
-                  :href="`tel:${court.bookedBy.phone}`"
-                  class="phone-link"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                    />
-                  </svg>
-                  {{ court.bookedBy.phone }}
-                </a>
-                <span v-else class="text-muted">—</span>
-              </td>
-              <td>
-                <div class="action-buttons">
+            <template v-for="(court, index) in courts" :key="court.id">
+              <tr :class="[getCourtStatusClass(court), { 'editing-row': court.isEditing }]">
+                <td>{{ index + 1 }}</td>
+                <td class="court-name-cell">
                   <template v-if="!court.isEditing">
-                    <button class="btn-edit" @click="startEditCourtName(court)" title="Đổi tên sân">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
+                    <span class="court-name">{{ court.name }}</span>
                   </template>
                   <template v-else>
-                    <button class="btn-save" @click="saveCourtName(court)" title="Lưu">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </button>
-                    <button class="btn-cancel" @click="cancelEditCourtName(court)" title="Hủy">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
+                    <input
+                      v-model="court.tempName"
+                      type="text"
+                      class="court-name-input"
+                      @keyup.enter="saveCourtName(court)"
+                      @keyup.esc="cancelEditCourtName(court)"
+                    />
                   </template>
-                </div>
-              </td>
-            </tr>
+                </td>
+                <td>
+                  <span
+                    class="status-badge"
+                    :class="court.isBooked ? 'status-booked' : 'status-available'"
+                  >
+                    <svg
+                      v-if="court.isBooked"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      />
+                    </svg>
+                    <svg
+                      v-else
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    {{ court.isBooked ? 'Đang được đặt' : 'Còn trống' }}
+                  </span>
+                </td>
+                <td>
+                  <span v-if="court.isBooked && court.bookedBy" class="booking-date">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    {{ court.bookedBy.bookingDate }}
+                  </span>
+                  <span v-else class="text-muted">—</span>
+                </td>
+                <td>
+                  <span v-if="court.isBooked && court.bookedBy" class="time-slot">
+                    {{ court.bookedBy.timeSlot }}
+                  </span>
+                  <span v-else class="text-muted">—</span>
+                </td>
+                <td>
+                  <a
+                    v-if="court.isBooked && court.bookedBy"
+                    :href="`tel:${court.bookedBy.phone}`"
+                    class="phone-link"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                      />
+                    </svg>
+                    {{ court.bookedBy.phone }}
+                  </a>
+                  <span v-else class="text-muted">—</span>
+                </td>
+                <td>
+                  <div class="action-buttons">
+                    <template v-if="!court.isEditing">
+                      <!-- Nếu sân đang được đặt: hiển thị nút Hủy đơn -->
+                      <button
+                        v-if="court.isBooked"
+                        class="btn-cancel-booking"
+                        @click="cancelBooking(court)"
+                        title="Hủy đơn đặt sân"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                        Hủy đơn
+                      </button>
+                      <!-- Nếu sân trống: hiển thị nút Chỉnh sửa -->
+                      <button
+                        v-else
+                        class="btn-edit"
+                        @click="startEditCourtName(court)"
+                        title="Chỉnh sửa"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                    </template>
+                    <template v-else>
+                      <button class="btn-save" @click="saveCourtName(court)" title="Lưu">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </button>
+                      <button class="btn-cancel" @click="cancelEditCourtName(court)" title="Hủy">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </template>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Booking Form Expansion (only for available courts in edit mode) -->
+              <tr
+                v-if="court.isEditing && !court.isBooked && bookingForms[court.id]"
+                class="booking-form-row"
+              >
+                <td colspan="7">
+                  <div class="booking-form-container">
+                    <div class="booking-form-header">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      <h4>Đặt lịch cho khách hàng (Tùy chọn)</h4>
+                    </div>
+
+                    <div class="booking-form-grid">
+                      <div class="form-group">
+                        <label>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                          Ngày đặt sân
+                        </label>
+                        <input
+                          v-model="bookingForms[court.id].booking_date"
+                          type="date"
+                          class="form-input"
+                        />
+                      </div>
+
+                      <div class="form-group">
+                        <label>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          Giờ bắt đầu
+                        </label>
+                        <input
+                          v-model="bookingForms[court.id].start_time"
+                          type="time"
+                          class="form-input"
+                        />
+                      </div>
+
+                      <div class="form-group">
+                        <label>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          Giờ kết thúc
+                        </label>
+                        <input
+                          v-model="bookingForms[court.id].end_time"
+                          type="time"
+                          class="form-input"
+                        />
+                      </div>
+
+                      <div class="form-group">
+                        <label>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                            />
+                          </svg>
+                          Số điện thoại
+                        </label>
+                        <input
+                          v-model="bookingForms[court.id].phone_number"
+                          type="tel"
+                          placeholder="Nhập 10 chữ số"
+                          maxlength="10"
+                          class="form-input"
+                        />
+                      </div>
+                    </div>
+
+                    <p class="booking-form-hint">💡 Để trống tất cả nếu chỉ muốn đổi tên sân</p>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -782,6 +1121,22 @@ const refreshCourts = async () => {
   height: 14px;
 }
 
+.booking-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #fef3c7;
+  border-radius: 6px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.booking-date svg {
+  width: 14px;
+  height: 14px;
+}
+
 .text-muted {
   color: #9ca3af;
 }
@@ -840,6 +1195,31 @@ const refreshCourts = async () => {
   color: #ef4444;
 }
 
+.btn-cancel-booking {
+  padding: 8px 14px;
+  border: 2px solid #ef4444;
+  border-radius: 8px;
+  background: white;
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.btn-cancel-booking:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-cancel-booking svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* Empty State */
 .empty-state {
   padding: 64px 32px;
@@ -870,6 +1250,100 @@ const refreshCourts = async () => {
   max-width: 400px;
 }
 
+/* Editing Row Highlight */
+.editing-row {
+  background: linear-gradient(90deg, #dbeafe 0%, #ffffff 100%) !important;
+  border-left: 4px solid #3b82f6;
+}
+
+/* Booking Form Expansion Row */
+.booking-form-row {
+  background: #f8fafc;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.booking-form-container {
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  margin: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.booking-form-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.booking-form-header svg {
+  width: 24px;
+  height: 24px;
+  color: #3b82f6;
+}
+
+.booking-form-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.booking-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-group label svg {
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+}
+
+.form-input {
+  padding: 10px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.form-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.booking-form-hint {
+  margin: 0;
+  padding: 12px;
+  background: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #92400e;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .stats-grid {
@@ -882,6 +1356,10 @@ const refreshCourts = async () => {
 
   .courts-table {
     min-width: 800px;
+  }
+
+  .booking-form-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
