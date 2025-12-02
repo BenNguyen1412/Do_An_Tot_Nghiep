@@ -1,8 +1,28 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
+import axiosInstance from '@/utils/axios'
 
 const toast = useToast()
+
+interface Court {
+  id: number
+  name: string
+  address: string
+  district: string
+  city: string
+  court_quantity: number
+  opening_time: string
+  closing_time: string
+  individual_courts?: IndividualCourt[]
+}
+
+interface IndividualCourt {
+  id: number
+  court_id: number
+  name: string
+  is_available: boolean
+}
 
 interface CourtItem {
   id: number
@@ -16,13 +36,14 @@ interface CourtItem {
   tempName: string
 }
 
-// Mock data - this will be replaced with API calls
+// Real data from API
 const courts = ref<CourtItem[]>([])
 const isLoading = ref(false)
 const venueInfo = ref({
-  name: 'Sân Pickleball VIP A1',
-  totalCourts: 5,
+  name: 'Chưa có sân',
+  totalCourts: 0,
 })
+const myVenues = ref<Court[]>([])
 
 // Generate courts based on quantity
 const generateCourts = (quantity: number) => {
@@ -39,23 +60,49 @@ const generateCourts = (quantity: number) => {
   return newCourts
 }
 
+// Fetch courts from API
+const fetchMyCourts = async () => {
+  isLoading.value = true
+  try {
+    const response = await axiosInstance.get<Court[]>('/courts/my')
+    myVenues.value = response.data
+
+    // If user has venues, show the first one
+    if (myVenues.value.length > 0) {
+      const firstVenue = myVenues.value[0]
+      venueInfo.value = {
+        name: firstVenue.name,
+        totalCourts: firstVenue.court_quantity,
+      }
+
+      // Convert individual courts to CourtItem format
+      if (firstVenue.individual_courts) {
+        courts.value = firstVenue.individual_courts.map((ic) => ({
+          id: ic.id,
+          name: ic.name,
+          isBooked: !ic.is_available,
+          isEditing: false,
+          tempName: ic.name,
+        }))
+      } else {
+        courts.value = generateCourts(firstVenue.court_quantity)
+      }
+    } else {
+      courts.value = []
+      toast.info('Bạn chưa có sân nào. Hãy đăng tải sân mới!')
+    }
+  } catch (error) {
+    console.error('Error fetching courts:', error)
+    const err = error as { response?: { data?: { detail?: string } } }
+    toast.error(err.response?.data?.detail || 'Không thể tải danh sách sân')
+  } finally {
+    isLoading.value = false
+  }
+}
+
 // Initialize courts on mount
 onMounted(() => {
-  // TODO: Fetch from API
-  // For now, generate based on mock venue data
-  courts.value = generateCourts(venueInfo.value.totalCourts)
-
-  // Mock some bookings
-  courts.value[0].isBooked = true
-  courts.value[0].bookedBy = {
-    phone: '0901234567',
-    timeSlot: '08:00 - 10:00',
-  }
-  courts.value[2].isBooked = true
-  courts.value[2].bookedBy = {
-    phone: '0909876543',
-    timeSlot: '14:00 - 16:00',
-  }
+  fetchMyCourts()
 })
 
 const availableCourts = computed(() => courts.value.filter((c) => !c.isBooked).length)
@@ -93,17 +140,8 @@ const getCourtStatusClass = (court: CourtItem) => {
 }
 
 const refreshCourts = async () => {
-  isLoading.value = true
-  try {
-    // TODO: Fetch from API
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    toast.success('Đã làm mới danh sách')
-  } catch (error) {
-    console.error('Error refreshing courts:', error)
-    toast.error('Làm mới thất bại')
-  } finally {
-    isLoading.value = false
-  }
+  await fetchMyCourts()
+  toast.success('Đã làm mới danh sách')
 }
 </script>
 

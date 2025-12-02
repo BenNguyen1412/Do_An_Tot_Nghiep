@@ -4,10 +4,9 @@ from datetime import datetime
 
 # Time Slot Schema
 class TimeSlot(BaseModel):
-    id: str
-    start_time: str = Field(..., alias="startTime")
-    end_time: str = Field(..., alias="endTime")
-    price: str
+    start_time: str
+    end_time: str
+    price: float
 
     class Config:
         populate_by_name = True
@@ -79,11 +78,31 @@ class IndividualCourt(IndividualCourtBase):
     id: int
     court_id: int
     is_active: bool
+    is_available: bool = True  # Computed: true if no active bookings
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_orm(cls, obj):
+        # Check if court has any active bookings
+        has_active_bookings = any(
+            booking.status == 'active' 
+            for booking in obj.bookings
+        ) if hasattr(obj, 'bookings') else False
+        
+        data = {
+            'id': obj.id,
+            'court_id': obj.court_id,
+            'name': obj.name,
+            'is_active': obj.is_active,
+            'is_available': not has_active_bookings and obj.is_active,
+            'created_at': obj.created_at,
+            'updated_at': obj.updated_at,
+        }
+        return cls(**data)
 
 
 # Booking Schemas

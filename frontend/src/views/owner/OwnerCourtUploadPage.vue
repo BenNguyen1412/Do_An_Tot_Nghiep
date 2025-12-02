@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
+import axiosInstance from '@/utils/axios'
 
 const toast = useToast()
 const authStore = useAuthStore()
+const router = useRouter()
 
 // Time slots for pricing
 interface TimeSlot {
@@ -32,16 +35,33 @@ const courtForm = ref({
 const timeSlots = ref<TimeSlot[]>([])
 let nextSlotId = 1
 
-// Load user info on mount
-onMounted(() => {
+// Load user info and check for existing court on mount
+onMounted(async () => {
   if (authStore.user) {
     courtForm.value.contact_phone = authStore.user.phone_number || ''
     courtForm.value.contact_email = authStore.user.email || ''
+  }
+
+  // Check if we have a current court ID in localStorage
+  const savedCourtId = localStorage.getItem('currentCourtId')
+  if (savedCourtId) {
+    await loadCourtInfo(parseInt(savedCourtId))
   }
 })
 
 const images = ref<File[]>([])
 const imagePreviews = ref<string[]>([])
+
+// Edit mode
+const isEditMode = ref(false)
+const currentCourtId = ref<number | null>(null)
+const individualCourts = ref<
+  Array<{
+    id: number
+    name: string
+    is_available: boolean
+  }>
+>([])
 
 // Available facilities
 const availableFacilities = [
@@ -122,7 +142,6 @@ const validateForm = () => {
     toast.error('Vui lòng nhập tên sân')
     return false
   }
-
   if (!courtForm.value.court_quantity || courtForm.value.court_quantity < 1) {
     toast.error('Số lượng sân phải từ 1 trở lên')
     return false
@@ -230,16 +249,63 @@ const handleSubmit = async () => {
   isSaving.value = true
 
   try {
-    // TODO: Call API to create court with images
-    console.log('Court data:', courtForm.value)
-    console.log('Time slots:', timeSlots.value)
-    console.log('Images:', images.value)
+    // Prepare form data
+    const formData = new FormData()
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    // Prepare court data
+    const courtData = {
+      name: courtForm.value.name,
+      address: courtForm.value.address,
+      district: courtForm.value.district,
+      city: courtForm.value.city,
+      description: courtForm.value.description,
+      court_quantity: courtForm.value.court_quantity,
+      opening_time: courtForm.value.opening_time,
+      closing_time: courtForm.value.closing_time,
+      facilities: courtForm.value.facilities,
+      contact_phone: courtForm.value.contact_phone,
+      contact_email: courtForm.value.contact_email,
+      time_slots: timeSlots.value.map((slot) => ({
+        start_time: slot.startTime,
+        end_time: slot.endTime,
+        price: parseFloat(slot.price),
+      })),
+    }
 
-    toast.success('✅ Đăng tải sân thành công!')
-    resetForm()
+    // Add court data as JSON string
+    formData.append('court_data', JSON.stringify(courtData))
+
+    // Add images
+    images.value.forEach((image) => {
+      formData.append('images', image)
+    })
+
+    // Call API to create court
+    const response = await axiosInstance.post('/courts', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+
+    // Save court info for editing
+    currentCourtId.value = response.data.id
+    isEditMode.value = true
+
+    // Save to localStorage for persistence
+    localStorage.setItem('currentCourtId', String(response.data.id))
+
+    // Fetch individual courts
+    await fetchIndividualCourts(response.data.id)
+
+    // Show success notification
+    toast.success(`✅ Đăng tải sân thành công! Đã tạo ${courtForm.value.court_quantity} sân con`, {
+      timeout: 5000,
+    })
+
+    // Scroll to top to see the success message and edit form
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 100)
   } catch (error) {
     console.error('Error creating court:', error)
     toast.error('Đăng tải sân thất bại. Vui lòng thử lại!')
@@ -248,24 +314,94 @@ const handleSubmit = async () => {
   }
 }
 
-const resetForm = () => {
-  courtForm.value = {
-    name: '',
-    address: '',
-    district: '',
-    city: '',
-    description: '',
-    court_quantity: 1,
-    opening_time: '06:00',
-    closing_time: '22:00',
-    facilities: [],
-    contact_phone: authStore.user?.phone_number || '',
-    contact_email: authStore.user?.email || '',
+const loadCourtInfo = async (courtId: number) => {
+  try {
+    const response = await axiosInstance.get(`/courts/${courtId}`)
+    const court = response.data
+
+    // Restore form data
+    courtForm.value = {
+      name: court.name,
+      address: court.address,
+      district: court.district,
+      city: court.city,
+      description: court.description || '',
+      court_quantity: court.court_quantity,
+      opening_time: court.opening_time,
+      closing_time: court.closing_time,
+      facilities: court.facilities || [],
+      contact_phone: court.contact_phone,
+      contact_email: court.contact_email || '',
+    }
+
+    // Restore time slots
+    if (court.time_slots && court.time_slots.length > 0) {
+      timeSlots.value = court.time_slots.map(
+        (slot: { start_time: string; end_time: string; price: number }, index: number) => ({
+          id: String(index + 1),
+          startTime: slot.start_time,
+          endTime: slot.end_time,
+          price: String(slot.price),
+        }),
+      )
+      nextSlotId = timeSlots.value.length + 1
+    }
+
+    // Set edit mode
+    currentCourtId.value = courtId
+    isEditMode.value = true
+
+    // Fetch individual courts
+    await fetchIndividualCourts(courtId)
+  } catch (error) {
+    console.error('Error loading court info:', error)
+    localStorage.removeItem('currentCourtId')
   }
-  timeSlots.value = []
-  nextSlotId = 1
-  images.value = []
-  imagePreviews.value = []
+}
+
+const fetchIndividualCourts = async (courtId: number) => {
+  try {
+    const response = await axiosInstance.get(`/courts/${courtId}/individual-courts`)
+    individualCourts.value = response.data
+  } catch (error) {
+    console.error('Error fetching individual courts:', error)
+  }
+}
+
+const updateCourtInfo = async () => {
+  if (!validateForm() || !currentCourtId.value) return
+
+  isSaving.value = true
+
+  try {
+    const courtData = {
+      name: courtForm.value.name,
+      address: courtForm.value.address,
+      district: courtForm.value.district,
+      city: courtForm.value.city,
+      description: courtForm.value.description,
+      court_quantity: courtForm.value.court_quantity,
+      opening_time: courtForm.value.opening_time,
+      closing_time: courtForm.value.closing_time,
+      facilities: courtForm.value.facilities,
+      contact_phone: courtForm.value.contact_phone,
+      contact_email: courtForm.value.contact_email,
+      time_slots: timeSlots.value.map((slot) => ({
+        start_time: slot.startTime,
+        end_time: slot.endTime,
+        price: parseFloat(slot.price),
+      })),
+    }
+
+    await axiosInstance.put(`/courts/${currentCourtId.value}`, courtData)
+
+    toast.success('✅ Cập nhật thông tin sân thành công!')
+  } catch (error) {
+    console.error('Error updating court:', error)
+    toast.error('Cập nhật thông tin sân thất bại. Vui lòng thử lại!')
+  } finally {
+    isSaving.value = false
+  }
 }
 
 const formatCurrency = (value: string | number) => {
@@ -417,7 +553,6 @@ const formatTimeWithPeriod = (time: string) => {
               min="1"
               step="1"
             />
-            <span class="form-hint">Số lượng sân con sẽ được tự động tạo trong danh sách sân</span>
           </div>
 
           <div class="form-group full-width">
@@ -850,9 +985,67 @@ const formatTimeWithPeriod = (time: string) => {
         </div>
       </div>
 
-      <!-- Form Actions -->
-      <div class="form-actions">
-        <button type="button" class="btn-reset" @click="resetForm" :disabled="isSaving">
+      <!-- Individual Courts List (if created) -->
+      <div v-if="isEditMode && individualCourts.length > 0" class="form-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              style="
+                width: 24px;
+                height: 24px;
+                display: inline-block;
+                vertical-align: middle;
+                margin-right: 8px;
+              "
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+              />
+            </svg>
+            Danh sách sân đã tạo
+          </h2>
+          <span class="section-subtitle"
+            >{{ individualCourts.length }} sân đang trống, sẵn sàng cho thuê</span
+          >
+        </div>
+
+        <div class="courts-grid">
+          <div
+            v-for="court in individualCourts"
+            :key="court.id"
+            class="court-card"
+            :class="{ available: court.is_available }"
+          >
+            <div class="court-header">
+              <h3 class="court-name">{{ court.name }}</h3>
+              <span class="court-status available">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Đang trống
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-banner">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -863,12 +1056,16 @@ const formatTimeWithPeriod = (time: string) => {
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          Hủy bỏ
-        </button>
-        <button type="submit" class="btn-submit" :disabled="isSaving">
+          <p>Bạn có thể chỉnh sửa thông tin sân bên trên và nhấn "Cập nhật" để lưu thay đổi</p>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="form-actions">
+        <button v-if="!isEditMode" type="submit" class="btn-submit" :disabled="isSaving">
           <svg
             v-if="!isSaving"
             xmlns="http://www.w3.org/2000/svg"
@@ -905,6 +1102,71 @@ const formatTimeWithPeriod = (time: string) => {
             ></path>
           </svg>
           {{ isSaving ? 'Đang đăng tải...' : 'Đăng tải sân' }}
+        </button>
+        <button
+          v-else
+          type="button"
+          class="btn-submit"
+          :disabled="isSaving"
+          @click="updateCourtInfo"
+        >
+          <svg
+            v-if="!isSaving"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+            />
+          </svg>
+          <svg
+            v-else
+            class="animate-spin"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          {{ isSaving ? 'Đang cập nhật...' : 'Cập nhật thông tin' }}
+        </button>
+        <button
+          v-if="isEditMode"
+          type="button"
+          class="btn-view-list"
+          @click="router.push('/owner/management/court-list')"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            />
+          </svg>
+          Xem danh sách sân
         </button>
       </div>
     </form>
@@ -1481,16 +1743,104 @@ input[type='time']::-webkit-outer-spin-button {
   font-weight: 700;
 }
 
+/* Individual Courts Grid */
+.courts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.court-card {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.court-card.available {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #86efac;
+}
+
+.court-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.court-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.court-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.court-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.court-status.available {
+  background: #10b981;
+  color: white;
+}
+
+.court-status svg {
+  width: 16px;
+  height: 16px;
+}
+
+.action-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+  margin-top: 16px;
+}
+
+.action-banner svg {
+  width: 24px;
+  height: 24px;
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.action-banner p {
+  margin: 0;
+  color: #1e40af;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 /* Form Actions */
 .form-actions {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
   padding-top: 20px;
+  flex-wrap: wrap;
 }
 
 .btn-reset,
-.btn-submit {
+.btn-submit,
+.btn-view-list {
   padding: 14px 32px;
   border-radius: 10px;
   font-weight: 600;
@@ -1524,6 +1874,17 @@ input[type='time']::-webkit-outer-spin-button {
   box-shadow: 0 8px 20px rgba(45, 80, 22, 0.3);
 }
 
+.btn-view-list {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-view-list:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+}
+
 .btn-reset:disabled,
 .btn-submit:disabled {
   opacity: 0.6;
@@ -1531,7 +1892,8 @@ input[type='time']::-webkit-outer-spin-button {
 }
 
 .btn-reset svg,
-.btn-submit svg {
+.btn-submit svg,
+.btn-view-list svg {
   width: 18px;
   height: 18px;
 }
@@ -1580,9 +1942,14 @@ input[type='time']::-webkit-outer-spin-button {
   }
 
   .btn-reset,
-  .btn-submit {
+  .btn-submit,
+  .btn-view-list {
     width: 100%;
     justify-content: center;
+  }
+
+  .courts-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
