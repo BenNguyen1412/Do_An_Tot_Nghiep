@@ -40,12 +40,13 @@ onMounted(async () => {
   if (authStore.user) {
     courtForm.value.contact_phone = authStore.user.phone_number || ''
     courtForm.value.contact_email = authStore.user.email || ''
-  }
 
-  // Check if we have a current court ID in localStorage
-  const savedCourtId = localStorage.getItem('currentCourtId')
-  if (savedCourtId) {
-    await loadCourtInfo(parseInt(savedCourtId))
+    // Check if we have a current court ID in localStorage for this user
+    const storageKey = `currentCourtId_${authStore.user.id}`
+    const savedCourtId = localStorage.getItem(storageKey)
+    if (savedCourtId) {
+      await loadCourtInfo(parseInt(savedCourtId))
+    }
   }
 })
 
@@ -291,8 +292,11 @@ const handleSubmit = async () => {
     currentCourtId.value = response.data.id
     isEditMode.value = true
 
-    // Save to localStorage for persistence
-    localStorage.setItem('currentCourtId', String(response.data.id))
+    // Save to localStorage for persistence (user-specific)
+    if (authStore.user) {
+      const storageKey = `currentCourtId_${authStore.user.id}`
+      localStorage.setItem(storageKey, String(response.data.id))
+    }
 
     // Fetch individual courts
     await fetchIndividualCourts(response.data.id)
@@ -355,7 +359,11 @@ const loadCourtInfo = async (courtId: number) => {
     await fetchIndividualCourts(courtId)
   } catch (error) {
     console.error('Error loading court info:', error)
-    localStorage.removeItem('currentCourtId')
+    // Remove user-specific court ID from localStorage
+    if (authStore.user) {
+      const storageKey = `currentCourtId_${authStore.user.id}`
+      localStorage.removeItem(storageKey)
+    }
   }
 }
 
