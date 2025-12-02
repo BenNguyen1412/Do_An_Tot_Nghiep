@@ -66,9 +66,10 @@ def update_court(db: Session, court_id: int, court_update: CourtUpdate) -> Optio
     
     update_data = court_update.model_dump(exclude_unset=True)
     
-    # Convert time_slots if present
+    # Convert time_slots if present (time_slots are already dicts from model_dump)
     if "time_slots" in update_data and update_data["time_slots"]:
-        update_data["time_slots"] = [slot.model_dump() for slot in update_data["time_slots"]]
+        # time_slots are already in dict format, no need to convert
+        pass
     
     for field, value in update_data.items():
         setattr(db_court, field, value)

@@ -403,7 +403,15 @@ const updateCourtInfo = async () => {
 
     await axiosInstance.put(`/courts/${currentCourtId.value}`, courtData)
 
+    // Fetch lại danh sách individual courts để cập nhật số lượng sân
+    await fetchIndividualCourts(currentCourtId.value)
+
     toast.success('✅ Cập nhật thông tin sân thành công!')
+
+    // Scroll to top to see the updated individual courts list
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 100)
   } catch (error) {
     console.error('Error updating court:', error)
     toast.error('Cập nhật thông tin sân thất bại. Vui lòng thử lại!')
