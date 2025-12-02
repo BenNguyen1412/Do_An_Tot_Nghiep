@@ -1011,9 +1011,6 @@ const formatTimeWithPeriod = (time: string) => {
             </svg>
             Danh sách sân đã tạo
           </h2>
-          <span class="section-subtitle"
-            >{{ individualCourts.length }} sân đang trống, sẵn sàng cho thuê</span
-          >
         </div>
 
         <div class="courts-grid">
