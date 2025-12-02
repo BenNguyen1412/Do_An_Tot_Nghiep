@@ -25,6 +25,12 @@ const menuItems = [
     icon: 'building-stadium',
     path: '/owner/management/courts',
   },
+  {
+    id: 'court-list',
+    label: 'Danh sách sân',
+    icon: 'list-bullet',
+    path: '/owner/management/court-list',
+  },
 ]
 
 const isActive = (path: string) => {
@@ -90,6 +96,22 @@ const isActive = (path: string) => {
               <rect x="4" y="10" width="16" height="8" rx="2" fill="#10b981" />
               <rect x="7" y="6" width="10" height="4" rx="2" fill="#fbbf24" />
               <rect x="9" y="2" width="6" height="4" rx="2" fill="#3b82f6" />
+            </svg>
+            <svg
+              v-else-if="item.icon === 'list-bullet'"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              width="24"
+              height="24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           </span>
           <transition name="fade">
@@ -182,6 +204,7 @@ const isActive = (path: string) => {
 @media (max-width: 1440px) {
   .sidebar {
     width: 240px;
+    top: 0;
   }
 
   .sidebar.collapsed {
@@ -303,6 +326,7 @@ const isActive = (path: string) => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding-top: 0;
 }
 
 .sidebar.collapsed ~ .main-wrapper {
@@ -327,9 +351,6 @@ const isActive = (path: string) => {
   align-items: center;
   gap: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 80px;
-  z-index: 100;
   min-width: 0;
   overflow: hidden;
 }
@@ -338,7 +359,6 @@ const isActive = (path: string) => {
   .top-bar {
     padding: 16px 24px;
     gap: 16px;
-    top: 70px;
   }
 }
 
@@ -449,6 +469,7 @@ const isActive = (path: string) => {
 @media (max-width: 1024px) {
   .sidebar {
     width: 70px;
+    top: 0;
   }
 
   .sidebar.collapsed {
@@ -467,16 +488,13 @@ const isActive = (path: string) => {
   .user-details {
     display: none;
   }
-
-  .top-bar {
-    top: 70px;
-  }
 }
 
 @media (max-width: 768px) {
   .sidebar {
     width: 0;
     overflow: hidden;
+    top: 0;
   }
 
   .sidebar.collapsed {

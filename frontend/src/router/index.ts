@@ -55,6 +55,11 @@ const router = createRouter({
           name: 'owner-courts',
           component: () => import('@/views/owner/OwnerCourtUploadPage.vue'),
         },
+        {
+          path: 'court-list',
+          name: 'owner-court-list',
+          component: () => import('@/views/owner/OwnerCourtListPage.vue'),
+        },
       ],
     },
     {
