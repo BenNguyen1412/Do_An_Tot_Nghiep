@@ -80,3 +80,9 @@ def delete_user(db: Session, user_id: int) -> bool:
     db.commit()
     
     return True
+
+def get_users_by_role(db: Session, role: str):
+    """
+    Get all users by role
+    """
+    return db.query(User).filter(User.role == role).all()

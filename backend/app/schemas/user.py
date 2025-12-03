@@ -43,3 +43,10 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     user: UserResponse
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+
+# Aliases for backward compatibility
+User = UserResponse
+UserCreate = UserRegister

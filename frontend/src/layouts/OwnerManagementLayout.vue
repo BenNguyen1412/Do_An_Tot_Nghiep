@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppHeader from '@/components/layout/AppHeader.vue'
+import NotificationBell from '@/components/owner/NotificationBell.vue'
 const route = useRoute()
 const authStore = useAuthStore()
 
@@ -24,6 +25,12 @@ const menuItems = [
     label: 'Đăng tải sân',
     icon: 'building-stadium',
     path: '/owner/management/courts',
+  },
+  {
+    id: 'court-list',
+    label: 'Danh sách sân',
+    icon: 'list-bullet',
+    path: '/owner/management/court-list',
   },
 ]
 
@@ -91,6 +98,22 @@ const isActive = (path: string) => {
               <rect x="7" y="6" width="10" height="4" rx="2" fill="#fbbf24" />
               <rect x="9" y="2" width="6" height="4" rx="2" fill="#3b82f6" />
             </svg>
+            <svg
+              v-else-if="item.icon === 'list-bullet'"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              width="24"
+              height="24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
           </span>
           <transition name="fade">
             <span v-if="isSidebarOpen" class="nav-label">{{ item.label }}</span>
@@ -124,6 +147,8 @@ const isActive = (path: string) => {
         <div class="top-bar-title">
           <h1>{{ menuItems.find((item) => isActive(item.path))?.label || 'Management' }}</h1>
         </div>
+
+        <NotificationBell />
 
         <div class="user-info">
           <div class="user-avatar">
@@ -182,6 +207,7 @@ const isActive = (path: string) => {
 @media (max-width: 1440px) {
   .sidebar {
     width: 240px;
+    top: 0;
   }
 
   .sidebar.collapsed {
@@ -303,6 +329,7 @@ const isActive = (path: string) => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding-top: 0;
 }
 
 .sidebar.collapsed ~ .main-wrapper {
@@ -327,18 +354,17 @@ const isActive = (path: string) => {
   align-items: center;
   gap: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 80px;
-  z-index: 100;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
+  position: sticky;
+  top: 0;
+  z-index: 900;
 }
 
 @media (max-width: 1440px) {
   .top-bar {
     padding: 16px 24px;
     gap: 16px;
-    top: 70px;
   }
 }
 
@@ -449,6 +475,7 @@ const isActive = (path: string) => {
 @media (max-width: 1024px) {
   .sidebar {
     width: 70px;
+    top: 0;
   }
 
   .sidebar.collapsed {
@@ -467,16 +494,13 @@ const isActive = (path: string) => {
   .user-details {
     display: none;
   }
-
-  .top-bar {
-    top: 70px;
-  }
 }
 
 @media (max-width: 768px) {
   .sidebar {
     width: 0;
     overflow: hidden;
+    top: 0;
   }
 
   .sidebar.collapsed {

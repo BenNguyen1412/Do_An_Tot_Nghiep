@@ -19,6 +19,15 @@ body {
   min-height: 100vh;
 }
 
+/* Toast z-index fix */
+.Vue-Toastification__container {
+  z-index: 99999 !important;
+}
+
+.Vue-Toastification__toast {
+  z-index: 99999 !important;
+}
+
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 10px;

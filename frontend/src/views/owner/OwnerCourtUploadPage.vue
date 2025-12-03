@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
+import axiosInstance from '@/utils/axios'
 
 const toast = useToast()
 const authStore = useAuthStore()
@@ -21,6 +22,7 @@ const courtForm = ref({
   district: '',
   city: '',
   description: '',
+  court_quantity: 1,
   opening_time: '06:00',
   closing_time: '22:00',
   facilities: [] as string[],
@@ -31,16 +33,61 @@ const courtForm = ref({
 const timeSlots = ref<TimeSlot[]>([])
 let nextSlotId = 1
 
+// Fetch approved court if exists
+const fetchApprovedCourt = async () => {
+  try {
+    const response = await axiosInstance.get('/courts/my')
+    if (response.data && response.data.length > 0) {
+      const court = response.data[0]
+
+      // Load court data into form
+      courtForm.value = {
+        name: court.name,
+        address: court.address,
+        district: court.district,
+        city: court.city,
+        description: court.description || '',
+        court_quantity: court.court_quantity,
+        opening_time: court.opening_time,
+        closing_time: court.closing_time,
+        facilities: court.facilities || [],
+        contact_phone: court.contact_phone,
+        contact_email: court.contact_email || '',
+      }
+
+      // Load time slots
+      if (court.time_slots && court.time_slots.length > 0) {
+        timeSlots.value = court.time_slots.map(
+          (slot: { start_time: string; end_time: string; price: number }, index: number) => ({
+            id: String(index + 1),
+            startTime: slot.start_time,
+            endTime: slot.end_time,
+            price: String(slot.price),
+          }),
+        )
+        nextSlotId = timeSlots.value.length + 1
+      }
+    }
+  } catch (error) {
+    console.log('No approved court found or error:', error)
+  }
+}
+
 // Load user info on mount
-onMounted(() => {
+onMounted(async () => {
   if (authStore.user) {
     courtForm.value.contact_phone = authStore.user.phone_number || ''
     courtForm.value.contact_email = authStore.user.email || ''
+
+    // Try to fetch approved court
+    await fetchApprovedCourt()
   }
 })
 
 const images = ref<File[]>([])
 const imagePreviews = ref<string[]>([])
+
+// Court editing removed - using request workflow only
 
 // Available facilities
 const availableFacilities = [
@@ -116,9 +163,33 @@ const removeImage = (index: number) => {
   imagePreviews.value.splice(index, 1)
 }
 
+const resetForm = () => {
+  courtForm.value = {
+    name: '',
+    address: '',
+    district: '',
+    city: '',
+    description: '',
+    court_quantity: 1,
+    opening_time: '06:00',
+    closing_time: '22:00',
+    facilities: [] as string[],
+    contact_phone: authStore.user?.phone_number || '',
+    contact_email: authStore.user?.email || '',
+  }
+  timeSlots.value = []
+  images.value = []
+  imagePreviews.value = []
+  nextSlotId = 1
+}
+
 const validateForm = () => {
   if (!courtForm.value.name.trim()) {
     toast.error('Vui lòng nhập tên sân')
+    return false
+  }
+  if (!courtForm.value.court_quantity || courtForm.value.court_quantity < 1) {
+    toast.error('Số lượng sân phải từ 1 trở lên')
     return false
   }
 
@@ -224,42 +295,77 @@ const handleSubmit = async () => {
   isSaving.value = true
 
   try {
-    // TODO: Call API to create court with images
-    console.log('Court data:', courtForm.value)
-    console.log('Time slots:', timeSlots.value)
-    console.log('Images:', images.value)
+    let imageUrls: string[] = []
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    // Upload images if any
+    if (images.value.length > 0) {
+      const formData = new FormData()
+      images.value.forEach((image) => {
+        formData.append('images', image)
+      })
 
-    toast.success('✅ Đăng tải sân thành công!')
+      const uploadResponse = await axiosInstance.post('/upload-images', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      imageUrls = uploadResponse.data.urls
+    }
+
+    // Prepare court request data
+    const courtRequestData = {
+      name: courtForm.value.name,
+      address: courtForm.value.address,
+      district: courtForm.value.district,
+      city: courtForm.value.city,
+      description: courtForm.value.description,
+      court_quantity: courtForm.value.court_quantity,
+      opening_time: courtForm.value.opening_time,
+      closing_time: courtForm.value.closing_time,
+      facilities: JSON.stringify(courtForm.value.facilities),
+      contact_phone: courtForm.value.contact_phone,
+      contact_email: courtForm.value.contact_email,
+      time_slots: JSON.stringify(
+        timeSlots.value.map((slot) => ({
+          start_time: slot.startTime,
+          end_time: slot.endTime,
+          price: parseFloat(slot.price),
+        })),
+      ),
+      images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
+    }
+
+    // Submit court request
+    await axiosInstance.post('/court-requests', courtRequestData)
+
+    // Clear form and images
     resetForm()
+
+    // Show success notification
+    toast.success(
+      '✅ Đã gửi yêu cầu đăng sân! Admin sẽ xem xét và phê duyệt trong thời gian sớm nhất.',
+      {
+        timeout: 6000,
+      },
+    )
+
+    // Scroll to top
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 100)
   } catch (error) {
-    console.error('Error creating court:', error)
-    toast.error('Đăng tải sân thất bại. Vui lòng thử lại!')
+    console.error('Error creating court request:', error)
+    const err = error as { response?: { data?: { detail?: string } } }
+    toast.error(err.response?.data?.detail || 'Gửi yêu cầu thất bại. Vui lòng thử lại!')
   } finally {
     isSaving.value = false
   }
 }
 
-const resetForm = () => {
-  courtForm.value = {
-    name: '',
-    address: '',
-    district: '',
-    city: '',
-    description: '',
-    opening_time: '06:00',
-    closing_time: '22:00',
-    facilities: [],
-    contact_phone: authStore.user?.phone_number || '',
-    contact_email: authStore.user?.email || '',
-  }
-  timeSlots.value = []
-  nextSlotId = 1
-  images.value = []
-  imagePreviews.value = []
-}
+// Court editing removed - now using request workflow
+// Owner submits request → Admin approves → System creates court
+// Court management moved to separate Court List page
 
 const formatCurrency = (value: string | number) => {
   const numValue = typeof value === 'string' ? value.replace(/[^0-9]/g, '') : String(value)
@@ -267,13 +373,43 @@ const formatCurrency = (value: string | number) => {
   if (isNaN(num)) return ''
   return new Intl.NumberFormat('vi-VN').format(num)
 }
+
+const formatTimeWithPeriod = (time: string) => {
+  if (!time) return ''
+  const [hours] = time.split(':')
+  const hour = parseInt(hours)
+  if (hour < 12) {
+    return `${time} SA`
+  } else {
+    return `${time} CH`
+  }
+}
 </script>
 
 <template>
   <div class="court-upload-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">🏟️ Đăng tải sân</h1>
+        <h1 class="page-title">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            style="
+              width: 40px;
+              height: 40px;
+              display: inline-block;
+              vertical-align: middle;
+              margin-right: 8px;
+            "
+          >
+            <rect x="4" y="10" width="16" height="8" rx="2" fill="#10b981" />
+            <rect x="7" y="6" width="10" height="4" rx="2" fill="#fbbf24" />
+            <rect x="9" y="2" width="6" height="4" rx="2" fill="#3b82f6" />
+          </svg>
+          Đăng tải sân
+        </h1>
         <p class="page-subtitle">Điền đầy đủ thông tin để đăng tải sân của bạn</p>
       </div>
       <button class="preview-btn" type="button">
@@ -304,7 +440,29 @@ const formatCurrency = (value: string | number) => {
       <!-- Basic Information -->
       <div class="form-section">
         <div class="section-header">
-          <h2 class="section-title">📝 Thông tin cơ bản</h2>
+          <h2 class="section-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              style="
+                width: 24px;
+                height: 24px;
+                display: inline-block;
+                vertical-align: middle;
+                margin-right: 8px;
+              "
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            Thông tin cơ bản
+          </h2>
         </div>
 
         <div class="form-grid">
@@ -348,6 +506,18 @@ const formatCurrency = (value: string | number) => {
             />
           </div>
 
+          <div class="form-group">
+            <label class="form-label required">Số lượng sân</label>
+            <input
+              v-model.number="courtForm.court_quantity"
+              type="number"
+              class="form-input"
+              placeholder="VD: 5"
+              min="1"
+              step="1"
+            />
+          </div>
+
           <div class="form-group full-width">
             <label class="form-label">Mô tả</label>
             <textarea
@@ -363,12 +533,47 @@ const formatCurrency = (value: string | number) => {
       <!-- Pricing & Hours -->
       <div class="form-section">
         <div class="section-header">
-          <h2 class="section-title">💰 Giá thuê theo khung giờ</h2>
+          <h2 class="section-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              style="
+                width: 24px;
+                height: 24px;
+                display: inline-block;
+                vertical-align: middle;
+                margin-right: 8px;
+              "
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            Giá thuê theo khung giờ
+          </h2>
           <span class="section-subtitle">Thêm các khung giờ và giá thuê tương ứng</span>
         </div>
 
         <div v-if="timeSlots.length === 0" class="empty-slots">
-          <span class="empty-icon">📅</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            class="empty-icon"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
           <p class="empty-text">Chưa có khung giờ nào. Nhấn nút bên dưới để thêm.</p>
         </div>
 
@@ -383,26 +588,30 @@ const formatCurrency = (value: string | number) => {
           >
             <div class="slot-inputs">
               <div class="slot-input-group">
-                <label class="slot-label">Từ giờ</label>
+                <label class="slot-label">Từ</label>
                 <input
                   v-model="slot.startTime"
                   type="time"
                   class="slot-time-input"
                   placeholder="Bắt đầu"
                   pattern="[0-9]{2}:[0-9]{2}"
+                  step="3600"
+                  lang="vi-VN"
                 />
               </div>
 
               <span class="slot-separator">→</span>
 
               <div class="slot-input-group">
-                <label class="slot-label">Đến giờ</label>
+                <label class="slot-label">Đến</label>
                 <input
                   v-model="slot.endTime"
                   type="time"
                   class="slot-time-input"
                   placeholder="Kết thúc"
                   pattern="[0-9]{2}:[0-9]{2}"
+                  step="3600"
+                  lang="vi-VN"
                 />
               </div>
 
@@ -447,8 +656,28 @@ const formatCurrency = (value: string | number) => {
               v-if="slot.startTime && slot.endTime && slot.price && parseFloat(slot.price) > 0"
               class="slot-preview"
             >
-              ⏰ {{ slot.startTime }} - {{ slot.endTime }} •
-              {{ formatCurrency(slot.price) }} đồng/giờ
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                style="
+                  width: 18px;
+                  height: 18px;
+                  display: inline-block;
+                  vertical-align: middle;
+                  margin-right: 6px;
+                "
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {{ formatTimeWithPeriod(slot.startTime) }} -
+              {{ formatTimeWithPeriod(slot.endTime) }} • {{ formatCurrency(slot.price) }} đồng/giờ
             </div>
           </div>
         </div>
@@ -478,6 +707,9 @@ const formatCurrency = (value: string | number) => {
               type="time"
               class="form-input"
               pattern="[0-9]{2}:[0-9]{2}"
+              step="3600"
+              lang="vi-VN"
+              title="VD: 06:00 (6h sáng)"
             />
           </div>
 
@@ -488,15 +720,68 @@ const formatCurrency = (value: string | number) => {
               type="time"
               class="form-input"
               pattern="[0-9]{2}:[0-9]{2}"
+              step="3600"
+              lang="vi-VN"
+              title="VD: 22:00 (10h tối)"
             />
           </div>
+        </div>
+
+        <div
+          v-if="courtForm.opening_time && courtForm.closing_time"
+          class="operating-hours-preview"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            style="
+              width: 18px;
+              height: 18px;
+              display: inline-block;
+              vertical-align: middle;
+              margin-right: 6px;
+            "
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          {{ formatTimeWithPeriod(courtForm.opening_time) }} -
+          {{ formatTimeWithPeriod(courtForm.closing_time) }}
         </div>
       </div>
 
       <!-- Facilities -->
       <div class="form-section">
         <div class="section-header">
-          <h2 class="section-title">🎯 Tiện ích</h2>
+          <h2 class="section-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              style="
+                width: 24px;
+                height: 24px;
+                display: inline-block;
+                vertical-align: middle;
+                margin-right: 8px;
+              "
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              />
+            </svg>
+            Tiện ích
+          </h2>
           <span class="section-subtitle">Chọn các tiện ích có sẵn tại sân</span>
         </div>
 
@@ -533,7 +818,29 @@ const formatCurrency = (value: string | number) => {
       <!-- Images -->
       <div class="form-section">
         <div class="section-header">
-          <h2 class="section-title">📸 Hình ảnh</h2>
+          <h2 class="section-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              style="
+                width: 24px;
+                height: 24px;
+                display: inline-block;
+                vertical-align: middle;
+                margin-right: 8px;
+              "
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            Hình ảnh
+          </h2>
           <span class="section-subtitle">Yêu cầu 5 ảnh chụp của sân muốn đăng tải</span>
         </div>
 
@@ -592,7 +899,29 @@ const formatCurrency = (value: string | number) => {
       <!-- Contact Information -->
       <div class="form-section">
         <div class="section-header">
-          <h2 class="section-title">📞 Thông tin liên hệ</h2>
+          <h2 class="section-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              style="
+                width: 24px;
+                height: 24px;
+                display: inline-block;
+                vertical-align: middle;
+                margin-right: 8px;
+              "
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+              />
+            </svg>
+            Thông tin liên hệ
+          </h2>
         </div>
 
         <div class="form-grid">
@@ -619,24 +948,9 @@ const formatCurrency = (value: string | number) => {
         </div>
       </div>
 
+      <!-- Individual Courts List (if created) -->
       <!-- Form Actions -->
       <div class="form-actions">
-        <button type="button" class="btn-reset" @click="resetForm" :disabled="isSaving">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-          Hủy bỏ
-        </button>
         <button type="submit" class="btn-submit" :disabled="isSaving">
           <svg
             v-if="!isSaving"
@@ -673,7 +987,7 @@ const formatCurrency = (value: string | number) => {
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             ></path>
           </svg>
-          {{ isSaving ? 'Đang đăng tải...' : 'Đăng tải sân' }}
+          {{ isSaving ? 'Đang gửi yêu cầu...' : 'Gửi yêu cầu đăng sân' }}
         </button>
       </div>
     </form>
@@ -784,6 +1098,18 @@ const formatCurrency = (value: string | number) => {
   grid-column: 1 / -1;
 }
 
+.time-display {
+  font-size: 0.875rem;
+  color: #2d5016;
+  font-weight: 600;
+  margin-top: 4px;
+  padding: 6px 12px;
+  background: #f0fdf4;
+  border-radius: 6px;
+  display: inline-block;
+  width: fit-content;
+}
+
 .form-label {
   font-weight: 600;
   font-size: 0.9rem;
@@ -807,10 +1133,20 @@ const formatCurrency = (value: string | number) => {
 
 .form-input::-webkit-calendar-picker-indicator {
   filter: invert(0.5);
+  cursor: pointer;
 }
 
 .form-input::-webkit-datetime-edit-ampm-field {
-  display: none;
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+input[type='time'].form-input {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .form-input:focus,
@@ -844,7 +1180,9 @@ const formatCurrency = (value: string | number) => {
 }
 
 .empty-icon {
-  font-size: 3rem;
+  width: 64px;
+  height: 64px;
+  color: #6b7280;
 }
 
 .empty-text {
@@ -858,6 +1196,18 @@ const formatCurrency = (value: string | number) => {
   flex-direction: column;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.operating-hours-preview {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #2d5016;
+  font-weight: 600;
+  text-align: center;
 }
 
 .time-slot-item {
@@ -911,14 +1261,35 @@ const formatCurrency = (value: string | number) => {
 
 .slot-time-input::-webkit-calendar-picker-indicator {
   filter: invert(0.5);
+  cursor: pointer;
 }
 
 .slot-time-input::-webkit-datetime-edit-ampm-field {
-  display: none;
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 input[type='time']::-webkit-datetime-edit-ampm-field {
-  display: none;
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+input[type='time'] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+input[type='time']::-webkit-inner-spin-button,
+input[type='time']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .slot-time-input:focus {
@@ -1193,16 +1564,111 @@ input[type='time']::-webkit-datetime-edit-ampm-field {
   font-weight: 700;
 }
 
+/* Individual Courts Grid */
+.courts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.court-card {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.court-card.available {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #86efac;
+}
+
+.court-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.court-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.court-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.court-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.court-status.available {
+  background: #10b981;
+  color: white;
+}
+
+.court-status.booked {
+  background: #ef4444;
+  color: white;
+}
+
+.court-status svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Booking functionality removed - CSS cleaned up */
+
+.action-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+  margin-top: 16px;
+}
+
+.action-banner svg {
+  width: 24px;
+  height: 24px;
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.action-banner p {
+  margin: 0;
+  color: #1e40af;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 /* Form Actions */
 .form-actions {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
   padding-top: 20px;
+  flex-wrap: wrap;
 }
 
 .btn-reset,
-.btn-submit {
+.btn-submit,
+.btn-view-list {
   padding: 14px 32px;
   border-radius: 10px;
   font-weight: 600;
@@ -1236,6 +1702,17 @@ input[type='time']::-webkit-datetime-edit-ampm-field {
   box-shadow: 0 8px 20px rgba(45, 80, 22, 0.3);
 }
 
+.btn-view-list {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-view-list:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+}
+
 .btn-reset:disabled,
 .btn-submit:disabled {
   opacity: 0.6;
@@ -1243,7 +1720,8 @@ input[type='time']::-webkit-datetime-edit-ampm-field {
 }
 
 .btn-reset svg,
-.btn-submit svg {
+.btn-submit svg,
+.btn-view-list svg {
   width: 18px;
   height: 18px;
 }
@@ -1292,9 +1770,14 @@ input[type='time']::-webkit-datetime-edit-ampm-field {
   }
 
   .btn-reset,
-  .btn-submit {
+  .btn-submit,
+  .btn-view-list {
     width: 100%;
     justify-content: center;
+  }
+
+  .courts-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

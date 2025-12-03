@@ -43,14 +43,6 @@
               <span>🔍</span>
               <span>Filter</span>
             </button>
-            <button class="export-btn">
-              <span>📥</span>
-              <span>Export</span>
-            </button>
-            <button class="add-btn">
-              <span>+</span>
-              <span>Add Court</span>
-            </button>
           </div>
         </div>
 
@@ -274,8 +266,7 @@ const courts = ref([
   gap: 12px;
 }
 
-.filter-btn,
-.export-btn {
+.filter-btn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -290,31 +281,9 @@ const courts = ref([
   transition: all 0.3s ease;
 }
 
-.filter-btn:hover,
-.export-btn:hover {
+.filter-btn:hover {
   background: #e5e7eb;
   border-color: #d1d5db;
-}
-
-.add-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 20px;
-  background: linear-gradient(135deg, #4169e1 0%, #5a7fee 100%);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(65, 105, 225, 0.3);
-}
-
-.add-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(65, 105, 225, 0.4);
 }
 
 /* Table */
