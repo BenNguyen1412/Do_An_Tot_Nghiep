@@ -65,22 +65,40 @@ def create_court_request(db: Session, request: CourtRequestCreate, owner_id: int
 
 def get_court_request(db: Session, request_id: int) -> Optional[CourtRequest]:
     """Get a court request by ID"""
-    return db.query(CourtRequest).filter(CourtRequest.id == request_id).first()
+    from app.models.user import User
+    request = db.query(CourtRequest).filter(CourtRequest.id == request_id).first()
+    if request:
+        request.owner = db.query(User).filter(User.id == request.owner_id).first()
+    return request
 
 
 def get_all_court_requests(db: Session, status: Optional[str] = None) -> List[CourtRequest]:
     """Get all court requests, optionally filtered by status"""
+    from app.models.user import User
     query = db.query(CourtRequest)
     if status:
         query = query.filter(CourtRequest.status == status)
-    return query.order_by(CourtRequest.created_at.desc()).all()
+    requests = query.order_by(CourtRequest.created_at.desc()).all()
+    
+    # Load owner info for each request
+    for request in requests:
+        request.owner = db.query(User).filter(User.id == request.owner_id).first()
+    
+    return requests
 
 
 def get_owner_court_requests(db: Session, owner_id: int) -> List[CourtRequest]:
     """Get all court requests by a specific owner"""
-    return db.query(CourtRequest).filter(
+    from app.models.user import User
+    requests = db.query(CourtRequest).filter(
         CourtRequest.owner_id == owner_id
     ).order_by(CourtRequest.created_at.desc()).all()
+    
+    # Load owner info for each request
+    for request in requests:
+        request.owner = db.query(User).filter(User.id == request.owner_id).first()
+    
+    return requests
 
 
 def update_court_request_status(

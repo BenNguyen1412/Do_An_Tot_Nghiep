@@ -18,10 +18,7 @@
 
       <div class="header-actions">
         <!-- Notifications -->
-        <div class="notification-btn" @click="toggleNotifications">
-          <span class="notification-icon">🔔</span>
-          <span class="notification-badge">3</span>
-        </div>
+        <NotificationBell />
 
         <!-- User Info -->
         <div class="user-info">
@@ -41,6 +38,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import NotificationBell from './NotificationBell.vue'
 
 const authStore = useAuthStore()
 
@@ -61,10 +59,6 @@ const getRoleDisplay = (role?: string) => {
     enterprise: 'Enterprise',
   }
   return roleMap[role || 'admin'] || 'Admin'
-}
-
-const toggleNotifications = () => {
-  console.log('Toggle notifications')
 }
 </script>
 
@@ -139,58 +133,6 @@ const toggleNotifications = () => {
   display: flex;
   align-items: center;
   gap: 16px;
-}
-
-/* Notification Button */
-.notification-btn {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f9fafb;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1.5px solid transparent;
-}
-
-.notification-btn:hover {
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-}
-
-.notification-icon {
-  font-size: 20px;
-}
-
-.notification-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 18px;
-  height: 18px;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #fff;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
 }
 
 /* User Info */

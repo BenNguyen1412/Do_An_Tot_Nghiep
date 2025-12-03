@@ -51,6 +51,15 @@ class CourtRequestUpdate(BaseModel):
     rejection_reason: Optional[str] = None
 
 
+class OwnerInfo(BaseModel):
+    id: int
+    full_name: str
+    email: str
+
+    class Config:
+        from_attributes = True
+
+
 class CourtRequest(CourtRequestBase):
     id: int
     owner_id: int
@@ -60,6 +69,7 @@ class CourtRequest(CourtRequestBase):
     reviewed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    owner: Optional[OwnerInfo] = None
 
     class Config:
         from_attributes = True
