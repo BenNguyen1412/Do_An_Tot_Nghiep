@@ -27,3 +27,5 @@ class User(Base):
     # Relationships
     courts = relationship("Court", back_populates="owner")
     bookings = relationship("Booking", back_populates="user")
+    notifications = relationship("Notification", back_populates="user")
+    court_requests = relationship("CourtRequest", foreign_keys="CourtRequest.owner_id", back_populates="owner")

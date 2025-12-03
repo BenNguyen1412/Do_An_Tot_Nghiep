@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppHeader from '@/components/layout/AppHeader.vue'
+import NotificationBell from '@/components/owner/NotificationBell.vue'
 const route = useRoute()
 const authStore = useAuthStore()
 
@@ -146,6 +147,8 @@ const isActive = (path: string) => {
         <div class="top-bar-title">
           <h1>{{ menuItems.find((item) => isActive(item.path))?.label || 'Management' }}</h1>
         </div>
+
+        <NotificationBell />
 
         <div class="user-info">
           <div class="user-avatar">
@@ -352,7 +355,10 @@ const isActive = (path: string) => {
   gap: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
+  position: sticky;
+  top: 0;
+  z-index: 900;
 }
 
 @media (max-width: 1440px) {

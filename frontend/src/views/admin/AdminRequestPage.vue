@@ -8,28 +8,28 @@
         <div class="stat-item">
           <div class="stat-icon orange">📋</div>
           <div class="stat-info">
-            <div class="stat-value">156</div>
+            <div class="stat-value">{{ stats.total }}</div>
             <div class="stat-label">Total Requests</div>
           </div>
         </div>
         <div class="stat-item">
           <div class="stat-icon yellow">⏳</div>
           <div class="stat-info">
-            <div class="stat-value">23</div>
+            <div class="stat-value">{{ stats.pending }}</div>
             <div class="stat-label">Pending</div>
           </div>
         </div>
         <div class="stat-item">
           <div class="stat-icon green">✓</div>
           <div class="stat-info">
-            <div class="stat-value">118</div>
+            <div class="stat-value">{{ stats.approved }}</div>
             <div class="stat-label">Approved</div>
           </div>
         </div>
         <div class="stat-item">
           <div class="stat-icon red">✕</div>
           <div class="stat-info">
-            <div class="stat-value">15</div>
+            <div class="stat-value">{{ stats.rejected }}</div>
             <div class="stat-label">Rejected</div>
           </div>
         </div>
@@ -42,10 +42,6 @@
             <button class="filter-btn">
               <span>🔍</span>
               <span>Filter</span>
-            </button>
-            <button class="export-btn">
-              <span>📥</span>
-              <span>Export</span>
             </button>
           </div>
         </div>
@@ -62,42 +58,69 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="request in requests" :key="request.id" class="table-row">
+            <tr v-if="isLoading">
+              <td colspan="6" style="text-align: center; padding: 40px">
+                <div style="color: #6b7280">Đang tải...</div>
+              </td>
+            </tr>
+            <tr v-else-if="requests.length === 0">
+              <td colspan="6" style="text-align: center; padding: 40px">
+                <div style="color: #6b7280">Không có yêu cầu nào</div>
+              </td>
+            </tr>
+            <tr v-else v-for="request in requests" :key="request.id" class="table-row">
               <td>
                 <div class="request-name">
-                  <div class="request-icon-wrapper" :class="request.type">
-                    <span class="request-icon">{{ request.icon }}</span>
+                  <div class="request-icon-wrapper Court">
+                    <span class="request-icon">🏟️</span>
                   </div>
                   <div class="request-details">
                     <div class="name">{{ request.name }}</div>
-                    <div class="request-type-tag">{{ request.type }}</div>
+                    <div class="request-type-tag">Court Request</div>
                   </div>
                 </div>
               </td>
               <td>
                 <div class="requester-info">
-                  <div class="requester-avatar">{{ request.requesterInitials }}</div>
-                  <span class="requester-name">{{ request.requester }}</span>
+                  <div class="requester-avatar">
+                    {{ getInitials(request.owner?.full_name || 'N/A') }}
+                  </div>
+                  <span class="requester-name">{{ request.owner?.full_name || 'N/A' }}</span>
                 </div>
               </td>
               <td>
-                <a :href="request.detail" class="detail-link" target="_blank">{{
-                  request.detail
-                }}</a>
+                <div style="font-size: 13px; color: #6b7280">
+                  <div>{{ request.address }}</div>
+                  <div>{{ request.district }}, {{ request.city }}</div>
+                </div>
               </td>
               <td>
-                <span class="date-text">{{ request.time }}</span>
+                <span class="date-text">{{ formatDate(request.created_at) }}</span>
               </td>
               <td>
-                <span :class="['status-badge', request.status.toLowerCase()]">{{
-                  request.status
-                }}</span>
+                <span :class="['status-badge', request.status.toLowerCase()]">
+                  {{ request.status }}
+                </span>
               </td>
               <td>
                 <div class="action-buttons">
-                  <button class="action-btn approve-btn" title="Approve">✓</button>
-                  <button class="action-btn reject-btn" title="Reject">✕</button>
-                  <button class="action-btn view-btn" title="View">👁️</button>
+                  <button
+                    v-if="request.status === 'pending'"
+                    class="action-btn approve-btn"
+                    title="Approve"
+                    @click="approveRequest(request.id)"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    v-if="request.status === 'pending'"
+                    class="action-btn reject-btn"
+                    title="Reject"
+                    @click="rejectRequest(request.id)"
+                  >
+                    ✕
+                  </button>
+                  <button class="action-btn view-btn" title="View" disabled>👁️</button>
                 </div>
               </td>
             </tr>
@@ -120,66 +143,113 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import AdminDashboardLayout from '@/layouts/AdminDashboardLayout.vue'
+import axiosInstance from '@/utils/axios'
+import { useToast } from 'vue-toastification'
 
-const requests = ref([
-  {
-    id: 1,
-    name: 'Upload court A',
-    detail: 'View Document',
-    time: '05/11/2025',
-    icon: '🏟️',
-    type: 'Court',
-    status: 'Pending',
-    requester: 'Nguyễn Văn A',
-    requesterInitials: 'NA',
-  },
-  {
-    id: 2,
-    name: 'Upload court B',
-    detail: 'View Document',
-    time: '04/11/2025',
-    icon: '🏟️',
-    type: 'Court',
-    status: 'Approved',
-    requester: 'Trần Thị B',
-    requesterInitials: 'TB',
-  },
-  {
-    id: 3,
-    name: 'Upload ad',
-    detail: 'View Document',
-    time: '03/11/2025',
-    icon: '📢',
-    type: 'Advertisement',
-    status: 'Pending',
-    requester: 'Lê Văn C',
-    requesterInitials: 'LC',
-  },
-  {
-    id: 4,
-    name: 'Partnership Request',
-    detail: 'View Document',
-    time: '02/11/2025',
-    icon: '🤝',
-    type: 'Partnership',
-    status: 'Approved',
-    requester: 'Phạm Thị D',
-    requesterInitials: 'PD',
-  },
-  {
-    id: 5,
-    name: 'Upload court C',
-    detail: 'View Document',
-    time: '01/11/2025',
-    icon: '🏟️',
-    type: 'Court',
-    status: 'Rejected',
-    requester: 'Hoàng Văn E',
-    requesterInitials: 'HE',
-  },
-])
+const toast = useToast()
+
+interface CourtRequest {
+  id: number
+  name: string
+  address: string
+  district: string
+  city: string
+  description: string | null
+  court_quantity: number
+  opening_time: string
+  closing_time: string
+  facilities: string | null
+  contact_phone: string
+  contact_email: string | null
+  images: string | null
+  time_slots: string | null
+  owner_id: number
+  status: string
+  rejection_reason: string | null
+  reviewed_by: number | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at: string | null
+  owner?: {
+    id: number
+    full_name: string
+    email: string
+  }
+}
+
+const requests = ref<CourtRequest[]>([])
+const isLoading = ref(false)
+
+const stats = computed(() => {
+  const total = requests.value.length
+  const pending = requests.value.filter((r) => r.status === 'pending').length
+  const approved = requests.value.filter((r) => r.status === 'approved').length
+  const rejected = requests.value.filter((r) => r.status === 'rejected').length
+  return { total, pending, approved, rejected }
+})
+
+const fetchRequests = async () => {
+  isLoading.value = true
+  try {
+    const response = await axiosInstance.get('/court-requests')
+    requests.value = response.data
+  } catch (error) {
+    console.error('Error fetching requests:', error)
+    toast.error('Không thể tải danh sách yêu cầu')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const getInitials = (name: string) => {
+  if (!name) return 'N/A'
+  const parts = name.trim().split(' ')
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
+
+const approveRequest = async (requestId: number) => {
+  try {
+    await axiosInstance.put(`/court-requests/${requestId}`, {
+      status: 'approved',
+    })
+    toast.success('Đã phê duyệt yêu cầu')
+    await fetchRequests()
+  } catch (error) {
+    console.error('Error approving request:', error)
+    toast.error('Không thể phê duyệt yêu cầu')
+  }
+}
+
+const rejectRequest = async (requestId: number) => {
+  const reason = prompt('Nhập lý do từ chối (không bắt buộc):')
+  try {
+    await axiosInstance.put(`/court-requests/${requestId}`, {
+      status: 'rejected',
+      rejection_reason: reason || undefined,
+    })
+    toast.success('Đã từ chối yêu cầu')
+    await fetchRequests()
+  } catch (error) {
+    console.error('Error rejecting request:', error)
+    toast.error('Không thể từ chối yêu cầu')
+  }
+}
+
+onMounted(() => {
+  fetchRequests()
+})
 </script>
 
 <style scoped>

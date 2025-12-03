@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onActivated } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import axiosInstance from '@/utils/axios'
 
 const toast = useToast()
 const authStore = useAuthStore()
-const router = useRouter()
 
 // Time slots for pricing
 interface TimeSlot {
@@ -35,54 +33,61 @@ const courtForm = ref({
 const timeSlots = ref<TimeSlot[]>([])
 let nextSlotId = 1
 
-// Load user info and check for existing court on mount
+// Fetch approved court if exists
+const fetchApprovedCourt = async () => {
+  try {
+    const response = await axiosInstance.get('/courts/my')
+    if (response.data && response.data.length > 0) {
+      const court = response.data[0]
+
+      // Load court data into form
+      courtForm.value = {
+        name: court.name,
+        address: court.address,
+        district: court.district,
+        city: court.city,
+        description: court.description || '',
+        court_quantity: court.court_quantity,
+        opening_time: court.opening_time,
+        closing_time: court.closing_time,
+        facilities: court.facilities || [],
+        contact_phone: court.contact_phone,
+        contact_email: court.contact_email || '',
+      }
+
+      // Load time slots
+      if (court.time_slots && court.time_slots.length > 0) {
+        timeSlots.value = court.time_slots.map(
+          (slot: { start_time: string; end_time: string; price: number }, index: number) => ({
+            id: String(index + 1),
+            startTime: slot.start_time,
+            endTime: slot.end_time,
+            price: String(slot.price),
+          }),
+        )
+        nextSlotId = timeSlots.value.length + 1
+      }
+    }
+  } catch (error) {
+    console.log('No approved court found or error:', error)
+  }
+}
+
+// Load user info on mount
 onMounted(async () => {
   if (authStore.user) {
     courtForm.value.contact_phone = authStore.user.phone_number || ''
     courtForm.value.contact_email = authStore.user.email || ''
 
-    // Check if we have a current court ID in localStorage for this user
-    const storageKey = `currentCourtId_${authStore.user.id}`
-    const savedCourtId = localStorage.getItem(storageKey)
-    if (savedCourtId) {
-      await loadCourtInfo(parseInt(savedCourtId))
-    }
-  }
-})
-
-// Refresh individual courts when component is activated (user switches back to this page)
-onActivated(async () => {
-  if (currentCourtId.value) {
-    await fetchIndividualCourts(currentCourtId.value)
+    // Try to fetch approved court
+    await fetchApprovedCourt()
   }
 })
 
 const images = ref<File[]>([])
 const imagePreviews = ref<string[]>([])
 
-// Booking interface
-interface Booking {
-  id: number
-  booking_date: string
-  start_time: string
-  end_time: string
-  phone_number: string
-  status: string
-}
-
-// Edit mode
-const isEditMode = ref(false)
-const currentCourtId = ref<number | null>(null)
-const individualCourts = ref<
-  Array<{
-    id: number
-    name: string
-    is_available: boolean
-    bookings?: Booking[]
-  }>
->([])
-
-// Individual court editing - removed booking functionality
+// Court editing removed - using request workflow only
 
 // Available facilities
 const availableFacilities = [
@@ -156,6 +161,26 @@ const handleImageUpload = (event: Event) => {
 const removeImage = (index: number) => {
   images.value.splice(index, 1)
   imagePreviews.value.splice(index, 1)
+}
+
+const resetForm = () => {
+  courtForm.value = {
+    name: '',
+    address: '',
+    district: '',
+    city: '',
+    description: '',
+    court_quantity: 1,
+    opening_time: '06:00',
+    closing_time: '22:00',
+    facilities: [] as string[],
+    contact_phone: authStore.user?.phone_number || '',
+    contact_email: authStore.user?.email || '',
+  }
+  timeSlots.value = []
+  images.value = []
+  imagePreviews.value = []
+  nextSlotId = 1
 }
 
 const validateForm = () => {
@@ -270,11 +295,26 @@ const handleSubmit = async () => {
   isSaving.value = true
 
   try {
-    // Prepare form data
-    const formData = new FormData()
+    let imageUrls: string[] = []
 
-    // Prepare court data
-    const courtData = {
+    // Upload images if any
+    if (images.value.length > 0) {
+      const formData = new FormData()
+      images.value.forEach((image) => {
+        formData.append('images', image)
+      })
+
+      const uploadResponse = await axiosInstance.post('/upload-images', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      imageUrls = uploadResponse.data.urls
+    }
+
+    // Prepare court request data
+    const courtRequestData = {
       name: courtForm.value.name,
       address: courtForm.value.address,
       district: courtForm.value.district,
@@ -283,173 +323,49 @@ const handleSubmit = async () => {
       court_quantity: courtForm.value.court_quantity,
       opening_time: courtForm.value.opening_time,
       closing_time: courtForm.value.closing_time,
-      facilities: courtForm.value.facilities,
+      facilities: JSON.stringify(courtForm.value.facilities),
       contact_phone: courtForm.value.contact_phone,
       contact_email: courtForm.value.contact_email,
-      time_slots: timeSlots.value.map((slot) => ({
-        start_time: slot.startTime,
-        end_time: slot.endTime,
-        price: parseFloat(slot.price),
-      })),
+      time_slots: JSON.stringify(
+        timeSlots.value.map((slot) => ({
+          start_time: slot.startTime,
+          end_time: slot.endTime,
+          price: parseFloat(slot.price),
+        })),
+      ),
+      images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
     }
 
-    // Add court data as JSON string
-    formData.append('court_data', JSON.stringify(courtData))
+    // Submit court request
+    await axiosInstance.post('/court-requests', courtRequestData)
 
-    // Add images
-    images.value.forEach((image) => {
-      formData.append('images', image)
-    })
-
-    // Call API to create court
-    const response = await axiosInstance.post('/courts', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
-
-    // Save court info for editing
-    currentCourtId.value = response.data.id
-    isEditMode.value = true
-
-    // Save to localStorage for persistence (user-specific)
-    if (authStore.user) {
-      const storageKey = `currentCourtId_${authStore.user.id}`
-      localStorage.setItem(storageKey, String(response.data.id))
-    }
-
-    // Fetch individual courts
-    await fetchIndividualCourts(response.data.id)
+    // Clear form and images
+    resetForm()
 
     // Show success notification
-    toast.success(`✅ Đăng tải sân thành công! Đã tạo ${courtForm.value.court_quantity} sân con`, {
-      timeout: 5000,
-    })
-
-    // Scroll to top to see the success message and edit form
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }, 100)
-  } catch (error) {
-    console.error('Error creating court:', error)
-    toast.error('Đăng tải sân thất bại. Vui lòng thử lại!')
-  } finally {
-    isSaving.value = false
-  }
-}
-
-const loadCourtInfo = async (courtId: number) => {
-  try {
-    const response = await axiosInstance.get(`/courts/${courtId}`)
-    const court = response.data
-
-    // Restore form data
-    courtForm.value = {
-      name: court.name,
-      address: court.address,
-      district: court.district,
-      city: court.city,
-      description: court.description || '',
-      court_quantity: court.court_quantity,
-      opening_time: court.opening_time,
-      closing_time: court.closing_time,
-      facilities: court.facilities || [],
-      contact_phone: court.contact_phone,
-      contact_email: court.contact_email || '',
-    }
-
-    // Restore time slots
-    if (court.time_slots && court.time_slots.length > 0) {
-      timeSlots.value = court.time_slots.map(
-        (slot: { start_time: string; end_time: string; price: number }, index: number) => ({
-          id: String(index + 1),
-          startTime: slot.start_time,
-          endTime: slot.end_time,
-          price: String(slot.price),
-        }),
-      )
-      nextSlotId = timeSlots.value.length + 1
-    }
-
-    // Set edit mode
-    currentCourtId.value = courtId
-    isEditMode.value = true
-
-    // Fetch individual courts
-    await fetchIndividualCourts(courtId)
-  } catch (error) {
-    console.error('Error loading court info:', error)
-    // Remove user-specific court ID from localStorage
-    if (authStore.user) {
-      const storageKey = `currentCourtId_${authStore.user.id}`
-      localStorage.removeItem(storageKey)
-    }
-  }
-}
-
-const fetchIndividualCourts = async (courtId: number) => {
-  try {
-    const response = await axiosInstance.get(`/courts/${courtId}/individual-courts`)
-    // Tính toán is_available dựa vào bookings thực tế
-    individualCourts.value = response.data.map(
-      (court: { id: number; name: string; bookings?: Booking[] }) => {
-        const hasActiveBooking = court.bookings?.some((b: Booking) => b.status === 'active')
-        return {
-          ...court,
-          is_available: !hasActiveBooking,
-        }
+    toast.success(
+      '✅ Đã gửi yêu cầu đăng sân! Admin sẽ xem xét và phê duyệt trong thời gian sớm nhất.',
+      {
+        timeout: 6000,
       },
     )
-  } catch (error) {
-    console.error('Error fetching individual courts:', error)
-  }
-}
 
-// Booking functionality removed - use Court List page for managing bookings
-
-const updateCourtInfo = async () => {
-  if (!validateForm() || !currentCourtId.value) return
-
-  isSaving.value = true
-
-  try {
-    const courtData = {
-      name: courtForm.value.name,
-      address: courtForm.value.address,
-      district: courtForm.value.district,
-      city: courtForm.value.city,
-      description: courtForm.value.description,
-      court_quantity: courtForm.value.court_quantity,
-      opening_time: courtForm.value.opening_time,
-      closing_time: courtForm.value.closing_time,
-      facilities: courtForm.value.facilities,
-      contact_phone: courtForm.value.contact_phone,
-      contact_email: courtForm.value.contact_email,
-      time_slots: timeSlots.value.map((slot) => ({
-        start_time: slot.startTime,
-        end_time: slot.endTime,
-        price: parseFloat(slot.price),
-      })),
-    }
-
-    await axiosInstance.put(`/courts/${currentCourtId.value}`, courtData)
-
-    // Fetch lại danh sách individual courts để cập nhật số lượng sân
-    await fetchIndividualCourts(currentCourtId.value)
-
-    toast.success('✅ Cập nhật thông tin sân thành công!')
-
-    // Scroll to top to see the updated individual courts list
+    // Scroll to top
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }, 100)
   } catch (error) {
-    console.error('Error updating court:', error)
-    toast.error('Cập nhật thông tin sân thất bại. Vui lòng thử lại!')
+    console.error('Error creating court request:', error)
+    const err = error as { response?: { data?: { detail?: string } } }
+    toast.error(err.response?.data?.detail || 'Gửi yêu cầu thất bại. Vui lòng thử lại!')
   } finally {
     isSaving.value = false
   }
 }
+
+// Court editing removed - now using request workflow
+// Owner submits request → Admin approves → System creates court
+// Court management moved to separate Court List page
 
 const formatCurrency = (value: string | number) => {
   const numValue = typeof value === 'string' ? value.replace(/[^0-9]/g, '') : String(value)
@@ -672,7 +588,7 @@ const formatTimeWithPeriod = (time: string) => {
           >
             <div class="slot-inputs">
               <div class="slot-input-group">
-                <label class="slot-label">Từ giờ (VD: 06:00 SA, 22:00 CH)</label>
+                <label class="slot-label">Từ</label>
                 <input
                   v-model="slot.startTime"
                   type="time"
@@ -687,7 +603,7 @@ const formatTimeWithPeriod = (time: string) => {
               <span class="slot-separator">→</span>
 
               <div class="slot-input-group">
-                <label class="slot-label">Đến giờ (VD: 18:00 CH)</label>
+                <label class="slot-label">Đến</label>
                 <input
                   v-model="slot.endTime"
                   type="time"
@@ -1033,90 +949,9 @@ const formatTimeWithPeriod = (time: string) => {
       </div>
 
       <!-- Individual Courts List (if created) -->
-      <div v-if="isEditMode && individualCourts.length > 0" class="form-section">
-        <div class="section-header">
-          <h2 class="section-title">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              style="
-                width: 24px;
-                height: 24px;
-                display: inline-block;
-                vertical-align: middle;
-                margin-right: 8px;
-              "
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-              />
-            </svg>
-            Danh sách sân đã tạo
-          </h2>
-        </div>
-
-        <div class="courts-grid">
-          <div
-            v-for="court in individualCourts"
-            :key="court.id"
-            class="court-card"
-            :class="{ available: court.is_available }"
-          >
-            <div class="court-header">
-              <h3 class="court-name">{{ court.name }}</h3>
-              <span
-                class="court-status"
-                :class="{ available: court.is_available, booked: !court.is_available }"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    :d="
-                      court.is_available
-                        ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
-                        : 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
-                    "
-                  />
-                </svg>
-                {{ court.is_available ? 'Đang trống' : 'Đã đặt' }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="action-banner">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <p>Bạn có thể chỉnh sửa thông tin sân bên trên và nhấn "Cập nhật" để lưu thay đổi</p>
-        </div>
-      </div>
-
       <!-- Form Actions -->
       <div class="form-actions">
-        <button v-if="!isEditMode" type="submit" class="btn-submit" :disabled="isSaving">
+        <button type="submit" class="btn-submit" :disabled="isSaving">
           <svg
             v-if="!isSaving"
             xmlns="http://www.w3.org/2000/svg"
@@ -1152,72 +987,7 @@ const formatTimeWithPeriod = (time: string) => {
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             ></path>
           </svg>
-          {{ isSaving ? 'Đang đăng tải...' : 'Đăng tải sân' }}
-        </button>
-        <button
-          v-else
-          type="button"
-          class="btn-submit"
-          :disabled="isSaving"
-          @click="updateCourtInfo"
-        >
-          <svg
-            v-if="!isSaving"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-            />
-          </svg>
-          <svg
-            v-else
-            class="animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-          {{ isSaving ? 'Đang cập nhật...' : 'Cập nhật thông tin' }}
-        </button>
-        <button
-          v-if="isEditMode"
-          type="button"
-          class="btn-view-list"
-          @click="router.push('/owner/management/court-list')"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-            />
-          </svg>
-          Xem danh sách sân
+          {{ isSaving ? 'Đang gửi yêu cầu...' : 'Gửi yêu cầu đăng sân' }}
         </button>
       </div>
     </form>

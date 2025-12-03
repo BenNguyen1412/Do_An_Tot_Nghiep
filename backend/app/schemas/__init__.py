@@ -13,6 +13,13 @@ from app.schemas.court import (
     BookingUpdate,
     TimeSlot,
 )
+from app.schemas.notification import (
+    Notification,
+    NotificationCreate,
+    CourtRequest,
+    CourtRequestCreate,
+    CourtRequestUpdate,
+)
 
 __all__ = [
     "User",
@@ -32,4 +39,9 @@ __all__ = [
     "BookingCreate",
     "BookingUpdate",
     "TimeSlot",
+    "Notification",
+    "NotificationCreate",
+    "CourtRequest",
+    "CourtRequestCreate",
+    "CourtRequestUpdate",
 ]
