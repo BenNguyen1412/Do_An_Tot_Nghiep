@@ -786,8 +786,6 @@ const refreshCourts = async () => {
                         />
                       </div>
                     </div>
-
-                    <p class="booking-form-hint">💡 Để trống tất cả nếu chỉ muốn đổi tên sân</p>
                   </div>
                 </td>
               </tr>
@@ -1332,16 +1330,6 @@ const refreshCourts = async () => {
 .form-input:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.booking-form-hint {
-  margin: 0;
-  padding: 12px;
-  background: #fef3c7;
-  border-left: 4px solid #f59e0b;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  color: #92400e;
 }
 
 /* Responsive */
