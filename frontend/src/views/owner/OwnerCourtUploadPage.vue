@@ -33,12 +33,17 @@ const courtForm = ref({
 const timeSlots = ref<TimeSlot[]>([])
 let nextSlotId = 1
 
+const currentCourtId = ref<number | null>(null)
+const isEditMode = ref(false)
+
 // Fetch approved court if exists
 const fetchApprovedCourt = async () => {
   try {
     const response = await axiosInstance.get('/courts/my')
     if (response.data && response.data.length > 0) {
       const court = response.data[0]
+      currentCourtId.value = court.id
+      isEditMode.value = true
 
       // Load court data into form
       courtForm.value = {
@@ -66,6 +71,11 @@ const fetchApprovedCourt = async () => {
           }),
         )
         nextSlotId = timeSlots.value.length + 1
+      }
+
+      // Load existing images
+      if (court.images && court.images.length > 0) {
+        imagePreviews.value = court.images.map((img: string) => `http://localhost:8000${img}`)
       }
     }
   } catch (error) {
@@ -158,9 +168,21 @@ const handleImageUpload = (event: Event) => {
   })
 }
 
-const removeImage = (index: number) => {
-  images.value.splice(index, 1)
+// Remove existing image (for edit mode)
+const removeExistingImage = (index: number) => {
   imagePreviews.value.splice(index, 1)
+  toast.success('Đã xóa ảnh')
+}
+
+// Remove new image
+const removeNewImage = (index: number) => {
+  images.value.splice(index, 1)
+  toast.success('Đã xóa ảnh')
+}
+
+// Helper to get image preview URL
+const getImagePreview = (file: File) => {
+  return URL.createObjectURL(file)
 }
 
 const resetForm = () => {
@@ -281,9 +303,19 @@ const validateForm = () => {
     return false
   }
 
-  if (images.value.length < 5) {
+  // Validate images (only for new court, not edit mode)
+  if (!isEditMode.value && images.value.length < 5) {
     toast.error(`Vui lòng tải lên ít nhất 5 hình ảnh (hiện tại: ${images.value.length}/5)`)
     return false
+  }
+
+  // For edit mode, check total images (existing + new)
+  if (isEditMode.value) {
+    const totalImages = imagePreviews.value.length + images.value.length
+    if (totalImages < 5) {
+      toast.error(`Vui lòng có ít nhất 5 hình ảnh (hiện tại: ${totalImages}/5)`)
+      return false
+    }
   }
 
   return true
@@ -297,7 +329,7 @@ const handleSubmit = async () => {
   try {
     let imageUrls: string[] = []
 
-    // Upload images if any
+    // Upload new images if any
     if (images.value.length > 0) {
       const formData = new FormData()
       images.value.forEach((image) => {
@@ -313,51 +345,84 @@ const handleSubmit = async () => {
       imageUrls = uploadResponse.data.urls
     }
 
-    // Prepare court request data
-    const courtRequestData = {
-      name: courtForm.value.name,
-      address: courtForm.value.address,
-      district: courtForm.value.district,
-      city: courtForm.value.city,
-      description: courtForm.value.description,
-      court_quantity: courtForm.value.court_quantity,
-      opening_time: courtForm.value.opening_time,
-      closing_time: courtForm.value.closing_time,
-      facilities: JSON.stringify(courtForm.value.facilities),
-      contact_phone: courtForm.value.contact_phone,
-      contact_email: courtForm.value.contact_email,
-      time_slots: JSON.stringify(
-        timeSlots.value.map((slot) => ({
+    // Merge new images with existing ones
+    const existingImages = imagePreviews.value
+      .filter((url) => url.startsWith('http://localhost:8000'))
+      .map((url) => url.replace('http://localhost:8000', ''))
+
+    const allImages = [...existingImages, ...imageUrls]
+
+    if (isEditMode.value && currentCourtId.value) {
+      // Update existing court
+      const courtUpdateData = {
+        name: courtForm.value.name,
+        address: courtForm.value.address,
+        district: courtForm.value.district,
+        city: courtForm.value.city,
+        description: courtForm.value.description,
+        court_quantity: courtForm.value.court_quantity,
+        opening_time: courtForm.value.opening_time,
+        closing_time: courtForm.value.closing_time,
+        facilities: courtForm.value.facilities,
+        contact_phone: courtForm.value.contact_phone,
+        contact_email: courtForm.value.contact_email,
+        time_slots: timeSlots.value.map((slot) => ({
           start_time: slot.startTime,
           end_time: slot.endTime,
           price: parseFloat(slot.price),
         })),
-      ),
-      images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
+        images: allImages,
+      }
+
+      await axiosInstance.put(`/courts/${currentCourtId.value}`, courtUpdateData)
+
+      toast.success('✅ Cập nhật thông tin sân thành công!', { timeout: 3000 })
+
+      // Reload court data
+      await fetchApprovedCourt()
+    } else {
+      // Create new court request
+      const courtRequestData = {
+        name: courtForm.value.name,
+        address: courtForm.value.address,
+        district: courtForm.value.district,
+        city: courtForm.value.city,
+        description: courtForm.value.description,
+        court_quantity: courtForm.value.court_quantity,
+        opening_time: courtForm.value.opening_time,
+        closing_time: courtForm.value.closing_time,
+        facilities: JSON.stringify(courtForm.value.facilities),
+        contact_phone: courtForm.value.contact_phone,
+        contact_email: courtForm.value.contact_email,
+        time_slots: JSON.stringify(
+          timeSlots.value.map((slot) => ({
+            start_time: slot.startTime,
+            end_time: slot.endTime,
+            price: parseFloat(slot.price),
+          })),
+        ),
+        images: allImages.length > 0 ? JSON.stringify(allImages) : null,
+      }
+
+      await axiosInstance.post('/court-requests', courtRequestData)
+
+      // Clear form and images
+      resetForm()
+
+      toast.success(
+        '✅ Đã gửi yêu cầu đăng sân! Admin sẽ xem xét và phê duyệt trong thời gian sớm nhất.',
+        { timeout: 6000 },
+      )
     }
-
-    // Submit court request
-    await axiosInstance.post('/court-requests', courtRequestData)
-
-    // Clear form and images
-    resetForm()
-
-    // Show success notification
-    toast.success(
-      '✅ Đã gửi yêu cầu đăng sân! Admin sẽ xem xét và phê duyệt trong thời gian sớm nhất.',
-      {
-        timeout: 6000,
-      },
-    )
 
     // Scroll to top
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }, 100)
   } catch (error) {
-    console.error('Error creating court request:', error)
+    console.error('Error submitting court:', error)
     const err = error as { response?: { data?: { detail?: string } } }
-    toast.error(err.response?.data?.detail || 'Gửi yêu cầu thất bại. Vui lòng thử lại!')
+    toast.error(err.response?.data?.detail || 'Thao tác thất bại. Vui lòng thử lại!')
   } finally {
     isSaving.value = false
   }
@@ -841,10 +906,83 @@ const formatTimeWithPeriod = (time: string) => {
             </svg>
             Hình ảnh
           </h2>
-          <span class="section-subtitle">Yêu cầu 5 ảnh chụp của sân muốn đăng tải</span>
+          <span class="section-subtitle">
+            {{
+              isEditMode
+                ? `Yêu cầu tối thiểu 5 ảnh (Hiện có: ${imagePreviews.length + images.length}/10)`
+                : 'Yêu cầu 5 ảnh chụp của sân muốn đăng tải'
+            }}
+          </span>
         </div>
 
         <div class="images-section">
+          <!-- Existing images (for edit mode) -->
+          <div v-if="isEditMode && imagePreviews.length > 0" class="existing-images-section">
+            <h3 class="subsection-title">Hình ảnh hiện tại</h3>
+            <div class="images-preview">
+              <div
+                v-for="(preview, index) in imagePreviews"
+                :key="'existing-' + index"
+                class="preview-item"
+              >
+                <img :src="preview" :alt="'Existing image ' + (index + 1)" />
+                <button
+                  type="button"
+                  class="remove-btn"
+                  @click="removeExistingImage(index)"
+                  title="Xóa ảnh này"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+                <span v-if="index === 0" class="primary-badge">Ảnh chính</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- New images -->
+          <div v-if="images.length > 0" class="new-images-section">
+            <h3 v-if="isEditMode" class="subsection-title">Hình ảnh mới thêm</h3>
+            <div class="images-preview">
+              <div v-for="(image, index) in images" :key="'new-' + index" class="preview-item">
+                <img :src="getImagePreview(image)" :alt="'New image ' + (index + 1)" />
+                <button
+                  type="button"
+                  class="remove-btn"
+                  @click="removeNewImage(index)"
+                  title="Xóa ảnh này"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+                <span class="new-badge">Mới</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Upload button -->
           <div class="image-upload-area">
             <input
               type="file"
@@ -868,30 +1006,8 @@ const formatTimeWithPeriod = (time: string) => {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              <span>Thêm hình ảnh</span>
+              <span>{{ isEditMode ? 'Thêm hình ảnh mới' : 'Thêm hình ảnh' }}</span>
             </label>
-          </div>
-
-          <div v-if="imagePreviews.length > 0" class="images-preview">
-            <div v-for="(preview, index) in imagePreviews" :key="index" class="preview-item">
-              <img :src="preview" :alt="'Preview ' + (index + 1)" />
-              <button type="button" class="remove-btn" @click="removeImage(index)">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-              <span v-if="index === 0" class="primary-badge">Ảnh chính</span>
-            </div>
           </div>
         </div>
       </div>
@@ -987,7 +1103,15 @@ const formatTimeWithPeriod = (time: string) => {
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             ></path>
           </svg>
-          {{ isSaving ? 'Đang gửi yêu cầu...' : 'Gửi yêu cầu đăng sân' }}
+          {{
+            isSaving
+              ? isEditMode
+                ? 'Đang cập nhật...'
+                : 'Đang gửi yêu cầu...'
+              : isEditMode
+                ? 'Cập nhật thông tin sân'
+                : 'Gửi yêu cầu đăng sân'
+          }}
         </button>
       </div>
     </form>
@@ -1562,6 +1686,33 @@ input[type='time']::-webkit-outer-spin-button {
   border-radius: 6px;
   font-size: 0.7rem;
   font-weight: 700;
+}
+
+.new-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Image sections */
+.existing-images-section,
+.new-images-section {
+  margin-bottom: 20px;
+}
+
+.subsection-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+  padding-left: 4px;
+  border-left: 3px solid #10b981;
 }
 
 /* Individual Courts Grid */
