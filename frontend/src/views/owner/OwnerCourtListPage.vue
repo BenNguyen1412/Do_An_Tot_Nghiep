@@ -276,7 +276,7 @@ const saveCourtName = async (court: CourtItem) => {
       if (hasBookingData) {
         // Validate all fields are filled
         if (!form.booking_date || !form.start_time || !form.end_time || !form.phone_number) {
-          toast.error('Vui lòng điền đầy đủ thông tin đặt sân hoặc để trống tất cả')
+          toast.error('Vui lòng điền đầy đủ thông tin đặt sân')
           return
         }
 
