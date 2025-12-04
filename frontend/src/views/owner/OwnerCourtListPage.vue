@@ -68,6 +68,7 @@ const myVenues = ref<Court[]>([])
 
 // Booking form state
 const bookingForms = ref<Record<number, BookingForm>>({})
+const isEditingBooking = ref<Record<number, boolean>>({})
 
 // Initialize booking form for a court
 const initBookingForm = (courtId: number) => {
@@ -76,6 +77,27 @@ const initBookingForm = (courtId: number) => {
     start_time: '',
     end_time: '',
     phone_number: '',
+  }
+}
+
+// Initialize booking form with existing booking data
+const initEditBookingForm = (court: CourtItem) => {
+  if (court.bookedBy) {
+    // Convert date format from "dd/mm/yyyy" to "yyyy-mm-dd"
+    const dateParts = court.bookedBy.bookingDate.split('/')
+    const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`
+
+    // Extract start and end time from timeSlot "HH:MM - HH:MM"
+    const [startTime, endTime] = court.bookedBy.timeSlot.split(' - ')
+
+    bookingForms.value[court.id] = {
+      booking_date: formattedDate,
+      start_time: startTime.trim(),
+      end_time: endTime.trim(),
+      phone_number: court.bookedBy.phone,
+    }
+    isEditingBooking.value[court.id] = true
+    court.isEditing = true
   }
 }
 
@@ -92,6 +114,41 @@ const generateCourts = (quantity: number) => {
     })
   }
   return newCourts
+}
+
+// Check if booking time has passed and auto-update status
+const checkAndUpdateExpiredBookings = (courtData: IndividualCourt[]) => {
+  const now = new Date()
+  const today = now.toISOString().split('T')[0]
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+  courtData.forEach((ic) => {
+    const activeBooking = ic.bookings?.find((b) => b.status === 'active')
+    if (activeBooking) {
+      const bookingDate = activeBooking.booking_date.split('T')[0]
+
+      // Check if booking date is today and end time has passed
+      if (bookingDate === today && activeBooking.end_time < currentTime) {
+        console.log(`⏰ Booking expired for court ${ic.name}:`, {
+          bookingDate,
+          endTime: activeBooking.end_time,
+          currentTime,
+        })
+        // Mark booking as expired by setting court as available
+        ic.is_available = true
+        // Remove the booking from active list
+        ic.bookings = ic.bookings?.filter((b) => b.id !== activeBooking.id)
+      }
+      // Check if booking date is in the past
+      else if (bookingDate < today) {
+        console.log(`📅 Booking date passed for court ${ic.name}:`, bookingDate)
+        ic.is_available = true
+        ic.bookings = ic.bookings?.filter((b) => b.id !== activeBooking.id)
+      }
+    }
+  })
+
+  return courtData
 }
 
 // Fetch courts from API
@@ -119,7 +176,10 @@ const fetchMyCourts = async () => {
 
         console.log('📊 Individual courts data:', detailResponse.data)
 
-        courts.value = detailResponse.data.map((ic) => {
+        // Check and update expired bookings before processing
+        const updatedCourts = checkAndUpdateExpiredBookings(detailResponse.data)
+
+        courts.value = updatedCourts.map((ic) => {
           const activeBooking = ic.bookings?.find((b) => b.status === 'active')
           const hasActiveBooking = !!activeBooking
 
@@ -193,8 +253,9 @@ const startEditCourtName = (court: CourtItem) => {
 const cancelEditCourtName = (court: CourtItem) => {
   court.isEditing = false
   court.tempName = court.name
-  // Clear booking form
+  // Clear booking form and edit mode
   delete bookingForms.value[court.id]
+  delete isEditingBooking.value[court.id]
 }
 
 const saveCourtName = async (court: CourtItem) => {
@@ -204,13 +265,8 @@ const saveCourtName = async (court: CourtItem) => {
   }
 
   try {
-    // Update court name
-    await axiosInstance.put(`/individual-courts/${court.id}`, {
-      name: court.tempName,
-    })
-
-    // If court is available and booking form is filled, create booking
-    if (!court.isBooked && bookingForms.value[court.id]) {
+    // If booking form exists (either creating or editing), validate first
+    if (bookingForms.value[court.id]) {
       const form = bookingForms.value[court.id]
 
       // Validate booking form if any field is filled
@@ -230,9 +286,48 @@ const saveCourtName = async (court: CourtItem) => {
           return
         }
 
+        // Validate booking date and time is not in the past
+        const now = new Date()
+        const bookingDate = new Date(form.booking_date)
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const selectedDate = new Date(
+          bookingDate.getFullYear(),
+          bookingDate.getMonth(),
+          bookingDate.getDate(),
+        )
+
+        // Check if booking date is in the past
+        if (selectedDate < today) {
+          toast.error('Không thể đặt sân vào ngày đã qua')
+          return
+        }
+
+        // If booking is today, check if start time has already passed
+        if (selectedDate.getTime() === today.getTime()) {
+          const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+          if (form.start_time <= currentTime) {
+            toast.error(
+              'Không thể đặt sân vào giờ đã qua. Vui lòng chọn giờ bắt đầu sau thời gian hiện tại',
+            )
+            return
+          }
+        }
+
         // Validate time range
         if (form.end_time <= form.start_time) {
           toast.error('Giờ kết thúc phải sau giờ bắt đầu')
+          return
+        }
+
+        // Validate minimum 1 hour duration
+        const startTimeParts = form.start_time.split(':')
+        const endTimeParts = form.end_time.split(':')
+        const startMinutes = parseInt(startTimeParts[0]) * 60 + parseInt(startTimeParts[1])
+        const endMinutes = parseInt(endTimeParts[0]) * 60 + parseInt(endTimeParts[1])
+        const durationMinutes = endMinutes - startMinutes
+
+        if (durationMinutes < 60) {
+          toast.error('Khung giờ đặt sân phải tối thiểu 1 tiếng')
           return
         }
 
@@ -247,26 +342,48 @@ const saveCourtName = async (court: CourtItem) => {
           return
         }
 
-        // Create booking
-        const bookingDate = new Date(form.booking_date)
-        await axiosInstance.post('/bookings', {
-          individual_court_id: court.id,
-          booking_date: bookingDate.toISOString(),
-          start_time: form.start_time,
-          end_time: form.end_time,
-          phone_number: form.phone_number,
-        })
+        // Create or update booking
+        if (isEditingBooking.value[court.id] && court.bookingId) {
+          // Update existing booking
+          await axiosInstance.put(`/bookings/${court.bookingId}`, {
+            booking_date: bookingDate.toISOString(),
+            start_time: form.start_time,
+            end_time: form.end_time,
+            phone_number: form.phone_number,
+          })
+        } else {
+          // Create new booking
+          await axiosInstance.post('/bookings', {
+            individual_court_id: court.id,
+            booking_date: bookingDate.toISOString(),
+            start_time: form.start_time,
+            end_time: form.end_time,
+            phone_number: form.phone_number,
+          })
+        }
       }
+    }
+
+    // Update court name only if not in booking edit mode
+    if (!isEditingBooking.value[court.id]) {
+      await axiosInstance.put(`/individual-courts/${court.id}`, {
+        name: court.tempName,
+      })
     }
 
     court.name = court.tempName
     court.isEditing = false
+    const wasEditingBooking = isEditingBooking.value[court.id]
     delete bookingForms.value[court.id]
+    delete isEditingBooking.value[court.id]
 
     // Refresh courts list
     await fetchMyCourts()
 
-    toast.success('Đã cập nhật thành công')
+    const successMessage = wasEditingBooking
+      ? 'Đã cập nhật đơn đặt sân thành công'
+      : 'Đã cập nhật thành công'
+    toast.success(successMessage)
   } catch (error) {
     console.error('Error updating court:', error)
     const err = error as { response?: { data?: { detail?: string } } }
@@ -583,29 +700,49 @@ const refreshCourts = async () => {
                 <td>
                   <div class="action-buttons">
                     <template v-if="!court.isEditing">
-                      <!-- Nếu sân đang được đặt: hiển thị nút Hủy đơn -->
-                      <button
-                        v-if="court.isBooked"
-                        class="btn-cancel-booking"
-                        @click="cancelBooking(court)"
-                        title="Hủy đơn đặt sân"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
+                      <!-- Nếu sân đang được đặt: hiển thị nút Chỉnh sửa đơn và Hủy đơn -->
+                      <template v-if="court.isBooked">
+                        <button
+                          class="btn-edit"
+                          @click="initEditBookingForm(court)"
+                          title="Chỉnh sửa đơn"
                         >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                        Hủy đơn
-                      </button>
-                      <!-- Nếu sân trống: hiển thị nút Chỉnh sửa -->
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          class="btn-cancel-booking"
+                          @click="cancelBooking(court)"
+                          title="Hủy đơn đặt sân"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                          Hủy đơn
+                        </button>
+                      </template>
+                      <!-- Nếu sân trống: hiển thị nút Chỉnh sửa tên sân -->
                       <button
                         v-else
                         class="btn-edit"
@@ -663,11 +800,8 @@ const refreshCourts = async () => {
                 </td>
               </tr>
 
-              <!-- Booking Form Expansion (only for available courts in edit mode) -->
-              <tr
-                v-if="court.isEditing && !court.isBooked && bookingForms[court.id]"
-                class="booking-form-row"
-              >
+              <!-- Booking Form Expansion (for available courts or editing existing booking) -->
+              <tr v-if="court.isEditing && bookingForms[court.id]" class="booking-form-row">
                 <td colspan="7">
                   <div class="booking-form-container">
                     <div class="booking-form-header">
@@ -684,7 +818,13 @@ const refreshCourts = async () => {
                           d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                         />
                       </svg>
-                      <h4>Đặt lịch cho khách hàng (Tùy chọn)</h4>
+                      <h4>
+                        {{
+                          isEditingBooking[court.id]
+                            ? 'Chỉnh sửa đơn đặt sân'
+                            : 'Đặt lịch cho khách hàng (Tùy chọn)'
+                        }}
+                      </h4>
                     </div>
 
                     <div class="booking-form-grid">
