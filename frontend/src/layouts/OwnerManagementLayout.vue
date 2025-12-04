@@ -41,6 +41,9 @@ const isActive = (path: string) => {
 
 <template>
   <div class="owner-management-layout">
+    <!-- Header -->
+    <AppHeader :showManagement="true" />
+    
     <!-- Sidebar -->
     <aside class="sidebar" :class="{ collapsed: !isSidebarOpen }">
       <div class="sidebar-header">
@@ -124,8 +127,6 @@ const isActive = (path: string) => {
 
     <!-- Main Content -->
     <div class="main-wrapper">
-      <!-- Header -->
-      <AppHeader :showManagement="true" />
       <!-- Top Bar -->
       <header class="top-bar">
         <button class="toggle-btn" @click="toggleSidebar">
@@ -184,6 +185,7 @@ const isActive = (path: string) => {
 <style scoped>
 .owner-management-layout {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: #f8fafc;
 }
@@ -199,15 +201,15 @@ const isActive = (path: string) => {
   box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
   position: fixed;
   left: 0;
-  top: 0;
+  top: 130px;
   bottom: 0;
-  z-index: 999;
+  z-index: 800;
 }
 
 @media (max-width: 1440px) {
   .sidebar {
     width: 240px;
-    top: 0;
+    top: 110px;
   }
 
   .sidebar.collapsed {
@@ -329,7 +331,6 @@ const isActive = (path: string) => {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding-top: 0;
 }
 
 .sidebar.collapsed ~ .main-wrapper {
@@ -475,7 +476,7 @@ const isActive = (path: string) => {
 @media (max-width: 1024px) {
   .sidebar {
     width: 70px;
-    top: 0;
+    top: 110px;
   }
 
   .sidebar.collapsed {
@@ -500,7 +501,7 @@ const isActive = (path: string) => {
   .sidebar {
     width: 0;
     overflow: hidden;
-    top: 0;
+    top: 110px;
   }
 
   .sidebar.collapsed {
