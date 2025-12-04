@@ -222,7 +222,6 @@ const fetchMyCourts = async () => {
       }
     } else {
       courts.value = []
-      toast.info('Bạn chưa có sân nào. Hãy đăng tải sân mới!')
     }
   } catch (error) {
     console.error('Error fetching courts:', error)
