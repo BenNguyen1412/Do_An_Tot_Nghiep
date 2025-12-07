@@ -6,45 +6,37 @@ interface Court {
   name: string
   district: string
   bookings: number
-  distance: string
   image: string
   badge: string
-  rating: number
   price: number
 }
 
 const courts = ref<Court[]>([
   {
     id: 1,
-    name: 'SÂN AB',
+    name: 'COURT AB',
     district: 'District 1, HCMC',
     bookings: 40,
-    distance: '1.1 km away',
-    image: 'https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?w=600',
+    image: 'https://i.pinimg.com/1200x/0e/c0/4d/0ec04dde4f138cac5ec5e928edef20e9.jpg',
     badge: '40+',
-    rating: 4.5,
     price: 150000,
   },
   {
     id: 2,
-    name: 'SÂN E',
+    name: 'COURT E',
     district: 'District 10, HCMC',
     bookings: 80,
-    distance: '3 km away',
-    image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=600',
+    image: 'https://i.pinimg.com/1200x/0e/45/49/0e4549edf637e28dcd0d6c9900a34222.jpg',
     badge: '80+',
-    rating: 4.8,
     price: 200000,
   },
   {
     id: 3,
-    name: 'SÂN C',
+    name: 'COURT C',
     district: 'District 3, HCMC',
     bookings: 100,
-    distance: '1.2 km away',
-    image: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=600',
+    image: 'https://i.pinimg.com/736x/4e/28/51/4e2851f36c77df07b96cd59400b39ef4.jpg',
     badge: '100+',
-    rating: 4.9,
     price: 180000,
   },
 ])
@@ -68,7 +60,7 @@ const formatPrice = (price: number) => {
     <div class="container">
       <div class="section-header">
         <div class="header-content">
-          <span class="section-badge">🏆 Popular Courts</span>
+          <span class="section-badge"><i class="fas fa-trophy"></i> Popular Courts</span>
           <h2 class="section-title">
             Discover nearby pickleball courts for<br />
             <span class="highlight">convenient and accessible gameplay</span>
@@ -85,7 +77,7 @@ const formatPrice = (price: number) => {
           <div class="court-image">
             <img :src="court.image" :alt="court.name" />
             <div class="image-overlay">
-              <button class="favorite-btn">❤️</button>
+              <button class="favorite-btn"><i class="fas fa-heart"></i></button>
             </div>
             <div class="court-badge" :class="getBadgeClass(court.bookings)">
               {{ court.badge }} Bookings
@@ -95,17 +87,12 @@ const formatPrice = (price: number) => {
           <div class="court-info">
             <div class="court-header">
               <h3 class="court-name">{{ court.name }}</h3>
-              <div class="court-rating">
-                <span class="rating-star">⭐</span>
-                <span class="rating-value">{{ court.rating }}</span>
-              </div>
             </div>
 
-            <p class="court-district">📍 {{ court.district }}</p>
+            <p class="court-district"><i class="fas fa-map-marker-alt"></i> {{ court.district }}</p>
 
             <div class="court-footer">
               <div class="court-meta">
-                <span class="distance"> 🚗 {{ court.distance }} </span>
                 <span class="price"> {{ formatPrice(court.price) }}/hour </span>
               </div>
 
@@ -261,10 +248,12 @@ const formatPrice = (price: number) => {
   justify-content: center;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: all 0.3s;
+  color: #ff4757;
 }
 
 .favorite-btn:hover {
   transform: scale(1.1);
+  color: #ff6348;
 }
 
 .court-badge {
@@ -315,19 +304,6 @@ const formatPrice = (price: number) => {
   letter-spacing: -0.5px;
 }
 
-.court-rating {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #fff8dc;
-  padding: 6px 12px;
-  border-radius: 50px;
-}
-
-.rating-star {
-  font-size: 1rem;
-}
-
 .rating-value {
   font-weight: 700;
   color: #2d5016;
@@ -343,6 +319,10 @@ const formatPrice = (price: number) => {
   font-size: 1rem;
 }
 
+.court-district i {
+  color: #ff4757;
+}
+
 .court-footer {
   display: flex;
   flex-direction: column;
@@ -353,7 +333,7 @@ const formatPrice = (price: number) => {
 
 .court-meta {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
 }
 

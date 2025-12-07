@@ -13,10 +13,10 @@ const subscribeNewsletter = () => {
 }
 
 const socialLinks = [
-  { icon: '📘', name: 'Facebook', url: '#' },
-  { icon: '📷', name: 'Instagram', url: '#' },
-  { icon: '🐦', name: 'Twitter', url: '#' },
-  { icon: '💼', name: 'LinkedIn', url: '#' },
+  { icon: 'fab fa-facebook-f', name: 'Facebook', url: 'https://facebook.com', color: '#1877F2' },
+  { icon: 'fab fa-instagram', name: 'Instagram', url: 'https://instagram.com', color: '#E4405F' },
+  { icon: 'fab fa-twitter', name: 'Twitter', url: 'https://twitter.com', color: '#1DA1F2' },
+  { icon: 'fab fa-linkedin-in', name: 'LinkedIn', url: 'https://linkedin.com', color: '#0A66C2' },
 ]
 
 const quickLinks = [
@@ -60,8 +60,10 @@ const supportLinks = [
               :href="social.url"
               class="social-link"
               :title="social.name"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              {{ social.icon }}
+              <i :class="social.icon"></i>
             </a>
           </div>
         </div>
@@ -95,15 +97,15 @@ const supportLinks = [
           <h3 class="footer-title">Contact Us</h3>
           <div class="contact-info">
             <div class="contact-item">
-              <span class="contact-icon">📍</span>
+              <span class="contact-icon"><i class="fas fa-map-marker-alt"></i></span>
               <span>266 Ly Thuong Kiet, Dien Hong<br />District, HCMC</span>
             </div>
             <div class="contact-item">
-              <span class="contact-icon">✉️</span>
+              <span class="contact-icon"><i class="fas fa-envelope"></i></span>
               <a href="mailto:huuphuoc1218@gmail.com">huuphuoc1218@gmail.com</a>
             </div>
             <div class="contact-item">
-              <span class="contact-icon">📞</span>
+              <span class="contact-icon"><i class="fas fa-phone"></i></span>
               <a href="tel:+84123948172">+84 123 948 172</a>
             </div>
           </div>
@@ -132,9 +134,9 @@ const supportLinks = [
         <div class="footer-bottom-content">
           <p class="copyright">© {{ currentYear }} NP Sportclub. All rights reserved.</p>
           <div class="footer-badges">
-            <span class="badge">🔒 Secure Payment</span>
-            <span class="badge">✓ Verified Business</span>
-            <span class="badge">⭐ 4.9 Rating</span>
+            <span class="badge"><i class="fas fa-lock"></i> Secure Payment</span>
+            <span class="badge"><i class="fas fa-check-circle"></i> Verified Business</span>
+            <span class="badge"><i class="fas fa-star"></i> 4.9 Rating</span>
           </div>
         </div>
       </div>
@@ -235,15 +237,17 @@ const supportLinks = [
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   transition: all 0.3s;
   backdrop-filter: blur(10px);
+  color: #1b5e20;
 }
 
 .social-link:hover {
   background: white;
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px) scale(1.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  color: #2d5016;
 }
 
 .footer-title {
@@ -294,6 +298,7 @@ const supportLinks = [
 .contact-icon {
   font-size: 1.3rem;
   flex-shrink: 0;
+  color: #2d5016;
 }
 
 .contact-item a {

@@ -70,7 +70,7 @@ const updateDateTime = () => {
   })
 
   // Update day of week
-  const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   currentDay.value = days[now.getDay()]
 }
 
@@ -147,7 +147,7 @@ onUnmounted(() => {
               />
             </svg>
             <div class="datetime-info">
-              <div class="datetime-label">Thời gian</div>
+              <div class="datetime-label">Time</div>
               <div class="datetime-value time-value">{{ currentTime }}</div>
             </div>
           </div>
@@ -197,7 +197,7 @@ onUnmounted(() => {
             d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
           />
         </svg>
-        <span>Đăng nhập</span>
+        <span>Sign In</span>
       </router-link>
     </div>
   </header>

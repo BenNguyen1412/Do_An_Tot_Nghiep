@@ -18,7 +18,7 @@ const advertisements = ref([
     company: 'SportGear Pro',
     badge: 'HOT DEAL',
     discount: '30% OFF',
-    image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=1200&q=80',
+    image: 'https://i.pinimg.com/736x/79/aa/c4/79aac4a0826832e76dcb2aa01f4c6347.jpg',
     link: '#',
   },
   {
@@ -28,7 +28,7 @@ const advertisements = ref([
     company: 'Elite Training Center',
     badge: 'NEW',
     discount: 'Free Trial',
-    image: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1200&q=80',
+    image: 'https://i.pinimg.com/736x/1c/b1/7d/1cb17db56b6e1f7ccc280c1db55a2c2b.jpg',
     link: '#',
   },
   {
@@ -38,7 +38,7 @@ const advertisements = ref([
     company: 'VIP Court Access',
     badge: 'LIMITED',
     discount: 'Save 40%',
-    image: 'https://images.unsplash.com/photo-1609710228159-0fa9bd7c0827?w=1200&q=80',
+    image: 'https://i.pinimg.com/1200x/fd/b0/41/fdb04136073c37e5c0f2e5cb994ee5fb.jpg',
     link: '#',
   },
   {
@@ -48,7 +48,7 @@ const advertisements = ref([
     company: 'NP Sports Events',
     badge: 'EVENT',
     discount: 'Register Now',
-    image: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1200&q=80',
+    image: 'https://i.pinimg.com/736x/d5/f7/0b/d5f70bfc59da6a1435df1d8fdbd59244.jpg',
     link: '#',
   },
 ])
@@ -116,7 +116,7 @@ const goToEnterpriseSignup = () => {
       <!-- Left Content -->
       <div class="hero-content">
         <div class="hero-badge">
-          <span class="badge-icon">🏆</span>
+          <span class="badge-icon"><i class="fas fa-trophy"></i></span>
           <span>#1 Pickleball Platform in Vietnam</span>
         </div>
 
@@ -139,28 +139,28 @@ const goToEnterpriseSignup = () => {
         <!-- Features Grid -->
         <div class="hero-features">
           <div class="feature-item">
-            <div class="feature-icon">🏟️</div>
+            <div class="feature-icon"><i class="fas fa-building"></i></div>
             <div class="feature-content">
               <span class="feature-number">100+</span>
               <span class="feature-label">Premium Courts</span>
             </div>
           </div>
           <div class="feature-item">
-            <div class="feature-icon">⚡</div>
+            <div class="feature-icon"><i class="fas fa-bolt"></i></div>
             <div class="feature-content">
               <span class="feature-number">24/7</span>
               <span class="feature-label">Instant Booking</span>
             </div>
           </div>
           <div class="feature-item">
-            <div class="feature-icon">👥</div>
+            <div class="feature-icon"><i class="fas fa-users"></i></div>
             <div class="feature-content">
               <span class="feature-number">5K+</span>
               <span class="feature-label">Active Players</span>
             </div>
           </div>
           <div class="feature-item">
-            <div class="feature-icon">⭐</div>
+            <div class="feature-icon"><i class="fas fa-star"></i></div>
             <div class="feature-content">
               <span class="feature-number">4.9</span>
               <span class="feature-label">User Rating</span>
@@ -208,7 +208,7 @@ const goToEnterpriseSignup = () => {
                 <!-- Content Overlay at Bottom -->
                 <div class="ad-content-overlay">
                   <div class="ad-header-mini">
-                    <span class="ad-icon">🎁</span>
+                    <span class="ad-icon"><i class="fas fa-gift"></i></span>
                     <span class="ad-label">Hot Deals & Promotions</span>
                   </div>
 
@@ -225,7 +225,7 @@ const goToEnterpriseSignup = () => {
                       <span>Get Detail</span>
                       <span class="btn-arrow">→</span>
                     </a>
-                    <span class="ad-time">⏰ Limited Time</span>
+                    <span class="ad-time"><i class="fas fa-clock"></i> Limited Time</span>
                   </div>
                 </div>
               </div>
@@ -256,7 +256,7 @@ const goToEnterpriseSignup = () => {
         <!-- Ad Info -->
         <div class="ad-footer">
           <p class="ad-info-text">
-            <span class="info-icon">💼</span>
+            <span class="info-icon"><i class="fas fa-briefcase"></i></span>
             Want to advertise here?
             <a @click.prevent="goToEnterpriseSignup" class="info-link" style="cursor: pointer"
               >Become a partner</a
@@ -346,6 +346,7 @@ const goToEnterpriseSignup = () => {
 .badge-icon {
   font-size: 1.2rem;
   animation: rotate 4s linear infinite;
+  color: #ffd700;
 }
 
 @keyframes pulse {
@@ -550,6 +551,7 @@ const goToEnterpriseSignup = () => {
   font-size: 1.5rem;
   flex-shrink: 0;
   box-shadow: 0 4px 12px rgba(74, 124, 44, 0.3);
+  color: white;
 }
 
 .feature-content {
@@ -797,6 +799,7 @@ const goToEnterpriseSignup = () => {
 .ad-icon {
   font-size: 1.4rem;
   animation: bounce 2s infinite;
+  color: #ffd700;
 }
 
 @keyframes bounce {

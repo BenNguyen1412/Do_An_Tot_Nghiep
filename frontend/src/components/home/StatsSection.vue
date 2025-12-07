@@ -6,31 +6,28 @@ interface Stat {
   title: string
   value: string
   description: string
-  icon: string
 }
 
 const stats = ref<Stat[]>([
   {
-    image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800',
+    image: 'https://i.pinimg.com/1200x/97/ec/0a/97ec0a1b0daedcb7439d18da17ced144.jpg',
     title: 'COURTS',
     value: '100+',
     description: 'Top-quality courts for your Pickleball game.',
-    icon: '🏟️',
   },
   {
-    image: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800',
+    image: 'https://i.pinimg.com/1200x/6c/7d/60/6c7d60f66a26b050bb7aae75b2b47539.jpg',
     title: 'CUSTOMERS',
     value: '4500+',
     description: 'Your game starts here',
-    icon: '👥',
   },
 ])
 
 const additionalStats = ref([
-  { number: '98%', label: 'Customer Satisfaction', icon: '😊' },
-  { number: '24/7', label: 'Customer Support', icon: '💬' },
-  { number: '50+', label: 'Locations', icon: '📍' },
-  { number: '15k+', label: 'Monthly Bookings', icon: '📅' },
+  { number: '98%', label: 'Customer Satisfaction', icon: 'fas fa-smile' },
+  { number: '24/7', label: 'Customer Support', icon: 'fas fa-headset' },
+  { number: '50+', label: 'Locations', icon: 'fas fa-map-marker-alt' },
+  { number: '15k+', label: 'Monthly Bookings', icon: 'fas fa-calendar-check' },
 ])
 
 const isVisible = ref(false)
@@ -67,7 +64,6 @@ onMounted(() => {
           <img :src="stat.image" :alt="stat.title" />
           <div class="stat-overlay">
             <div class="stat-content">
-              <div class="stat-icon">{{ stat.icon }}</div>
               <h3 class="stat-title">{{ stat.title }}</h3>
               <div class="stat-value">{{ stat.value }}</div>
               <p class="stat-description">{{ stat.description }}</p>
@@ -87,7 +83,7 @@ onMounted(() => {
           :class="{ animate: isVisible }"
           :style="{ animationDelay: `${0.4 + index * 0.1}s` }"
         >
-          <div class="mini-stat-icon">{{ stat.icon }}</div>
+          <div class="mini-stat-icon"><i :class="stat.icon"></i></div>
           <div class="mini-stat-number">{{ stat.number }}</div>
           <div class="mini-stat-label">{{ stat.label }}</div>
         </div>
@@ -290,6 +286,7 @@ onMounted(() => {
 .mini-stat-icon {
   font-size: 3rem;
   margin-bottom: 20px;
+  color: #4a7c2c;
 }
 
 .mini-stat-number {
