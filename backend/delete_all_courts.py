@@ -1,8 +1,43 @@
 """
-Script to delete all courts from the database
+Script to delete all courts from the database and their images
 """
+import os
+from pathlib import Path
 from app.core.database import SessionLocal
 from app.models.court import Court, IndividualCourt, Booking
+
+def delete_court_images():
+    """Xóa tất cả hình ảnh trong thư mục uploads/courts"""
+    courts_dir = Path("uploads/courts")
+    
+    if not courts_dir.exists():
+        print("⚠️  Thư mục uploads/courts không tồn tại")
+        return 0
+    
+    try:
+        # Lấy danh sách file (giữ lại .gitkeep)
+        files = [f for f in courts_dir.iterdir() if f.is_file() and f.name != '.gitkeep']
+        total_files = len(files)
+        
+        if total_files == 0:
+            print("✓ Không có hình ảnh nào để xóa")
+            return 0
+        
+        # Xóa từng file
+        deleted_count = 0
+        for file in files:
+            try:
+                file.unlink()
+                deleted_count += 1
+            except Exception as e:
+                print(f"   ⚠️  Không thể xóa {file.name}: {e}")
+        
+        print(f"✓ Đã xóa {deleted_count} hình ảnh")
+        return deleted_count
+        
+    except Exception as e:
+        print(f"❌ Lỗi khi xóa hình ảnh: {e}")
+        return 0
 
 def delete_all_courts():
     db = SessionLocal()
@@ -23,7 +58,11 @@ def delete_all_courts():
         print(f"✓ Đã xóa {courts_count} sân chính")
         
         db.commit()
-        print("\n✅ Đã xóa toàn bộ dữ liệu sân thành công!")
+        
+        # Delete court images
+        delete_court_images()
+        
+        print("\n✅ Đã xóa toàn bộ dữ liệu sân và hình ảnh thành công!")
         
     except Exception as e:
         db.rollback()
