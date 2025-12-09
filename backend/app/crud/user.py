@@ -70,12 +70,21 @@ def update_user(db: Session, user_id: int, user_data: dict) -> Optional[User]:
 
 def delete_user(db: Session, user_id: int) -> bool:
     """
-    Xóa user
+    Xóa user và các dữ liệu liên quan
     """
+    from app.models import Notification, CourtRequest
+    
     db_user = get_user_by_id(db, user_id)
     if not db_user:
         return False
     
+    # Delete related notifications first
+    db.query(Notification).filter(Notification.user_id == user_id).delete()
+    
+    # Delete related court requests
+    db.query(CourtRequest).filter(CourtRequest.owner_id == user_id).delete()
+    
+    # Delete the user
     db.delete(db_user)
     db.commit()
     
