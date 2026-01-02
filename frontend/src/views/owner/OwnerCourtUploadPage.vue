@@ -242,7 +242,7 @@ const validateForm = () => {
       return false
     }
     if (slot.startTime >= slot.endTime) {
-      toast.error('Giờ kết thúc phải sau giờ bắt đầu')
+      toast.error(`Giờ kết thúc (${slot.endTime}) phải sau giờ bắt đầu (${slot.startTime})`)
       return false
     }
     if (!slot.price || parseFloat(slot.price) <= 0) {
@@ -258,7 +258,9 @@ const validateForm = () => {
   }
 
   if (courtForm.value.opening_time >= courtForm.value.closing_time) {
-    toast.error('Giờ đóng cửa phải sau giờ mở cửa')
+    toast.error(
+      `Giờ đóng cửa (${courtForm.value.closing_time}) phải sau giờ mở cửa (${courtForm.value.opening_time})`,
+    )
     return false
   }
 
@@ -272,6 +274,7 @@ const validateForm = () => {
     toast.error(
       `Khung giờ đầu tiên phải bắt đầu từ giờ mở cửa (${openingTime}). Hiện tại bắt đầu từ ${sortedSlots[0].startTime}`,
     )
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     return false
   }
 
@@ -280,6 +283,7 @@ const validateForm = () => {
     toast.error(
       `Khung giờ cuối cùng phải kết thúc vào giờ đóng cửa (${closingTime}). Hiện tại kết thúc lúc ${sortedSlots[sortedSlots.length - 1].endTime}`,
     )
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     return false
   }
 
@@ -289,6 +293,7 @@ const validateForm = () => {
       toast.error(
         `Có khoảng trống giữa các khung giờ (${sortedSlots[i].endTime} - ${sortedSlots[i + 1].startTime}). Vui lòng điền đầy đủ tất cả khung giờ từ ${openingTime} đến ${closingTime}`,
       )
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return false
     }
   }
@@ -322,10 +327,18 @@ const validateForm = () => {
 }
 
 const handleSubmit = async () => {
-  if (!validateForm()) return
+  const isValid = validateForm()
+  if (!isValid) {
+    return
+  }
+
+  // Kiểm tra authentication token
+  if (!authStore.token) {
+    toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!')
+    return
+  }
 
   isSaving.value = true
-
   try {
     let imageUrls: string[] = []
 
@@ -376,7 +389,7 @@ const handleSubmit = async () => {
 
       await axiosInstance.put(`/courts/${currentCourtId.value}`, courtUpdateData)
 
-      toast.success('✅ Cập nhật thông tin sân thành công!', { timeout: 3000 })
+      toast.success('Cập nhật thông tin sân thành công!')
 
       // Reload court data
       await fetchApprovedCourt()
@@ -410,17 +423,13 @@ const handleSubmit = async () => {
       resetForm()
 
       toast.success(
-        '✅ Đã gửi yêu cầu đăng sân! Admin sẽ xem xét và phê duyệt trong thời gian sớm nhất.',
-        { timeout: 6000 },
+        'Đã gửi yêu cầu đăng sân! Admin sẽ xem xét và phê duyệt trong thời gian sớm nhất.',
       )
     }
 
     // Scroll to top
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }, 100)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch (error) {
-    console.error('Error submitting court:', error)
     const err = error as { response?: { data?: { detail?: string } } }
     toast.error(err.response?.data?.detail || 'Thao tác thất bại. Vui lòng thử lại!')
   } finally {
@@ -1067,7 +1076,7 @@ const formatTimeWithPeriod = (time: string) => {
       <!-- Individual Courts List (if created) -->
       <!-- Form Actions -->
       <div class="form-actions">
-        <button type="submit" class="btn-submit" :disabled="isSaving">
+        <button type="button" @click="handleSubmit" class="btn-submit" :disabled="isSaving">
           <svg
             v-if="!isSaving"
             xmlns="http://www.w3.org/2000/svg"
@@ -1891,9 +1900,74 @@ input[type='time']::-webkit-outer-spin-button {
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .page-header {
+    gap: 16px;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .form-section {
+    padding: 20px;
+  }
+}
+
 @media (max-width: 768px) {
+  .court-upload-page {
+    gap: 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .page-title {
+    font-size: 1.35rem;
+  }
+
+  .page-title svg {
+    width: 32px !important;
+    height: 32px !important;
+    margin-right: 6px !important;
+  }
+
+  .page-subtitle {
+    font-size: 0.875rem;
+  }
+
+  .preview-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+
+  .form-section {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .section-title {
+    font-size: 1.1rem;
+  }
+
+  .section-title svg {
+    width: 20px !important;
+    height: 20px !important;
+    margin-right: 6px !important;
+  }
+
+  .section-subtitle {
+    font-size: 0.8rem;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .slot-inputs {
@@ -1913,11 +1987,30 @@ input[type='time']::-webkit-outer-spin-button {
   }
 
   .facilities-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+  }
+
+  .facility-btn {
+    padding: 12px 8px;
+  }
+
+  .facility-icon {
+    font-size: 1.5rem;
+  }
+
+  .facility-label {
+    font-size: 0.8rem;
+  }
+
+  .images-preview {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
   }
 
   .form-actions {
     flex-direction: column-reverse;
+    padding-top: 16px;
   }
 
   .btn-reset,
@@ -1925,10 +2018,120 @@ input[type='time']::-webkit-outer-spin-button {
   .btn-view-list {
     width: 100%;
     justify-content: center;
+    padding: 12px 24px;
+    font-size: 0.95rem;
   }
 
   .courts-grid {
     grid-template-columns: 1fr;
+  }
+
+  .upload-label {
+    padding: 24px 32px;
+  }
+
+  .upload-label svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .upload-label span {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1.2rem;
+  }
+
+  .page-title svg {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .form-section {
+    padding: 12px;
+  }
+
+  .section-title {
+    font-size: 1rem;
+  }
+
+  .section-title svg {
+    width: 18px !important;
+    height: 18px !important;
+    margin-right: 4px !important;
+  }
+
+  .form-input,
+  .form-textarea {
+    padding: 10px 12px;
+    font-size: 0.9rem;
+  }
+
+  .time-slot-item {
+    padding: 16px;
+  }
+
+  .slot-label {
+    font-size: 0.8rem;
+  }
+
+  .slot-time-input,
+  .slot-price-input {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  .price-unit {
+    font-size: 0.8rem;
+  }
+
+  .add-slot-btn {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+  }
+
+  .facilities-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+  }
+
+  .facility-btn {
+    padding: 10px 6px;
+  }
+
+  .facility-icon {
+    font-size: 1.25rem;
+  }
+
+  .facility-label {
+    font-size: 0.75rem;
+  }
+
+  .images-preview {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+  }
+
+  .upload-label {
+    padding: 20px 24px;
+  }
+
+  .upload-label svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .upload-label span {
+    font-size: 0.85rem;
+  }
+
+  .btn-submit svg,
+  .btn-reset svg {
+    width: 16px;
+    height: 16px;
   }
 }
 </style>

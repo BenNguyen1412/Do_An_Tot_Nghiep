@@ -302,7 +302,7 @@ const goToLogin = () => {
       <!-- Right Side - Image -->
       <div class="image-section">
         <img
-          src="https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1200"
+          src="https://i.pinimg.com/1200x/04/59/35/045935827b1f4a5772159ce76a6b1880.jpg?fbclid=IwY2xjawPE08NleHRuA2FlbQIxMABicmlkETFJdHVUV2R4NmFBbVNTTVNhc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHnIB4EjUurB58YP1y_wyKtnyvtutiuEcJ36ETXMK7hqF6Djr2L6XOsMN5iMD_aem_7geijhvrXz2pUk8ci7VUJQ"
           alt="Pickleball Balls"
           class="background-image"
         />
@@ -637,29 +637,157 @@ const goToLogin = () => {
   }
 
   .form-section {
-    padding: 40px 20px;
+    padding: 40px 30px;
+  }
+
+  .page-title {
+    font-size: 2.25rem;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .form-section {
+    padding: 30px 20px;
+  }
+
   .page-title {
     font-size: 2rem;
   }
 
-  .user-type-section {
-    flex-direction: column;
+  .page-subtitle {
+    font-size: 0.95rem;
   }
 
+  .user-type-card {
+    padding: 14px;
+  }
+
+  .user-type-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .user-type-title {
+    font-size: 0.95rem;
+  }
+
+  .user-type-description {
+    font-size: 0.8rem;
+  }
+
+  .input-group label {
+    font-size: 0.9rem;
+  }
+
+  .input-wrapper input {
+    padding: 12px 45px 12px 12px;
+    font-size: 0.95rem;
+  }
+
+  .btn-primary {
+    padding: 12px;
+    font-size: 0.95rem;
+  }
+
+  .form-grid {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 640px) {
   .form-section {
-    padding: 30px 20px;
+    padding: 24px 16px;
   }
 
   .logo-section {
     margin-bottom: 20px;
   }
 
+  .logo-section h1 {
+    font-size: 1.75rem;
+  }
+
   .title-section {
     margin-bottom: 16px;
+  }
+
+  .page-title {
+    font-size: 1.75rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .user-type-section {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .user-type-card {
+    padding: 12px;
+  }
+
+  .user-type-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .user-type-title {
+    font-size: 0.9rem;
+  }
+
+  .user-type-description {
+    font-size: 0.75rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .input-wrapper input {
+    padding: 10px 40px 10px 10px;
+    font-size: 0.9rem;
+  }
+
+  .toggle-password {
+    right: 10px;
+  }
+
+  .btn-primary {
+    padding: 11px;
+    font-size: 0.9rem;
+  }
+
+  .divider-text {
+    font-size: 0.8rem;
+  }
+
+  .login-prompt {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .logo-section h1 {
+    font-size: 1.5rem;
+  }
+
+  .user-type-card {
+    padding: 10px;
+  }
+
+  .input-wrapper input {
+    font-size: 0.85rem;
+  }
+
+  .btn-primary {
+    font-size: 0.85rem;
   }
 }
 </style>

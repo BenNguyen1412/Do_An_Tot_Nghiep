@@ -832,9 +832,37 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+@media (max-width: 1024px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .card-header h2 {
+    font-size: 1.35rem;
+  }
+
+  .users-table {
+    font-size: 14px;
+  }
+}
+
 @media (max-width: 768px) {
   .stats-row {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
   }
 
   .card-header {
@@ -843,19 +871,85 @@ onMounted(() => {
     gap: 16px;
   }
 
+  .card-header h2 {
+    font-size: 1.25rem;
+  }
+
   .card-actions {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .filter-btn,
+  .refresh-btn {
+    flex: 1;
+    min-width: 120px;
   }
 
   .users-table {
     font-size: 13px;
   }
 
+  .users-table th,
+  .users-table td {
+    padding: 10px 8px;
+  }
+
   .user-avatar {
     width: 36px;
     height: 36px;
     font-size: 12px;
+  }
+
+  .user-name {
+    font-size: 0.9rem;
+  }
+
+  .user-email {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+  }
+
+  .card-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .filter-btn,
+  .refresh-btn {
+    font-size: 0.85rem;
+    padding: 8px 14px;
+  }
+
+  .users-table {
+    font-size: 12px;
+  }
+
+  .users-table th,
+  .users-table td {
+    padding: 8px 6px;
+  }
+
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 11px;
   }
 }
 </style>

@@ -585,6 +585,15 @@ const maxChartValue = computed(() => {
 
 /* Responsive */
 @media (max-width: 1024px) {
+  .page-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
   .table-header,
   .table-row {
     grid-template-columns: 60px 1fr 150px 120px 120px;
@@ -594,21 +603,66 @@ const maxChartValue = computed(() => {
 }
 
 @media (max-width: 768px) {
+  .page-container {
+    padding: 20px 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .export-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .filters-section {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
 
   .date-selector {
     margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
   }
 
   .date-input {
     width: 100%;
+    max-width: none;
   }
 
   .stats-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+  }
+
+  .chart-section,
+  .revenue-table-section {
+    padding: 20px;
+  }
+
+  .section-title {
+    font-size: 1.25rem;
   }
 
   .chart-wrapper {
@@ -625,10 +679,63 @@ const maxChartValue = computed(() => {
     display: none;
   }
 
+  .table-cell {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
   .table-cell::before {
     content: attr(data-label);
     font-weight: 600;
-    margin-right: 8px;
+    color: #6b7280;
+  }
+
+  .table-row {
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-container {
+    padding: 16px 12px;
+  }
+
+  .page-header h1 {
+    font-size: 1.35rem;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+  }
+
+  .chart-section,
+  .revenue-table-section {
+    padding: 16px;
+  }
+
+  .section-title {
+    font-size: 1.1rem;
+  }
+
+  .export-btn {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+
+  .date-input {
+    padding: 8px 12px;
+    font-size: 0.9rem;
   }
 }
 </style>

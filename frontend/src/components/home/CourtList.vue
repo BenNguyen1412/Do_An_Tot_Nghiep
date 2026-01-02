@@ -369,10 +369,31 @@ const formatPrice = (price: number) => {
   box-shadow: 0 6px 20px rgba(74, 124, 44, 0.4);
 }
 
+@media (max-width: 1024px) {
+  .section-title {
+    font-size: 2.25rem;
+  }
+
+  .view-all-btn {
+    padding: 10px 20px;
+    font-size: 0.95rem;
+  }
+
+  .courts-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
 @media (max-width: 768px) {
+  .court-list-section {
+    padding: 60px 20px;
+  }
+
   .section-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 16px;
   }
 
   .section-title {
@@ -381,6 +402,66 @@ const formatPrice = (price: number) => {
 
   .courts-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .court-card {
+    padding: 16px;
+  }
+
+  .court-image {
+    height: 200px;
+  }
+
+  .court-name {
+    font-size: 1.15rem;
+  }
+
+  .court-location,
+  .court-price,
+  .court-rating {
+    font-size: 0.9rem;
+  }
+
+  .book-btn {
+    padding: 14px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .court-list-section {
+    padding: 40px 16px;
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+  }
+
+  .view-all-btn {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+  }
+
+  .court-card {
+    padding: 12px;
+  }
+
+  .court-image {
+    height: 180px;
+  }
+
+  .court-name {
+    font-size: 1rem;
+  }
+
+  .court-info {
+    gap: 8px;
+  }
+
+  .book-btn {
+    padding: 12px;
+    font-size: 0.9rem;
   }
 }
 </style>

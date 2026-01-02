@@ -234,7 +234,7 @@
                   v-for="(image, index) in parsedImages"
                   :key="index"
                   :src="`http://localhost:8000${image}`"
-                  :alt="`Court image ${index + 1}`"
+                  :alt="`Court image ${Number(index) + 1}`"
                   class="court-image"
                 />
               </div>
@@ -1097,9 +1097,41 @@ onMounted(() => {
   transform: scale(0.9);
 }
 
+@media (max-width: 1024px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .card-header h2 {
+    font-size: 1.35rem;
+  }
+
+  .request-table {
+    font-size: 14px;
+  }
+
+  .modal-container {
+    max-width: 90%;
+  }
+}
+
 @media (max-width: 768px) {
   .stats-row {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
   }
 
   .card-header {
@@ -1108,13 +1140,28 @@ onMounted(() => {
     gap: 16px;
   }
 
+  .card-header h2 {
+    font-size: 1.25rem;
+  }
+
   .card-actions {
     width: 100%;
     flex-wrap: wrap;
   }
 
+  .filter-btn,
+  .refresh-btn {
+    flex: 1;
+    min-width: 120px;
+  }
+
   .request-table {
     font-size: 13px;
+  }
+
+  .request-table th,
+  .request-table td {
+    padding: 10px 8px;
   }
 
   .modal-container {
@@ -1123,16 +1170,70 @@ onMounted(() => {
     margin: 10px;
   }
 
+  .modal-header h3 {
+    font-size: 1.25rem;
+  }
+
   .modal-body {
     padding: 20px;
   }
 
   .info-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
-  .images-grid {
-    grid-template-columns: 1fr;
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .action-buttons button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+  }
+
+  .card-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .filter-btn,
+  .refresh-btn {
+    font-size: 0.85rem;
+    padding: 8px 14px;
+  }
+
+  .request-table {
+    font-size: 12px;
+  }
+
+  .request-table th,
+  .request-table td {
+    padding: 8px 6px;
+  }
+
+  .modal-header h3 {
+    font-size: 1.1rem;
+  }
+
+  .modal-body {
+    padding: 16px;
   }
 }
 </style>

@@ -107,7 +107,7 @@ const goToSignUp = () => {
       <!-- Left Side - Image -->
       <div class="image-section">
         <img
-          src="https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=1200"
+          src="https://i.pinimg.com/1200x/ff/ec/83/ffec834246af54637385878acc35aae4.jpg?fbclid=IwY2xjawPE0zJleHRuA2FlbQIxMABicmlkETFJdHVUV2R4NmFBbVNTTVNhc3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHhR48rePQTmDRICQZ6sXKziKjptBXdAHAjwPzh2biolIzVlngov2-u4ibBa3_aem_PW5Sy3jx965tnsM0p6KdjQ"
           alt="Pickleball Equipment"
           class="background-image"
         />
@@ -641,21 +641,132 @@ const goToSignUp = () => {
   }
 
   .form-section {
-    padding: 40px 20px;
+    padding: 40px 30px;
+  }
+
+  .welcome-title {
+    font-size: 2.25rem;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .form-section {
+    padding: 30px 20px;
+  }
+
   .welcome-title {
     font-size: 2rem;
   }
 
-  .user-type-section {
-    flex-direction: column;
+  .welcome-text {
+    font-size: 0.95rem;
   }
 
+  .user-type-card {
+    padding: 14px;
+  }
+
+  .user-type-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .user-type-title {
+    font-size: 0.95rem;
+  }
+
+  .user-type-description {
+    font-size: 0.8rem;
+  }
+
+  .input-group label {
+    font-size: 0.9rem;
+  }
+
+  .input-wrapper input {
+    padding: 12px 45px 12px 12px;
+    font-size: 0.95rem;
+  }
+
+  .btn-primary {
+    padding: 12px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 640px) {
   .form-section {
-    padding: 30px 20px;
+    padding: 24px 16px;
+  }
+
+  .welcome-title {
+    font-size: 1.75rem;
+  }
+
+  .welcome-text {
+    font-size: 0.9rem;
+  }
+
+  .user-type-section {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .user-type-card {
+    padding: 12px;
+  }
+
+  .user-type-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .user-type-title {
+    font-size: 0.9rem;
+  }
+
+  .user-type-description {
+    font-size: 0.75rem;
+  }
+
+  .input-wrapper input {
+    padding: 10px 40px 10px 10px;
+    font-size: 0.9rem;
+  }
+
+  .toggle-password {
+    right: 10px;
+  }
+
+  .btn-primary {
+    padding: 11px;
+    font-size: 0.9rem;
+  }
+
+  .divider-text {
+    font-size: 0.8rem;
+  }
+
+  .signup-prompt {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+
+  .user-type-card {
+    padding: 10px;
+  }
+
+  .input-wrapper input {
+    font-size: 0.85rem;
+  }
+
+  .btn-primary {
+    font-size: 0.85rem;
   }
 }
 </style>

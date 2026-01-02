@@ -545,6 +545,17 @@ onUnmounted(() => {
   }
 }
 
+@media (max-width: 968px) {
+  .datetime-section {
+    display: none;
+  }
+
+  .header-container {
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+  }
+}
+
 @media (max-width: 768px) {
   .app-header {
     padding: 14px 16px;
@@ -557,20 +568,32 @@ onUnmounted(() => {
   }
 
   .logo-section {
-    flex: 1;
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    gap: 12px;
   }
 
   .logo-icon {
-    font-size: 2rem;
+    width: 50px;
+    height: 50px;
+  }
+
+  .logo-icon img {
+    width: 100%;
+    height: 100%;
+  }
+
+  .logo-text {
+    display: flex;
   }
 
   .brand {
-    font-size: 1.2rem;
-    letter-spacing: 1.5px;
+    font-size: 1rem;
+    letter-spacing: 1.2px;
   }
 
   .pickleball {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
   }
 
   .main-nav {
@@ -578,31 +601,72 @@ onUnmounted(() => {
     justify-content: center;
     order: 3;
     gap: 8px;
+    flex-wrap: wrap;
   }
 
   .nav-link {
-    padding: 8px 12px;
+    padding: 8px 16px;
     font-size: 0.85rem;
   }
 
   .sign-in-btn {
-    padding: 10px 24px;
+    padding: 10px 20px;
     font-size: 0.85rem;
   }
 }
 
+@media (max-width: 640px) {
+  .logo-section {
+    padding: 6px 12px;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand {
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+  }
+
+  .pickleball {
+    font-size: 0.65rem;
+  }
+
+  .nav-link {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+}
+
 @media (max-width: 480px) {
+  .app-header {
+    padding: 12px;
+  }
+
+  .logo-section {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+  }
+
   .logo-text {
     display: none;
   }
 
   .main-nav {
-    gap: 4px;
+    gap: 6px;
   }
 
   .nav-link {
-    padding: 8px 10px;
-    font-size: 0.8rem;
+    padding: 8px 12px;
+    font-size: 0.75rem;
     letter-spacing: 0.3px;
   }
 
@@ -615,6 +679,11 @@ onUnmounted(() => {
     width: 44px;
     height: 44px;
     justify-content: center;
+  }
+
+  .sign-in-btn .icon {
+    width: 20px;
+    height: 20px;
   }
 }
 </style>

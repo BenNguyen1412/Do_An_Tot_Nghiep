@@ -73,6 +73,7 @@ def delete_user(db: Session, user_id: int) -> bool:
     Xóa user và các dữ liệu liên quan
     """
     from app.models import Notification, CourtRequest
+    from app.models.court import Court, IndividualCourt, Booking
     
     db_user = get_user_by_id(db, user_id)
     if not db_user:
@@ -83,6 +84,19 @@ def delete_user(db: Session, user_id: int) -> bool:
     
     # Delete related court requests
     db.query(CourtRequest).filter(CourtRequest.owner_id == user_id).delete()
+    
+    # Delete related bookings made by this user
+    db.query(Booking).filter(Booking.user_id == user_id).delete()
+    
+    # If user is owner, delete all their courts (cascade will handle individual_courts and bookings)
+    if db_user.role == 'owner':
+        # Get all courts owned by this user
+        courts = db.query(Court).filter(Court.owner_id == user_id).all()
+        for court in courts:
+            # Delete individual courts and their bookings
+            db.query(IndividualCourt).filter(IndividualCourt.court_id == court.id).delete()
+            # Delete the court itself
+            db.delete(court)
     
     # Delete the user
     db.delete(db_user)

@@ -355,6 +355,24 @@ const toggleFAQ = (index: number) => {
   background: #f0f0f0;
 }
 
+@media (max-width: 1024px) {
+  .section-title {
+    font-size: 2.25rem;
+  }
+
+  .faq-grid {
+    gap: 16px;
+  }
+
+  .cta-card {
+    padding: 50px 40px;
+  }
+
+  .cta-title {
+    font-size: 2rem;
+  }
+}
+
 @media (max-width: 768px) {
   .faq-section {
     padding: 60px 20px;
@@ -362,6 +380,10 @@ const toggleFAQ = (index: number) => {
 
   .section-title {
     font-size: 2rem;
+  }
+
+  .faq-grid {
+    gap: 12px;
   }
 
   .faq-item {
@@ -374,14 +396,74 @@ const toggleFAQ = (index: number) => {
 
   .faq-emoji {
     font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+  }
+
+  .faq-answer {
+    font-size: 0.95rem;
   }
 
   .cta-card {
     padding: 40px 24px;
   }
 
-  .cta-card h3 {
-    font-size: 1.6rem;
+  .cta-title {
+    font-size: 1.75rem;
+  }
+
+  .cta-description {
+    font-size: 1rem;
+  }
+
+  .contact-btn {
+    padding: 14px 28px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .faq-section {
+    padding: 40px 16px;
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+  }
+
+  .faq-item {
+    padding: 16px;
+  }
+
+  .faq-question h3 {
+    font-size: 1rem;
+  }
+
+  .faq-emoji {
+    font-size: 1.25rem;
+    width: 36px;
+    height: 36px;
+  }
+
+  .faq-answer {
+    font-size: 0.9rem;
+  }
+
+  .cta-card {
+    padding: 32px 20px;
+  }
+
+  .cta-title {
+    font-size: 1.5rem;
+  }
+
+  .cta-description {
+    font-size: 0.95rem;
+  }
+
+  .contact-btn {
+    padding: 12px 24px;
+    font-size: 0.95rem;
   }
 }
 </style>
