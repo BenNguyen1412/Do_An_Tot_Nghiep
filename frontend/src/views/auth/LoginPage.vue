@@ -106,12 +106,7 @@ const goToSignUp = () => {
     <div class="login-container">
       <!-- Left Side - Image -->
       <div class="image-section">
-        <img
-          src="https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=1200"
-          alt="Pickleball Equipment"
-          class="background-image"
-        />
-        <div class="image-overlay"></div>
+        <img src="" alt="Pickleball Equipment" class="background-image" />
       </div>
 
       <!-- Right Side - Login Form -->
@@ -127,7 +122,8 @@ const goToSignUp = () => {
               />
             </div>
             <div class="logo-text">
-              <span class="pickleball">Pickleball</span>
+              <span class="pickleball">Pickleball</span
+              >https://i.pinimg.com/1200x/ff/ec/83/ffec834246af54637385878acc35aae4.jpg
               <span class="brand">NP SPORTCLUB</span>
             </div>
           </div>
@@ -308,15 +304,6 @@ const goToSignUp = () => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.image-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(45, 80, 22, 0.7) 0%, rgba(74, 124, 44, 0.5) 100%);
 }
 
 .form-section {

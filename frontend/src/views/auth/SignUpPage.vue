@@ -302,11 +302,10 @@ const goToLogin = () => {
       <!-- Right Side - Image -->
       <div class="image-section">
         <img
-          src="https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1200"
+          src="https://i.pinimg.com/1200x/04/59/35/045935827b1f4a5772159ce76a6b1880.jpg"
           alt="Pickleball Balls"
           class="background-image"
         />
-        <div class="image-overlay"></div>
       </div>
     </div>
   </div>
