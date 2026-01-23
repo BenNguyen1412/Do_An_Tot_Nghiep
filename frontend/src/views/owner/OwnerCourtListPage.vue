@@ -53,6 +53,13 @@ interface BookingForm {
   start_time: string
   end_time: string
   phone_number: string
+  customer_name: string
+}
+
+interface SuggestedCourt {
+  id: number
+  name: string
+  court_name: string
 }
 
 // Real data from API
@@ -70,6 +77,12 @@ const myVenues = ref<Court[]>([])
 const bookingForms = ref<Record<number, BookingForm>>({})
 const isEditingBooking = ref<Record<number, boolean>>({})
 
+// Suggested courts when conflict
+const suggestedCourts = ref<SuggestedCourt[]>([])
+const showSuggestionModal = ref(false)
+const currentConflictCourtId = ref<number | null>(null)
+const pendingBookingData = ref<unknown>(null)
+
 // Initialize booking form for a court
 const initBookingForm = (courtId: number) => {
   bookingForms.value[courtId] = {
@@ -77,6 +90,7 @@ const initBookingForm = (courtId: number) => {
     start_time: '',
     end_time: '',
     phone_number: '',
+    customer_name: '',
   }
 }
 
@@ -95,6 +109,7 @@ const initEditBookingForm = (court: CourtItem) => {
       start_time: startTime.trim(),
       end_time: endTime.trim(),
       phone_number: court.bookedBy.phone,
+      customer_name: '',
     }
     isEditingBooking.value[court.id] = true
     court.isEditing = true
@@ -116,7 +131,7 @@ const generateCourts = (quantity: number) => {
   return newCourts
 }
 
-// Check if booking time has passed and auto-update status
+// Check if court is actually booked at current time
 const checkAndUpdateExpiredBookings = (courtData: IndividualCourt[]) => {
   const now = new Date()
   const today = now.toISOString().split('T')[0]
@@ -127,24 +142,51 @@ const checkAndUpdateExpiredBookings = (courtData: IndividualCourt[]) => {
     if (activeBooking) {
       const bookingDate = activeBooking.booking_date.split('T')[0]
 
-      // Check if booking date is today and end time has passed
-      if (bookingDate === today && activeBooking.end_time < currentTime) {
-        console.log(`⏰ Booking expired for court ${ic.name}:`, {
-          bookingDate,
-          endTime: activeBooking.end_time,
-          currentTime,
-        })
-        // Mark booking as expired by setting court as available
-        ic.is_available = true
-        // Remove the booking from active list
-        ic.bookings = ic.bookings?.filter((b) => b.id !== activeBooking.id)
+      // Only mark as booked if:
+      // 1. Booking date is TODAY
+      // 2. Current time is WITHIN booking time range (start_time <= currentTime < end_time)
+      if (bookingDate === today) {
+        const isWithinTimeRange =
+          activeBooking.start_time <= currentTime && currentTime < activeBooking.end_time
+
+        if (isWithinTimeRange) {
+          // Court is currently being used
+          ic.is_available = false
+          console.log(`🎾 Sân ${ic.name} đang được sử dụng:`, {
+            bookingDate,
+            timeRange: `${activeBooking.start_time} - ${activeBooking.end_time}`,
+            currentTime,
+          })
+        } else {
+          // Booking exists but not in active time range yet or already passed
+          ic.is_available = true
+          if (activeBooking.end_time < currentTime) {
+            console.log(`⏰ Booking expired for court ${ic.name}:`, {
+              bookingDate,
+              endTime: activeBooking.end_time,
+              currentTime,
+            })
+          } else {
+            console.log(`⏳ Booking chưa bắt đầu cho sân ${ic.name}:`, {
+              startTime: activeBooking.start_time,
+              currentTime,
+            })
+          }
+        }
       }
-      // Check if booking date is in the past
+      // Booking date is in the future - court is available now
+      else if (bookingDate > today) {
+        console.log(`📅 Booking trong tương lai cho sân ${ic.name}:`, bookingDate)
+        ic.is_available = true
+      }
+      // Booking date is in the past - court is available
       else if (bookingDate < today) {
-        console.log(`📅 Booking date passed for court ${ic.name}:`, bookingDate)
+        console.log(`📅 Booking đã qua cho sân ${ic.name}:`, bookingDate)
         ic.is_available = true
-        ic.bookings = ic.bookings?.filter((b) => b.id !== activeBooking.id)
       }
+    } else {
+      // No active booking - court is available
+      ic.is_available = true
     }
   })
 
@@ -181,25 +223,29 @@ const fetchMyCourts = async () => {
 
         courts.value = updatedCourts.map((ic) => {
           const activeBooking = ic.bookings?.find((b) => b.status === 'active')
-          const hasActiveBooking = !!activeBooking
+
+          // Use is_available from checkAndUpdateExpiredBookings
+          // Only show as booked if court is NOT available (currently in use)
+          const isCurrentlyBooked = !ic.is_available
 
           console.log(`⚽ Sân ${ic.name}:`, {
             is_available: ic.is_available,
-            hasActiveBooking,
+            isCurrentlyBooked,
             activeBooking,
           })
 
           return {
             id: ic.id,
             name: ic.name,
-            isBooked: hasActiveBooking,
-            bookedBy: activeBooking
-              ? {
-                  phone: activeBooking.phone_number,
-                  timeSlot: `${activeBooking.start_time} - ${activeBooking.end_time}`,
-                  bookingDate: new Date(activeBooking.booking_date).toLocaleDateString('vi-VN'),
-                }
-              : undefined,
+            isBooked: isCurrentlyBooked,
+            bookedBy:
+              activeBooking && isCurrentlyBooked
+                ? {
+                    phone: activeBooking.phone_number,
+                    timeSlot: `${activeBooking.start_time} - ${activeBooking.end_time}`,
+                    bookingDate: new Date(activeBooking.booking_date).toLocaleDateString('vi-VN'),
+                  }
+                : undefined,
             bookingId: activeBooking?.id,
             isEditing: false,
             tempName: ic.name,
@@ -349,6 +395,7 @@ const saveCourtName = async (court: CourtItem) => {
             start_time: form.start_time,
             end_time: form.end_time,
             phone_number: form.phone_number,
+            customer_name: form.customer_name,
           })
         } else {
           // Create new booking
@@ -358,6 +405,7 @@ const saveCourtName = async (court: CourtItem) => {
             start_time: form.start_time,
             end_time: form.end_time,
             phone_number: form.phone_number,
+            customer_name: form.customer_name,
           })
         }
       }
@@ -385,8 +433,38 @@ const saveCourtName = async (court: CourtItem) => {
     toast.success(successMessage)
   } catch (error) {
     console.error('Error updating court:', error)
-    const err = error as { response?: { data?: { detail?: string } } }
-    toast.error(err.response?.data?.detail || 'Cập nhật thất bại')
+    const err = error as { response?: { status?: number; data?: { detail?: unknown } } }
+
+    // Handle booking conflict with suggestions
+    if (err.response?.status === 409 && err.response?.data?.detail) {
+      const detail = err.response.data.detail as {
+        message?: string
+        suggested_courts?: Array<{ id: number; name: string; court_name: string }>
+      }
+
+      if (detail.suggested_courts && detail.suggested_courts.length > 0) {
+        // Store conflict info
+        suggestedCourts.value = detail.suggested_courts
+        currentConflictCourtId.value = court.id
+        pendingBookingData.value = {
+          booking_date: new Date(bookingForms.value[court.id].booking_date).toISOString(),
+          start_time: bookingForms.value[court.id].start_time,
+          end_time: bookingForms.value[court.id].end_time,
+          phone_number: bookingForms.value[court.id].phone_number,
+          customer_name: bookingForms.value[court.id].customer_name,
+        }
+        showSuggestionModal.value = true
+        toast.warning(detail.message || 'Sân đã được đặt. Vui lòng chọn sân khác.')
+      } else {
+        toast.error(detail.message || 'Sân đã được đặt và không có sân trống khác.')
+      }
+    } else {
+      const errorMsg =
+        typeof err.response?.data?.detail === 'string'
+          ? err.response.data.detail
+          : 'Cập nhật thất bại'
+      toast.error(errorMsg)
+    }
   }
 }
 
@@ -415,6 +493,40 @@ const cancelBooking = async (court: CourtItem) => {
   }
 }
 
+const selectSuggestedCourt = async (suggestedCourtId: number) => {
+  if (!pendingBookingData.value) return
+
+  try {
+    // Create booking with suggested court
+    await axiosInstance.post('/bookings', {
+      individual_court_id: suggestedCourtId,
+      ...pendingBookingData.value,
+    })
+
+    toast.success('Đã đặt sân thay thế thành công!')
+
+    // Close modal and reset
+    showSuggestionModal.value = false
+    suggestedCourts.value = []
+    currentConflictCourtId.value = null
+    pendingBookingData.value = null
+
+    // Refresh courts
+    await fetchMyCourts()
+  } catch (error) {
+    console.error('Error booking suggested court:', error)
+    const err = error as { response?: { data?: { detail?: unknown } } }
+    toast.error((err.response?.data?.detail as string) || 'Không thể đặt sân thay thế')
+  }
+}
+
+const closeSuggestionModal = () => {
+  showSuggestionModal.value = false
+  suggestedCourts.value = []
+  currentConflictCourtId.value = null
+  pendingBookingData.value = null
+}
+
 const refreshCourts = async () => {
   await fetchMyCourts()
   toast.success('Đã làm mới danh sách')
@@ -423,6 +535,35 @@ const refreshCourts = async () => {
 
 <template>
   <div class="court-list-page">
+    <!-- Suggestion Modal -->
+    <div v-if="showSuggestionModal" class="modal-overlay" @click="closeSuggestionModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>🏟️ Gợi ý sân trống</h3>
+          <button class="modal-close" @click="closeSuggestionModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-message">
+            Sân bạn chọn đã được đặt. Dưới đây là các sân còn trống trong cùng khung giờ:
+          </p>
+          <div class="suggested-courts-list">
+            <div
+              v-for="court in suggestedCourts"
+              :key="court.id"
+              class="suggested-court-item"
+              @click="selectSuggestedCourt(court.id)"
+            >
+              <div class="court-info">
+                <strong>{{ court.name }}</strong>
+                <span class="court-venue">{{ court.court_name }}</span>
+              </div>
+              <button class="btn-select">Chọn sân này</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Page Header -->
     <div class="page-header">
       <div>
@@ -921,6 +1062,31 @@ const refreshCourts = async () => {
                           type="tel"
                           placeholder="Nhập 10 chữ số"
                           maxlength="10"
+                          class="form-input"
+                        />
+                      </div>
+
+                      <div class="form-group">
+                        <label>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                            />
+                          </svg>
+                          Tên người đặt
+                        </label>
+                        <input
+                          v-model="bookingForms[court.id].customer_name"
+                          type="text"
+                          placeholder="Nhập tên người đặt"
                           class="form-input"
                         />
                       </div>
@@ -1610,5 +1776,155 @@ const refreshCourts = async () => {
   .modal-body {
     padding: 16px;
   }
+}
+
+/* Suggestion Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #1f2937;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  max-height: calc(80vh - 80px);
+}
+
+.modal-message {
+  margin: 0 0 20px 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.suggested-courts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.suggested-court-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.suggested-court-item:hover {
+  border-color: #10b981;
+  background: #f0fdf4;
+  transform: translateX(4px);
+}
+
+.court-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.court-info strong {
+  color: #1f2937;
+  font-size: 1rem;
+}
+
+.court-venue {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.btn-select {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-select:hover {
+  background: #059669;
+  transform: scale(1.05);
 }
 </style>

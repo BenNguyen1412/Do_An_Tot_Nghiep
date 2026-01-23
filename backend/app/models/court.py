@@ -58,6 +58,7 @@ class Booking(Base):
     start_time = Column(String, nullable=False)  # Format: "HH:MM"
     end_time = Column(String, nullable=False)  # Format: "HH:MM"
     phone_number = Column(String, nullable=False)
+    customer_name = Column(String, nullable=True)  # Name of person who booked (for owner bookings)
     status = Column(String, default="active")  # active, completed, cancelled
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

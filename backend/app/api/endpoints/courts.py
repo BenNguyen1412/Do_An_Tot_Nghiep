@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime
 import json
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -16,6 +17,8 @@ from app.schemas.court import (
     Booking,
     BookingCreate,
     BookingUpdate,
+    BookingDetail,
+    OwnerBookingsSummary,
 )
 from app.crud import court as court_crud
 
@@ -217,10 +220,38 @@ async def create_booking(
                 detail="You don't own this court",
             )
     
-    # TODO: Add validation for overlapping bookings
-    
-    db_booking = court_crud.create_booking(db, booking, current_user.id)
-    return db_booking
+    try:
+        db_booking = court_crud.create_booking(db, booking, current_user.id)
+        return db_booking
+    except ValueError as e:
+        # Find available alternative courts
+        court = court_crud.get_court(db, individual_court.court_id)
+        available_courts = court_crud.find_available_courts(
+            db, 
+            court.id, 
+            booking.booking_date, 
+            booking.start_time, 
+            booking.end_time,
+            exclude_court_id=booking.individual_court_id
+        )
+        
+        # Format suggestions
+        suggestions = [
+            {
+                "id": c.id,
+                "name": c.name,
+                "court_name": court.name
+            }
+            for c in available_courts
+        ]
+        
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": str(e),
+                "suggested_courts": suggestions
+            }
+        )
 
 
 @router.get("/bookings/my", response_model=List[Booking])
@@ -258,8 +289,14 @@ async def update_booking(
             detail="Not authorized to update this booking",
         )
     
-    updated_booking = court_crud.update_booking(db, booking_id, booking_update)
-    return updated_booking
+    try:
+        updated_booking = court_crud.update_booking(db, booking_id, booking_update)
+        return updated_booking
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
 
 @router.delete("/bookings/{booking_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -287,3 +324,97 @@ async def delete_booking(
         )
     
     court_crud.delete_booking(db, booking_id)
+
+
+# Owner booking management endpoints
+@router.get("/owner/bookings", response_model=List[BookingDetail])
+async def list_owner_bookings(
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    court_id: Optional[int] = Query(None, description="Filter by court complex ID"),
+    individual_court_id: Optional[int] = Query(None, description="Filter by individual court ID"),
+    status: Optional[str] = Query(None, description="Filter by status: active, completed, cancelled"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get all bookings for courts owned by the current owner.
+    Supports filtering by date range, court, and status.
+    """
+    # Only owners can access this endpoint
+    if current_user.role != "owner":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only court owners can access this endpoint",
+        )
+    
+    # Parse dates if provided
+    start_datetime = None
+    end_datetime = None
+    
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid start_date format. Use YYYY-MM-DD",
+            )
+    
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, "%Y-%m-%d")
+            # Set to end of day
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid end_date format. Use YYYY-MM-DD",
+            )
+    
+    # Get bookings
+    bookings = court_crud.get_bookings_by_owner(
+        db,
+        owner_id=current_user.id,
+        start_date=start_datetime,
+        end_date=end_datetime,
+        court_id=court_id,
+        individual_court_id=individual_court_id,
+        status=status
+    )
+    
+    # Enrich booking data with court info
+    booking_details = []
+    for booking in bookings:
+        individual_court = court_crud.get_individual_court(db, booking.individual_court_id)
+        court = court_crud.get_court(db, individual_court.court_id)
+        
+        booking_detail = BookingDetail(
+            **booking.__dict__,
+            individual_court=individual_court,
+            user=booking.user,
+            court_name=court.name
+        )
+        booking_details.append(booking_detail)
+    
+    return booking_details
+
+
+@router.get("/owner/bookings/summary", response_model=OwnerBookingsSummary)
+async def get_owner_bookings_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get booking statistics summary for the owner (last 30 days)
+    """
+    # Only owners can access this endpoint
+    if current_user.role != "owner":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only court owners can access this endpoint",
+        )
+    
+    summary = court_crud.get_owner_bookings_summary(db, current_user.id)
+    return summary
+

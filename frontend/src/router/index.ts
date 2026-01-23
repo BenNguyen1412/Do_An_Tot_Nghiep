@@ -60,6 +60,11 @@ const router = createRouter({
           name: 'owner-court-list',
           component: () => import('@/views/owner/OwnerCourtListPage.vue'),
         },
+        {
+          path: 'bookings',
+          name: 'owner-bookings',
+          component: () => import('@/views/owner/OwnerBookingSchedulePage.vue'),
+        },
       ],
     },
     {

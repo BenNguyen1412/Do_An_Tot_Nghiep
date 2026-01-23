@@ -111,6 +111,7 @@ class BookingBase(BaseModel):
     start_time: str
     end_time: str
     phone_number: str
+    customer_name: Optional[str] = None  # Name of customer (for owner bookings)
 
 
 class BookingCreate(BookingBase):
@@ -140,3 +141,33 @@ class IndividualCourtWithBookings(IndividualCourt):
 
 class CourtWithIndividualCourts(Court):
     individual_courts: List[IndividualCourt] = []
+
+
+# User info for booking details
+class BookingUser(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    phone_number: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Detailed booking with court and user info
+class BookingDetail(Booking):
+    individual_court: IndividualCourt
+    user: BookingUser
+    court_name: Optional[str] = None  # Court complex name
+    
+    class Config:
+        from_attributes = True
+
+
+# Summary response for owner bookings
+class OwnerBookingsSummary(BaseModel):
+    total_bookings: int
+    active_bookings: int
+    completed_bookings: int
+    cancelled_bookings: int
+    period_days: int
