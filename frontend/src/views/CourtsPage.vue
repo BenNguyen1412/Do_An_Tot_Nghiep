@@ -106,6 +106,38 @@ const getCourtImage = (court: Court) => {
   return 'https://i.pinimg.com/1200x/0e/c0/4d/0ec04dde4f138cac5ec5e928edef20e9.jpg'
 }
 
+// Get current time in HH:MM format
+const getCurrentTime = () => {
+  const now = new Date()
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+// Check if court is currently open based on operating hours
+const isCourtOpen = (court: Court) => {
+  if (!court.is_active) return false
+
+  const currentTime = getCurrentTime()
+  const openingTime = court.opening_time
+  const closingTime = court.closing_time
+
+  return currentTime >= openingTime && currentTime < closingTime
+}
+
+// Get court status with appropriate text and class
+const getCourtStatus = (court: Court) => {
+  if (!court.is_active) {
+    return { text: 'Inactive', class: 'inactive' }
+  }
+
+  if (isCourtOpen(court)) {
+    return { text: 'Open Now', class: 'active' }
+  }
+
+  return { text: 'Closed', class: 'closed' }
+}
+
 // Navigate to court details
 const viewCourtDetails = (courtId: number) => {
   router.push(`/court/${courtId}`)
@@ -252,8 +284,9 @@ onMounted(() => {
             <div class="court-info">
               <div class="court-header">
                 <h3 class="court-name">{{ court.name }}</h3>
-                <span v-if="court.is_active" class="status-badge active">Active</span>
-                <span v-else class="status-badge inactive">Inactive</span>
+                <span :class="['status-badge', getCourtStatus(court).class]">
+                  {{ getCourtStatus(court).text }}
+                </span>
               </div>
 
               <p class="court-location">
@@ -276,7 +309,7 @@ onMounted(() => {
                     d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
-                {{ court.district }}, {{ court.city }}
+                Quận {{ court.district }}, {{ court.city }}
               </p>
 
               <div class="court-details">
@@ -731,6 +764,12 @@ onMounted(() => {
   background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   color: white;
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.status-badge.closed {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
 }
 
 .status-badge.inactive {

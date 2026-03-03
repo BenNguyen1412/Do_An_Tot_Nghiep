@@ -1,50 +1,138 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import axiosInstance from '@/utils/axios'
+
+interface TimeSlot {
+  start_time: string
+  end_time: string
+  price: number
+}
 
 interface Court {
   id: number
   name: string
+  address: string
   district: string
-  bookings: number
-  image: string
-  badge: string
-  price: number
+  city: string
+  description: string
+  court_quantity: number
+  opening_time: string
+  closing_time: string
+  images: string[]
+  is_active: boolean
+  owner_id: number
+  facilities?: string[]
+  contact_phone: string
+  contact_email?: string
+  time_slots?: TimeSlot[]
+  created_at: string
+  updated_at?: string
 }
 
-const courts = ref<Court[]>([
-  {
-    id: 1,
-    name: 'COURT AB',
-    district: 'District 1, HCMC',
-    bookings: 40,
-    image: 'https://i.pinimg.com/1200x/0e/c0/4d/0ec04dde4f138cac5ec5e928edef20e9.jpg',
-    badge: '40+',
-    price: 150000,
-  },
-  {
-    id: 2,
-    name: 'COURT E',
-    district: 'District 10, HCMC',
-    bookings: 80,
-    image: 'https://i.pinimg.com/1200x/0e/45/49/0e4549edf637e28dcd0d6c9900a34222.jpg',
-    badge: '80+',
-    price: 200000,
-  },
-  {
-    id: 3,
-    name: 'COURT C',
-    district: 'District 3, HCMC',
-    bookings: 100,
-    image: 'https://i.pinimg.com/736x/4e/28/51/4e2851f36c77df07b96cd59400b39ef4.jpg',
-    badge: '100+',
-    price: 180000,
-  },
-])
+const router = useRouter()
+const courts = ref<Court[]>([])
+const isLoading = ref(false)
 
-const getBadgeClass = (bookings: number) => {
-  if (bookings >= 100) return 'badge-gold'
-  if (bookings >= 80) return 'badge-silver'
+// Fetch courts from API
+const fetchCourts = async () => {
+  isLoading.value = true
+  try {
+    const response = await axiosInstance.get('/courts')
+    courts.value = response.data.slice(0, 3) // Get only first 3 courts
+  } catch (error) {
+    console.error('Error fetching courts:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Get current time in HH:MM format
+const getCurrentTime = () => {
+  const now = new Date()
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+// Check if court is currently open based on operating hours
+const isCourtOpen = (court: Court) => {
+  if (!court.is_active) return false
+
+  const currentTime = getCurrentTime()
+  const openingTime = court.opening_time
+  const closingTime = court.closing_time
+
+  return currentTime >= openingTime && currentTime < closingTime
+}
+
+// Get court status with appropriate text and class
+const getCourtStatus = (court: Court) => {
+  if (!court.is_active) {
+    return { text: 'Inactive', class: 'inactive' }
+  }
+
+  if (isCourtOpen(court)) {
+    return { text: 'Open Now', class: 'active' }
+  }
+
+  return { text: 'Closed', class: 'closed' }
+}
+
+// Get badge based on court quantity
+const getBadgeClass = (quantity: number) => {
+  if (quantity >= 10) return 'badge-gold'
+  if (quantity >= 5) return 'badge-silver'
   return 'badge-bronze'
+}
+
+const getBadgeText = (quantity: number) => {
+  if (quantity >= 10) return '10+'
+  if (quantity >= 5) return '5+'
+  return `${quantity}`
+}
+
+// Get first image or placeholder
+const getCourtImage = (court: Court) => {
+  if (court.images && court.images.length > 0) {
+    const imagePath = court.images[0]
+    if (imagePath.startsWith('/')) {
+      return `http://localhost:8000${imagePath}`
+    }
+    return imagePath
+  }
+  return 'https://i.pinimg.com/1200x/0e/c0/4d/0ec04dde4f138cac5ec5e928edef20e9.jpg'
+}
+
+// Get current time slot based on current time
+const getCurrentTimeSlot = (court: Court) => {
+  if (!court.time_slots || court.time_slots.length === 0) {
+    return null
+  }
+
+  const currentTime = getCurrentTime()
+
+  // Find the time slot that matches current time
+  return court.time_slots.find((slot) => {
+    return currentTime >= slot.start_time && currentTime < slot.end_time
+  })
+}
+
+// Get current price or lowest price based on time
+const getCurrentPrice = (court: Court) => {
+  if (!court.time_slots || court.time_slots.length === 0) {
+    return 150000 // Default price
+  }
+
+  // If there's a current time slot, use its price
+  const currentSlot = getCurrentTimeSlot(court)
+  if (currentSlot) {
+    return currentSlot.price
+  }
+
+  // Otherwise, show the lowest price
+  const prices = court.time_slots.map((slot) => slot.price)
+  return Math.min(...prices)
 }
 
 const formatPrice = (price: number) => {
@@ -53,6 +141,20 @@ const formatPrice = (price: number) => {
     currency: 'VND',
   }).format(price)
 }
+
+// Navigate to court details
+const viewCourtDetails = (courtId: number) => {
+  router.push(`/court/${courtId}`)
+}
+
+// Navigate to all courts page
+const viewAllCourts = () => {
+  router.push('/court')
+}
+
+onMounted(() => {
+  fetchCourts()
+})
 </script>
 
 <template>
@@ -69,37 +171,59 @@ const formatPrice = (price: number) => {
             Find the perfect court near you with the best facilities and competitive prices
           </p>
         </div>
-        <button class="view-all-btn">View All Courts →</button>
+        <button class="view-all-btn" @click="viewAllCourts">View All Courts →</button>
       </div>
 
-      <div class="courts-grid">
-        <div v-for="court in courts" :key="court.id" class="court-card">
+      <!-- Loading State -->
+      <div v-if="isLoading" class="loading-container">
+        <div class="spinner"></div>
+        <p>Loading courts...</p>
+      </div>
+
+      <!-- Courts Grid -->
+      <div v-else-if="courts.length > 0" class="courts-grid">
+        <div
+          v-for="court in courts"
+          :key="court.id"
+          class="court-card"
+          @click="viewCourtDetails(court.id)"
+        >
           <div class="court-image">
-            <img :src="court.image" :alt="court.name" />
+            <img :src="getCourtImage(court)" :alt="court.name" />
             <div class="image-overlay">
-              <button class="favorite-btn"><i class="fas fa-heart"></i></button>
+              <button class="favorite-btn" @click.stop><i class="fas fa-heart"></i></button>
             </div>
-            <div class="court-badge" :class="getBadgeClass(court.bookings)">
-              {{ court.badge }} Bookings
+            <div class="court-badge" :class="getBadgeClass(court.court_quantity)">
+              {{ getBadgeText(court.court_quantity) }} Courts
             </div>
           </div>
 
           <div class="court-info">
             <div class="court-header">
               <h3 class="court-name">{{ court.name }}</h3>
+              <span :class="['status-badge', getCourtStatus(court).class]">
+                {{ getCourtStatus(court).text }}
+              </span>
             </div>
 
-            <p class="court-district"><i class="fas fa-map-marker-alt"></i> {{ court.district }}</p>
+            <p class="court-district">
+              <i class="fas fa-map-marker-alt"></i> Quận {{ court.district }}, {{ court.city }}
+            </p>
 
             <div class="court-footer">
               <div class="court-meta">
-                <span class="price"> {{ formatPrice(court.price) }}/hour </span>
+                <span class="price">{{ formatPrice(getCurrentPrice(court)) }}/hour</span>
               </div>
 
-              <button class="book-btn">Book Now</button>
+              <button class="book-btn" @click.stop="viewCourtDetails(court.id)">Book Now</button>
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- No Courts State -->
+      <div v-else class="no-courts">
+        <p>No courts available at the moment.</p>
       </div>
     </div>
   </section>
@@ -179,6 +303,44 @@ const formatPrice = (price: number) => {
   transform: translateX(5px);
 }
 
+/* Loading State */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 20px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #4a7c2c;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-container p {
+  color: #666;
+  font-size: 1rem;
+}
+
+/* No Courts State */
+.no-courts {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+  font-size: 1.1rem;
+}
+
 .courts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -192,6 +354,7 @@ const formatPrice = (price: number) => {
   box-shadow: 0 5px 25px rgba(0, 0, 0, 0.08);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid #f0f0f0;
+  cursor: pointer;
 }
 
 .court-card:hover {
@@ -294,6 +457,7 @@ const formatPrice = (price: number) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  gap: 12px;
 }
 
 .court-name {
@@ -302,6 +466,43 @@ const formatPrice = (price: number) => {
   color: #2d5016;
   margin: 0;
   letter-spacing: -0.5px;
+  flex: 1;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: fadeIn 0.5s ease;
+}
+
+.status-badge.active {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.status-badge.closed {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.status-badge.inactive {
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .rating-value {

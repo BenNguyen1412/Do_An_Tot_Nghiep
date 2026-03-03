@@ -112,13 +112,72 @@ const bookNow = () => {
   router.push(`/booking/${court.value?.id}`)
 }
 
-// Get lowest price from time slots
-const lowestPrice = computed(() => {
+// Get current time in HH:MM format
+const getCurrentTime = () => {
+  const now = new Date()
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+// Check if court is currently open
+const isCourtOpen = computed(() => {
+  if (!court.value) return false
+
+  const currentTime = getCurrentTime()
+  const openingTime = court.value.opening_time
+  const closingTime = court.value.closing_time
+
+  return currentTime >= openingTime && currentTime < closingTime
+})
+
+// Get current time slot based on current time
+const currentTimeSlot = computed(() => {
+  if (!court.value?.time_slots || court.value.time_slots.length === 0) {
+    return null
+  }
+
+  const currentTime = getCurrentTime()
+
+  // Find the time slot that matches current time
+  return court.value.time_slots.find((slot) => {
+    return currentTime >= slot.start_time && currentTime < slot.end_time
+  })
+})
+
+// Get current price or lowest price
+const displayPrice = computed(() => {
   if (!court.value?.time_slots || court.value.time_slots.length === 0) {
     return 150000 // Default price
   }
+
+  // If there's a current time slot, use its price
+  if (currentTimeSlot.value) {
+    return currentTimeSlot.value.price
+  }
+
+  // Otherwise, show the lowest price
   const prices = court.value.time_slots.map((slot) => slot.price)
   return Math.min(...prices)
+})
+
+// Get price label text
+const priceLabel = computed(() => {
+  if (currentTimeSlot.value) {
+    return 'Current price'
+  }
+  return 'Starting from'
+})
+
+// Get availability status text
+const availabilityStatus = computed(() => {
+  if (!court.value) return { text: 'Checking...', available: false }
+
+  if (isCourtOpen.value) {
+    return { text: 'Available now', available: true }
+  }
+
+  return { text: 'Closed now', available: false }
 })
 
 // Format price
@@ -156,7 +215,12 @@ onMounted(() => {
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
 
@@ -178,7 +242,12 @@ onMounted(() => {
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </button>
 
@@ -206,9 +275,7 @@ onMounted(() => {
               <div class="court-badges">
                 <span class="badge booking-badge">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                      d="M12 15a3 3 0 100-6 3 3 0 000 6z"
-                    />
+                    <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
                     <path
                       fill-rule="evenodd"
                       d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 010-1.113zM17.25 12a5.25 5.25 0 11-10.5 0 5.25 5.25 0 0110.5 0z"
@@ -243,7 +310,7 @@ onMounted(() => {
                     d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
-                <span>{{ court.district }}, {{ court.city }}</span>
+                <span>{{ court.address }}, Quận {{ court.district }}, {{ court.city }}</span>
               </div>
               <div class="contact-item" v-if="court.contact_email">
                 <svg
@@ -316,20 +383,8 @@ onMounted(() => {
               <!-- Overview Tab -->
               <div v-if="activeTab === 'overview'" class="overview-content">
                 <h3>Overview</h3>
-                <p class="description">{{ court.description }}</p>
-                <p class="description-extra">
-                  Our court is a renowned sports facility situated in {{ court.city }}. With a
-                  commitment to providing high-quality services, we offer a wide range of amenities
-                  and equipment to support athletes in their training and development.
-                </p>
-                <p class="description-extra">
-                  Our facility is equipped with state-of-the-art features, ensuring a conducive
-                  environment for athletes to excel in their respective sports.
-                </p>
-                <p class="description-extra">
-                  Whether you're a professional athlete or a sports enthusiast, our court is the
-                  ideal place to enhance your skills and achieve your goals.
-                </p>
+                <p v-if="court.description" class="description">{{ court.description }}</p>
+                <p v-else class="no-description">No description available for this court.</p>
 
                 <div class="court-features">
                   <div class="feature-item">
@@ -376,14 +431,12 @@ onMounted(() => {
               <!-- Pricing Tab -->
               <div v-if="activeTab === 'pricing'" class="pricing-content">
                 <h3>Pricing Details</h3>
-                <p class="pricing-description">Our flexible pricing structure to suit your schedule</p>
-                
+                <p class="pricing-description">
+                  Our flexible pricing structure to suit your schedule
+                </p>
+
                 <div v-if="court.time_slots && court.time_slots.length > 0" class="pricing-grid">
-                  <div
-                    v-for="(slot, index) in court.time_slots"
-                    :key="index"
-                    class="pricing-card"
-                  >
+                  <div v-for="(slot, index) in court.time_slots" :key="index" class="pricing-card">
                     <div class="pricing-time">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -567,18 +620,25 @@ onMounted(() => {
           <div class="booking-column">
             <div class="booking-card">
               <div class="availability">
-                <div class="availability-badge">
-                  <div class="pulse-dot"></div>
-                  <span>available now</span>
+                <div class="availability-badge" :class="{ closed: !availabilityStatus.available }">
+                  <div class="pulse-dot" v-if="availabilityStatus.available"></div>
+                  <div class="closed-dot" v-else></div>
+                  <span>{{ availabilityStatus.text }}</span>
                 </div>
               </div>
 
               <div class="pricing">
                 <div class="price-main">
-                  <span class="price">{{ formatPrice(lowestPrice) }}đ/h</span>
-                  <span class="guests">Starting from</span>
+                  <span class="price">{{ formatPrice(displayPrice) }}đ/h</span>
+                  <span class="guests">{{ priceLabel }}</span>
                 </div>
-                <div v-if="court.time_slots && court.time_slots.length > 1" class="price-range">
+                <div v-if="currentTimeSlot" class="price-range current-slot">
+                  {{ currentTimeSlot.start_time }} - {{ currentTimeSlot.end_time }}
+                </div>
+                <div
+                  v-else-if="court.time_slots && court.time_slots.length > 1"
+                  class="price-range"
+                >
                   Multiple pricing options available
                 </div>
               </div>
@@ -631,12 +691,7 @@ onMounted(() => {
 
     <!-- Error State -->
     <div v-else class="error-state">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -978,11 +1033,22 @@ onMounted(() => {
   margin: 0 0 12px 0;
 }
 
-.description,
-.description-extra {
+.description {
   color: #4b5563;
   line-height: 1.8;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  white-space: pre-wrap;
+}
+
+.no-description {
+  color: #9ca3af;
+  line-height: 1.8;
+  margin-bottom: 24px;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
 }
 
 .pricing-description,
@@ -1222,6 +1288,13 @@ onMounted(() => {
   color: #065f46;
   font-weight: 600;
   font-size: 0.9rem;
+  transition: all 0.3s;
+}
+
+.availability-badge.closed {
+  background: #fef2f2;
+  border: 1px solid #ef4444;
+  color: #991b1b;
 }
 
 .pulse-dot {
@@ -1230,6 +1303,13 @@ onMounted(() => {
   background: #10b981;
   border-radius: 50%;
   animation: pulse 2s infinite;
+}
+
+.closed-dot {
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
 }
 
 @keyframes pulse {
@@ -1271,6 +1351,12 @@ onMounted(() => {
   font-size: 0.85rem;
   font-weight: 600;
   margin-top: 8px;
+}
+
+.price-range.current-slot {
+  color: #2d5016;
+  font-weight: 700;
+  font-size: 0.9rem;
 }
 
 .inclusions {
