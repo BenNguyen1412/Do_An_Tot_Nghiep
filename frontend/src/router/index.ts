@@ -18,6 +18,11 @@ const router = createRouter({
       component: () => import('@/views/CourtsPage.vue'),
     },
     {
+      path: '/court/:id',
+      name: 'court-detail',
+      component: () => import('@/views/CourtDetailPage.vue'),
+    },
+    {
       path: '/login',
       name: 'login',
       component: LoginPage,

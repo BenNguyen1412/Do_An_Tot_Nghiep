@@ -133,11 +133,6 @@ const supportLinks = [
       <div class="footer-container">
         <div class="footer-bottom-content">
           <p class="copyright">© {{ currentYear }} NP Sportclub. All rights reserved.</p>
-          <div class="footer-badges">
-            <span class="badge"><i class="fas fa-lock"></i> Secure Payment</span>
-            <span class="badge"><i class="fas fa-check-circle"></i> Verified Business</span>
-            <span class="badge"><i class="fas fa-star"></i> 4.9 Rating</span>
-          </div>
         </div>
       </div>
     </div>
@@ -151,7 +146,7 @@ const supportLinks = [
 }
 
 .footer-main {
-  padding: 80px 40px 40px;
+  padding: 40px 40px 30px;
 }
 
 .footer-container {
@@ -159,17 +154,17 @@ const supportLinks = [
   margin: 0 auto;
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1.5fr;
-  gap: 60px;
+  gap: 40px;
 }
 
 .footer-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 
 .brand-section {
-  gap: 24px;
+  gap: 16px;
 }
 
 .footer-logo {
@@ -179,12 +174,12 @@ const supportLinks = [
 }
 
 .logo-icon {
-  width: 90px;
-  height: 90px;
+  width: 60px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 3px 8px rgba(45, 80, 22, 0.3));
+  filter: drop-shadow(0 2px 6px rgba(45, 80, 22, 0.3));
   transition: transform 0.3s ease;
 }
 
@@ -206,38 +201,38 @@ const supportLinks = [
 }
 
 .pickleball {
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 500;
   opacity: 0.9;
 }
 
 .brand {
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
 }
 
 .brand-description {
-  font-size: 1rem;
-  line-height: 1.7;
+  font-size: 0.9rem;
+  line-height: 1.6;
   opacity: 0.9;
   margin: 0;
 }
 
 .social-links {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .social-link {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   background: rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
+  font-size: 1rem;
   transition: all 0.3s;
   backdrop-filter: blur(10px);
   color: #1b5e20;
@@ -251,10 +246,10 @@ const supportLinks = [
 }
 
 .footer-title {
-  font-size: 1.3rem;
+  font-size: 1.05rem;
   font-weight: 700;
   margin: 0;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
 
 .footer-links {
@@ -263,13 +258,13 @@ const supportLinks = [
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .footer-link {
   color: #1b5e20;
   text-decoration: none;
-  font-size: 1rem;
+  font-size: 0.9rem;
   transition: all 0.3s;
   display: inline-block;
   font-weight: 500;
@@ -284,19 +279,19 @@ const supportLinks = [
 .contact-info {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 .contact-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  font-size: 1rem;
-  line-height: 1.6;
+  gap: 10px;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .contact-icon {
-  font-size: 1.3rem;
+  font-size: 1.05rem;
   flex-shrink: 0;
   color: #2d5016;
 }
@@ -318,9 +313,9 @@ const supportLinks = [
 }
 
 .newsletter-title {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
 }
 
 .newsletter-form {
@@ -330,10 +325,10 @@ const supportLinks = [
 
 .newsletter-input {
   flex: 1;
-  padding: 14px 18px;
+  padding: 10px 14px;
   border: 2px solid rgba(255, 255, 255, 0.5);
-  border-radius: 10px;
-  font-size: 0.95rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
   outline: none;
   background: rgba(255, 255, 255, 0.3);
   color: #1b5e20;
@@ -351,12 +346,12 @@ const supportLinks = [
 }
 
 .newsletter-btn {
-  padding: 14px 20px;
+  padding: 10px 16px;
   background: #2d5016;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   color: white;
-  font-size: 1.2rem;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.3s;
 }
@@ -368,7 +363,7 @@ const supportLinks = [
 
 .footer-bottom {
   background: rgba(0, 0, 0, 0.1);
-  padding: 28px 40px;
+  padding: 18px 40px;
   backdrop-filter: blur(10px);
 }
 
@@ -376,32 +371,17 @@ const supportLinks = [
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
 }
 
 .copyright {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 500;
 }
 
-.footer-badges {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
 
-.badge {
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  backdrop-filter: blur(10px);
-}
 
 @media (max-width: 1024px) {
   .footer-container {
@@ -425,12 +405,7 @@ const supportLinks = [
   }
 
   .footer-bottom-content {
-    flex-direction: column;
     text-align: center;
-  }
-
-  .footer-badges {
-    justify-content: center;
   }
 }
 </style>
