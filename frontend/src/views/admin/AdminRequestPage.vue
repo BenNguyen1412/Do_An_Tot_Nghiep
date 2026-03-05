@@ -68,7 +68,7 @@
                 <div style="color: #6b7280">Không có yêu cầu nào</div>
               </td>
             </tr>
-            <tr v-else v-for="request in requests" :key="request.id" class="table-row">
+            <tr v-else v-for="request in paginatedRequests" :key="request.id" class="table-row">
               <td>
                 <div class="request-name">
                   <div class="request-icon-wrapper Court">
@@ -106,8 +106,9 @@
                 </span>
               </td>
               <td>
-                <div class="action-buttons" v-if="request.status === 'pending'">
+                <div class="action-buttons">
                   <button
+                    v-if="request.status === 'pending'"
                     class="action-btn approve-btn"
                     title="Approve"
                     @click="approveRequest(request.id)"
@@ -115,11 +116,19 @@
                     ✓
                   </button>
                   <button
+                    v-if="request.status === 'pending'"
                     class="action-btn reject-btn"
                     title="Reject"
                     @click="rejectRequest(request.id)"
                   >
                     ✕
+                  </button>
+                  <button
+                    class="action-btn delete-btn"
+                    title="Delete"
+                    @click="confirmDelete(request)"
+                  >
+                    🗑️
                   </button>
                 </div>
               </td>
@@ -127,15 +136,26 @@
           </tbody>
         </table>
 
-        <div class="pagination">
-          <button class="page-btn prev-btn">‹</button>
-          <button class="page-btn active">1</button>
-          <button class="page-btn">2</button>
-          <button class="page-btn">3</button>
-          <button class="page-btn">4</button>
-          <button class="page-btn">5</button>
-          <span class="page-dots">...</span>
-          <button class="page-btn next-btn">›</button>
+        <div class="pagination" v-if="totalPages > 1">
+          <button class="page-btn prev-btn" @click="previousPage" :disabled="currentPage === 1">
+            ‹
+          </button>
+          <button
+            v-for="page in totalPages"
+            :key="page"
+            class="page-btn"
+            :class="{ active: currentPage === page }"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+          <button
+            class="page-btn next-btn"
+            @click="nextPage"
+            :disabled="currentPage === totalPages"
+          >
+            ›
+          </button>
         </div>
       </div>
     </div>
@@ -278,6 +298,30 @@
         </div>
       </div>
     </transition>
+
+    <!-- Delete Confirmation Modal -->
+    <transition name="modal">
+      <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>⚠️ Xác nhận xóa</h2>
+            <button class="close-btn" @click="closeDeleteModal">✕</button>
+          </div>
+          <div class="modal-body">
+            <p>
+              Bạn có chắc chắn muốn xóa yêu cầu <strong>{{ requestToDelete?.name }}</strong> không?
+            </p>
+            <p class="warning-text">Hành động này không thể hoàn tác.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="cancel-btn" @click="closeDeleteModal">Hủy</button>
+            <button class="confirm-delete-btn" @click="deleteRequest" :disabled="isDeleting">
+              {{ isDeleting ? 'Đang xóa...' : 'Xóa' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </AdminDashboardLayout>
 </template>
 
@@ -323,12 +367,30 @@ const isLoading = ref(false)
 const showModal = ref(false)
 const selectedRequest = ref<CourtRequest | null>(null)
 
+// Delete modal state
+const showDeleteModal = ref(false)
+const requestToDelete = ref<CourtRequest | null>(null)
+const isDeleting = ref(false)
+
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = 5
+
 const stats = computed(() => {
   const total = requests.value.length
   const pending = requests.value.filter((r) => r.status === 'pending').length
   const approved = requests.value.filter((r) => r.status === 'approved').length
   const rejected = requests.value.filter((r) => r.status === 'rejected').length
   return { total, pending, approved, rejected }
+})
+
+// Pagination computed
+const totalPages = computed(() => Math.ceil(requests.value.length / itemsPerPage))
+
+const paginatedRequests = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return requests.value.slice(start, end)
 })
 
 const parsedFacilities = computed(() => {
@@ -415,6 +477,23 @@ const formatPrice = (price: number) => {
   }).format(price)
 }
 
+// Pagination methods
+const goToPage = (page: number) => {
+  currentPage.value = page
+}
+
+const previousPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+  }
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
+}
+
 const approveRequest = async (requestId: number) => {
   try {
     await axiosInstance.put(`/court-requests/${requestId}`, {
@@ -442,6 +521,34 @@ const rejectRequest = async (requestId: number) => {
   } catch (error) {
     console.error('Error rejecting request:', error)
     toast.error('Không thể từ chối yêu cầu')
+  }
+}
+
+const confirmDelete = (request: CourtRequest) => {
+  requestToDelete.value = request
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  requestToDelete.value = null
+}
+
+const deleteRequest = async () => {
+  if (!requestToDelete.value) return
+
+  isDeleting.value = true
+
+  try {
+    await axiosInstance.delete(`/court-requests/${requestToDelete.value.id}`)
+    toast.success('Đã xóa yêu cầu thành công')
+    closeDeleteModal()
+    await fetchRequests()
+  } catch (error) {
+    console.error('Error deleting request:', error)
+    toast.error('Không thể xóa yêu cầu')
+  } finally {
+    isDeleting.value = false
   }
 }
 
@@ -787,11 +894,15 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
   font-size: 16px;
-  font-weight: bold;
 }
 
-.action-btn:hover {
+.action-btn:hover:not(:disabled) {
   transform: translateY(-2px);
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .approve-btn:hover {
@@ -804,6 +915,11 @@ onMounted(() => {
   background: #fee2e2;
   border-color: #ef4444;
   color: #991b1b;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #ef4444;
 }
 
 /* Pagination */
@@ -881,6 +997,50 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Delete Modal Styles */
+.modal-content {
+  background: #fff;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+.modal-content .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.modal-content .modal-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.modal-content .modal-body {
+  padding: 24px 32px;
+}
+
+.modal-content .modal-body p {
+  font-size: 15px;
+  color: #374151;
+  margin: 0 0 12px 0;
+  line-height: 1.6;
+}
+
+.modal-content .modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 20px 32px;
+  border-top: 2px solid #f3f4f6;
 }
 
 .modal-header {
@@ -1035,7 +1195,8 @@ onMounted(() => {
 
 .btn-approve,
 .btn-reject,
-.btn-close {
+.btn-close,
+.btn-delete {
   padding: 10px 24px;
   border-radius: 8px;
   font-size: 0.95rem;
@@ -1076,6 +1237,83 @@ onMounted(() => {
   background: #e5e7eb;
 }
 
+.warning-text {
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* Delete Modal Button Styles */
+.close-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-size: 20px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.cancel-btn,
+.confirm-delete-btn {
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.cancel-btn {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.cancel-btn:hover {
+  background: #e5e7eb;
+}
+
+.confirm-delete-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.confirm-delete-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+.confirm-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-delete {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Modal Animation */
 .modal-enter-active,
 .modal-leave-active {
@@ -1088,13 +1326,28 @@ onMounted(() => {
 }
 
 .modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
+.modal-leave-active .modal-container,
+.modal-enter-active .modal-content,
+.modal-leave-active .modal-content {
   transition: transform 0.3s ease;
 }
 
 .modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
+.modal-leave-to .modal-container,
+.modal-enter-from .modal-content,
+.modal-leave-to .modal-content {
   transform: scale(0.9);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 1024px) {

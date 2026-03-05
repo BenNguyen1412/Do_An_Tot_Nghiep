@@ -122,13 +122,19 @@
             </tbody>
           </table>
 
-          <div class="pagination">
+          <div class="pagination" v-if="totalPages > 1">
             <button class="page-btn prev-btn" @click="prevPage" :disabled="currentPage === 1">
               ‹
             </button>
-            <span class="page-info">
-              Page {{ currentPage }} of {{ totalPages }} ({{ total }} users)
-            </span>
+            <button
+              v-for="page in totalPages"
+              :key="page"
+              class="page-btn"
+              :class="{ active: currentPage === page }"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
             <button
               class="page-btn next-btn"
               @click="nextPage"
@@ -141,27 +147,29 @@
       </div>
 
       <!-- Delete Confirmation Modal -->
-      <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2>⚠️ Confirm Delete</h2>
-            <button class="close-btn" @click="closeDeleteModal">✕</button>
-          </div>
-          <div class="modal-body">
-            <p>
-              Are you sure you want to delete user <strong>{{ userToDelete?.full_name }}</strong
-              >?
-            </p>
-            <p class="warning-text">This action cannot be undone.</p>
-          </div>
-          <div class="modal-footer">
-            <button class="cancel-btn" @click="closeDeleteModal">Cancel</button>
-            <button class="confirm-delete-btn" @click="deleteUser" :disabled="isDeleting">
-              {{ isDeleting ? 'Deleting...' : 'Delete' }}
-            </button>
+      <transition name="modal">
+        <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>⚠️ Xác nhận xóa</h2>
+              <button class="close-btn" @click="closeDeleteModal">✕</button>
+            </div>
+            <div class="modal-body">
+              <p>
+                Bạn có chắc chắn muốn xóa người dùng
+                <strong>{{ userToDelete?.full_name }}</strong> không?
+              </p>
+              <p class="warning-text">Hành động này không thể hoàn tác.</p>
+            </div>
+            <div class="modal-footer">
+              <button class="cancel-btn" @click="closeDeleteModal">Hủy</button>
+              <button class="confirm-delete-btn" @click="deleteUser" :disabled="isDeleting">
+                {{ isDeleting ? 'Đang xóa...' : 'Xóa' }}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </transition>
     </div>
   </AdminDashboardLayout>
 </template>
@@ -185,7 +193,7 @@ const total = ref(0)
 const isLoading = ref(false)
 const error = ref('')
 const currentPage = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(5)
 
 // Delete modal state
 const showDeleteModal = ref(false)
@@ -253,6 +261,11 @@ const loadUsers = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+const goToPage = (page: number) => {
+  currentPage.value = page
+  loadUsers()
 }
 
 const prevPage = () => {
@@ -683,6 +696,12 @@ onMounted(() => {
   color: #374151;
 }
 
+.page-btn.active {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border-color: #3b82f6;
+}
+
 .page-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -830,6 +849,27 @@ onMounted(() => {
 .confirm-delete-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Modal Animation */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-active .modal-content,
+.modal-leave-active .modal-content {
+  transition: transform 0.3s ease;
+}
+
+.modal-enter-from .modal-content,
+.modal-leave-to .modal-content {
+  transform: scale(0.9);
 }
 
 @media (max-width: 1024px) {
