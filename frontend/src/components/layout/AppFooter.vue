@@ -1,16 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
 const currentYear = new Date().getFullYear()
-
-const email = ref('')
-
-const subscribeNewsletter = () => {
-  if (email.value) {
-    alert(`Thanks for subscribing with: ${email.value}`)
-    email.value = ''
-  }
-}
 
 const socialLinks = [
   { icon: 'fab fa-facebook-f', name: 'Facebook', url: 'https://facebook.com', color: '#1877F2' },
@@ -23,11 +12,6 @@ const quickLinks = [
   { name: 'Home', url: '/' },
   { name: 'Court', url: '/court' },
   { name: 'About us', url: '/about' },
-]
-
-const supportLinks = [
-  { name: 'Help Center', url: '/help' },
-  { name: 'Contact Us', url: '/contact' },
 ]
 </script>
 
@@ -80,19 +64,7 @@ const supportLinks = [
           </ul>
         </div>
 
-        <!-- Support -->
-        <div class="footer-section">
-          <h3 class="footer-title">Support</h3>
-          <ul class="footer-links">
-            <li v-for="link in supportLinks" :key="link.name">
-              <a :href="link.url" class="footer-link">
-                {{ link.name }}
-              </a>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Contact & Newsletter -->
+        <!-- Contact -->
         <div class="footer-section">
           <h3 class="footer-title">Contact Us</h3>
           <div class="contact-info">
@@ -108,21 +80,6 @@ const supportLinks = [
               <span class="contact-icon"><i class="fas fa-phone"></i></span>
               <a href="tel:+84123948172">+84 123 948 172</a>
             </div>
-          </div>
-
-          <!-- Newsletter -->
-          <div class="newsletter">
-            <h4 class="newsletter-title">Subscribe to Newsletter</h4>
-            <form @submit.prevent="subscribeNewsletter" class="newsletter-form">
-              <input
-                v-model="email"
-                type="email"
-                placeholder="Your email address"
-                class="newsletter-input"
-                required
-              />
-              <button type="submit" class="newsletter-btn">➤</button>
-            </form>
           </div>
         </div>
       </div>
@@ -153,7 +110,7 @@ const supportLinks = [
   max-width: 1400px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  grid-template-columns: 2fr 1fr 1fr;
   gap: 40px;
 }
 
@@ -174,8 +131,8 @@ const supportLinks = [
 }
 
 .logo-icon {
-  width: 60px;
-  height: 60px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -201,19 +158,19 @@ const supportLinks = [
 }
 
 .pickleball {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 500;
   opacity: 0.9;
 }
 
 .brand {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 800;
   letter-spacing: 1.5px;
 }
 
 .brand-description {
-  font-size: 0.9rem;
+  font-size: 1rem;
   line-height: 1.6;
   opacity: 0.9;
   margin: 0;
@@ -225,14 +182,14 @@ const supportLinks = [
 }
 
 .social-link {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   background: rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 1.1rem;
   transition: all 0.3s;
   backdrop-filter: blur(10px);
   color: #1b5e20;
@@ -246,7 +203,7 @@ const supportLinks = [
 }
 
 .footer-title {
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 700;
   margin: 0;
   letter-spacing: 0.4px;
@@ -264,7 +221,7 @@ const supportLinks = [
 .footer-link {
   color: #1b5e20;
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 1rem;
   transition: all 0.3s;
   display: inline-block;
   font-weight: 500;
@@ -286,12 +243,12 @@ const supportLinks = [
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 0.9rem;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
 .contact-icon {
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   flex-shrink: 0;
   color: #2d5016;
 }
@@ -308,62 +265,9 @@ const supportLinks = [
   text-decoration: underline;
 }
 
-.newsletter {
-  margin-top: 8px;
-}
-
-.newsletter-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-}
-
-.newsletter-form {
-  display: flex;
-  gap: 8px;
-}
-
-.newsletter-input {
-  flex: 1;
-  padding: 10px 14px;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  font-size: 0.85rem;
-  outline: none;
-  background: rgba(255, 255, 255, 0.3);
-  color: #1b5e20;
-  backdrop-filter: blur(10px);
-  transition: all 0.3s;
-}
-
-.newsletter-input::placeholder {
-  color: rgba(27, 94, 32, 0.6);
-}
-
-.newsletter-input:focus {
-  background: rgba(255, 255, 255, 0.5);
-  border-color: white;
-}
-
-.newsletter-btn {
-  padding: 10px 16px;
-  background: #2d5016;
-  border: none;
-  border-radius: 8px;
-  color: white;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.newsletter-btn:hover {
-  background: #1b5e20;
-  transform: translateX(4px);
-}
-
 .footer-bottom {
   background: rgba(0, 0, 0, 0.1);
-  padding: 18px 40px;
+  padding: 12px 24px;
   backdrop-filter: blur(10px);
 }
 
@@ -377,31 +281,29 @@ const supportLinks = [
 
 .copyright {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 500;
 }
-
-
 
 @media (max-width: 1024px) {
   .footer-container {
     grid-template-columns: 1fr 1fr;
-    gap: 40px;
+    gap: 32px;
   }
 }
 
 @media (max-width: 768px) {
   .footer-main {
-    padding: 60px 20px 40px;
+    padding: 40px 20px 30px;
   }
 
   .footer-container {
     grid-template-columns: 1fr;
-    gap: 40px;
+    gap: 32px;
   }
 
   .footer-bottom {
-    padding: 20px;
+    padding: 16px 20px;
   }
 
   .footer-bottom-content {

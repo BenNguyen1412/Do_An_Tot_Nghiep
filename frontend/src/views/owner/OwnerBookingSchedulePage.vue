@@ -119,14 +119,14 @@
               v-for="booking in selectedDateBookings"
               :key="booking.id"
               class="booking-card"
-              :class="'status-' + booking.status"
+              :class="'status-' + booking.displayStatus"
             >
               <div class="booking-header">
                 <span class="booking-time">
                   ⏰ {{ booking.start_time }} - {{ booking.end_time }}
                 </span>
-                <span class="booking-status" :class="'badge-' + booking.status">
-                  {{ getStatusText(booking.status) }}
+                <span class="booking-status" :class="'badge-' + booking.displayStatus">
+                  {{ getStatusText(booking.displayStatus) }}
                 </span>
               </div>
 
@@ -157,7 +157,7 @@
 
               <div class="booking-actions">
                 <button
-                  v-if="booking.status === 'active'"
+                  v-if="booking.status === 'active' && booking.displayStatus === 'active'"
                   @click="updateBookingStatus(booking.id, 'cancelled')"
                   class="btn-cancel"
                 >
@@ -215,6 +215,10 @@ interface Booking {
   court_name: string
   individual_court: IndividualCourt
   user: User
+}
+
+interface BookingWithDisplayStatus extends Booking {
+  displayStatus: string
 }
 
 interface Court {
@@ -371,51 +375,63 @@ const calendarDays = computed(() => {
   return days
 })
 
-// Get bookings for selected date
+// Get bookings for selected date with real-time status
 const selectedDateBookings = computed(() => {
   if (!selectedDate.value) return []
-
-  const now = new Date()
-  const today = getTodayString()
-  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
   return bookings.value
     .filter((booking) => {
       const date = booking.booking_date.split('T')[0]
-
-      if (date !== selectedDate.value) return false
-
-      // Skip currently active bookings on today
-      if (booking.status === 'active' && date === today) {
-        const isCurrentlyActive =
-          booking.start_time <= currentTime && currentTime < booking.end_time
-        if (isCurrentlyActive) return false
-      }
-
-      return true
+      return date === selectedDate.value
     })
+    .map((booking) => ({
+      ...booking,
+      displayStatus: getBookingDisplayStatus(booking),
+    }))
     .sort((a, b) => a.start_time.localeCompare(b.start_time))
 })
 
 // Helper function to count bookings for a date
 const getBookingCountForDate = (dateStr: string): number => {
-  const now = new Date()
-  const today = getTodayString()
-  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-
   return bookings.value.filter((booking) => {
     const bookingDate = booking.booking_date.split('T')[0]
+    return bookingDate === dateStr
+  }).length
+}
 
-    if (bookingDate !== dateStr) return false
+// Get display status for booking (including "in_progress" and auto "completed")
+const getBookingDisplayStatus = (booking: Booking): string => {
+  if (booking.status !== 'active') {
+    return booking.status
+  }
 
-    // Exclude currently active bookings
-    if (booking.status === 'active' && bookingDate === today) {
-      const isCurrentlyActive = booking.start_time <= currentTime && currentTime < booking.end_time
-      if (isCurrentlyActive) return false
+  const now = new Date()
+  const today = getTodayString()
+  const bookingDate = booking.booking_date.split('T')[0]
+
+  // Only check for in_progress or completed on today
+  if (bookingDate === today) {
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+    // Check if booking has ended (current time >= end_time)
+    if (currentTime >= booking.end_time) {
+      return 'completed'
     }
 
-    return true
-  }).length
+    // Check if booking is in progress (start_time <= current time < end_time)
+    const isInProgress = booking.start_time <= currentTime && currentTime < booking.end_time
+
+    if (isInProgress) {
+      return 'in_progress'
+    }
+  }
+
+  // For past dates with active status, mark as completed
+  if (bookingDate < today) {
+    return 'completed'
+  }
+
+  return booking.status
 }
 
 const loadCourts = async () => {
@@ -569,6 +585,7 @@ const updateDateRangeForCalendar = async () => {
 const getStatusText = (status: string): string => {
   const statusMap: Record<string, string> = {
     active: 'Đang hoạt động',
+    in_progress: '🔴 Đang diễn ra',
     completed: 'Đã hoàn thành',
     cancelled: 'Đã hủy',
   }
@@ -1187,6 +1204,12 @@ onMounted(() => {
   border-left-color: #48bb78;
 }
 
+.booking-card.status-in_progress {
+  border-left-color: #f97316;
+  background: linear-gradient(to right, #fff7ed 0%, #ffffff 100%);
+  box-shadow: 0 0 0 2px #fed7aa;
+}
+
 .booking-card.status-completed {
   border-left-color: #4299e1;
 }
@@ -1221,6 +1244,24 @@ onMounted(() => {
 .badge-active {
   background: #c6f6d5;
   color: #22543d;
+}
+
+.badge-in_progress {
+  background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+  color: #9a3412;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+  animation: pulse-orange 2s ease-in-out infinite;
+}
+
+@keyframes pulse-orange {
+  0%,
+  100% {
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 12px rgba(249, 115, 22, 0.5);
+  }
 }
 
 .badge-completed {

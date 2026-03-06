@@ -376,6 +376,15 @@ const saveCourtName = async (court: CourtItem) => {
           return
         }
 
+        // Validate time must be on the hour (:00) or half hour (:30)
+        const startMinutesPart = parseInt(startTimeParts[1])
+        const endMinutesPart = parseInt(endTimeParts[1])
+
+        if (![0, 30].includes(startMinutesPart) || ![0, 30].includes(endMinutesPart)) {
+          toast.error('Giờ đặt sân phải là giờ chẵn (ví dụ: 10:00, 10:30, 11:00, 11:30)')
+          return
+        }
+
         // Validate booking time within opening hours
         if (
           form.start_time < venueInfo.value.opening_time ||
@@ -483,7 +492,8 @@ const cancelBooking = async (court: CourtItem) => {
   }
 
   try {
-    await axiosInstance.delete(`/bookings/${court.bookingId}`)
+    // Update status to cancelled instead of deleting
+    await axiosInstance.put(`/bookings/${court.bookingId}`, { status: 'cancelled' })
     toast.success('Đã hủy đơn đặt sân thành công')
     await fetchMyCourts()
   } catch (error) {
