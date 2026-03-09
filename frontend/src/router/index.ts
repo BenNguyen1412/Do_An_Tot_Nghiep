@@ -23,6 +23,12 @@ const router = createRouter({
       component: () => import('@/views/CourtDetailPage.vue'),
     },
     {
+      path: '/booking/:id',
+      name: 'booking',
+      component: () => import('@/views/BookingPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/login',
       name: 'login',
       component: LoginPage,
