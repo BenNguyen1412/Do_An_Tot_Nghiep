@@ -139,8 +139,20 @@ class IndividualCourtWithBookings(IndividualCourt):
     bookings: List[Booking] = []
 
 
+# Owner info for court details
+class CourtOwner(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    phone_number: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class CourtWithIndividualCourts(Court):
     individual_courts: List[IndividualCourt] = []
+    owner: Optional[CourtOwner] = None
 
 
 # User info for booking details

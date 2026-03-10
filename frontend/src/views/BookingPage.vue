@@ -24,6 +24,13 @@ interface IndividualCourt {
   is_available: boolean
 }
 
+interface CourtOwner {
+  id: number
+  full_name: string
+  email: string
+  phone_number?: string | null
+}
+
 interface Court {
   id: number
   name: string
@@ -35,6 +42,10 @@ interface Court {
   images: string[]
   time_slots?: TimeSlot[]
   individual_courts?: IndividualCourt[]
+  contact_phone: string
+  contact_email?: string
+  owner_id: number
+  owner?: CourtOwner
 }
 
 const court = ref<Court | null>(null)
@@ -47,6 +58,13 @@ const availableDates = ref<Date[]>([])
 
 // Time selection
 const selectedTimeSlots = ref<string[]>([])
+
+// Step 2: User Information
+const userInfo = ref({
+  name: '',
+  email: '',
+  phone: '',
+})
 
 // Generate available dates (next 7 days)
 const generateAvailableDates = () => {
@@ -137,6 +155,24 @@ const formatDateFull = (date: Date) => {
   return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
 }
 
+const formatDateForBooking = (date: Date) => {
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ]
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
+}
+
 // Generate time slots (30-minute intervals)
 const generateTimeSlots = () => {
   if (!court.value) return []
@@ -158,8 +194,39 @@ const generateTimeSlots = () => {
 
 const timeSlots = computed(() => generateTimeSlots())
 
+// Check if a time slot is in the past
+const isSlotInPast = (slot: string): boolean => {
+  const today = new Date()
+  const isToday = selectedDate.value.toDateString() === today.toDateString()
+
+  if (!isToday) {
+    // If selected date is in the future, no slots are in the past
+    return selectedDate.value < today
+  }
+
+  // For today, check if the slot time has passed
+  const [slotHour, slotMinute] = slot.split(':').map(Number)
+  const currentHour = today.getHours()
+  const currentMinute = today.getMinutes()
+
+  // Compare slot time with current time
+  if (slotHour < currentHour) {
+    return true
+  } else if (slotHour === currentHour && slotMinute <= currentMinute) {
+    return true
+  }
+
+  return false
+}
+
 // Toggle time slot selection (range selection with start and end)
 const toggleTimeSlot = (slot: string) => {
+  // Check if slot is in the past
+  if (isSlotInPast(slot)) {
+    toast.error('Không thể đặt sân cho khung giờ đã qua')
+    return
+  }
+
   const index = selectedTimeSlots.value.indexOf(slot)
 
   if (index > -1) {
@@ -182,8 +249,18 @@ const toggleTimeSlot = (slot: string) => {
       // If end is before or same as start, set new start
       selectedTimeSlots.value = [slot]
     } else {
+      // Check if any slot in the range is in the past
+      const rangeSlots = allSlots.slice(startIndex, endIndex + 1)
+      const hasPastSlot = rangeSlots.some((s) => isSlotInPast(s))
+
+      if (hasPastSlot) {
+        toast.error('Không thể đặt sân cho khung giờ bao gồm thời gian đã qua')
+        selectedTimeSlots.value = []
+        return
+      }
+
       // Fill all slots between start and end (inclusive)
-      selectedTimeSlots.value = allSlots.slice(startIndex, endIndex + 1)
+      selectedTimeSlots.value = rangeSlots
     }
   } else {
     // Reset and start new selection
@@ -310,9 +387,35 @@ const goNext = () => {
       toast.error('Thời gian đặt sân tối thiểu là 1 giờ')
       return
     }
+    // Pre-fill user info from auth store if available
+    if (authStore.user) {
+      userInfo.value.name = authStore.user.full_name || ''
+      userInfo.value.email = authStore.user.email || ''
+      userInfo.value.phone = authStore.user.phone_number || ''
+    }
     currentStep.value = 2
   } else if (currentStep.value === 2) {
-    // TODO: Implement order confirmation step
+    // Validate user information
+    if (!userInfo.value.name.trim()) {
+      toast.error('Vui lòng nhập họ tên')
+      return
+    }
+    if (!userInfo.value.email.trim()) {
+      toast.error('Vui lòng nhập email')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userInfo.value.email)) {
+      toast.error('Email không hợp lệ')
+      return
+    }
+    if (!userInfo.value.phone.trim()) {
+      toast.error('Vui lòng nhập số điện thoại')
+      return
+    }
+    if (!/^[0-9]{10,11}$/.test(userInfo.value.phone.replace(/\s/g, ''))) {
+      toast.error('Số điện thoại không hợp lệ (10-11 chữ số)')
+      return
+    }
     currentStep.value = 3
   } else if (currentStep.value === 3) {
     // TODO: Implement payment step
@@ -376,7 +479,7 @@ onMounted(() => {
       </div>
 
       <!-- Main Booking Section -->
-      <div class="main-section">
+      <div class="main-section" v-if="currentStep === 1">
         <div class="booking-container">
           <!-- Left: Date & Time Selection -->
           <div class="selection-panel">
@@ -476,7 +579,11 @@ onMounted(() => {
                   v-for="slot in timeSlots"
                   :key="slot"
                   class="time-slot-btn"
-                  :class="{ selected: isSlotSelected(slot) }"
+                  :class="{
+                    selected: isSlotSelected(slot),
+                    disabled: isSlotInPast(slot),
+                  }"
+                  :disabled="isSlotInPast(slot)"
                   @click="toggleTimeSlot(slot)"
                 >
                   <span class="slot-time">{{ slot }}</span>
@@ -617,6 +724,101 @@ onMounted(() => {
                     />
                   </svg>
                   <p>Select time slots to see booking details</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Order Confirmation -->
+      <div class="main-section" v-if="currentStep === 2">
+        <div class="confirmation-container">
+          <div class="confirmation-card">
+            <!-- Booking Details -->
+            <div class="info-section">
+              <h3 class="section-heading">BOOKING DETAILS</h3>
+              <div class="info-grid">
+                <div class="info-item">
+                  <label>Date</label>
+                  <div class="info-value">{{ formatDateForBooking(selectedDate) }}</div>
+                </div>
+                <div class="info-item">
+                  <label>Start time</label>
+                  <div class="info-value">{{ bookingDetails.startTime }}</div>
+                </div>
+                <div class="info-item">
+                  <label>End time</label>
+                  <div class="info-value">{{ bookingDetails.endTime }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Your Information -->
+            <div class="info-section">
+              <h3 class="section-heading">YOUR INFORMATION</h3>
+              <div class="info-grid">
+                <div class="info-item">
+                  <label>Name</label>
+                  <input
+                    v-model="userInfo.name"
+                    type="text"
+                    class="info-input"
+                    placeholder="Enter your name"
+                  />
+                </div>
+                <div class="info-item">
+                  <label>Email</label>
+                  <input
+                    v-model="userInfo.email"
+                    type="email"
+                    class="info-input"
+                    placeholder="Enter your email"
+                  />
+                </div>
+                <div class="info-item">
+                  <label>Phone</label>
+                  <input
+                    v-model="userInfo.phone"
+                    type="tel"
+                    class="info-input"
+                    placeholder="Enter your phone number"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="info-section">
+              <h3 class="section-heading">CONTACT INFORMATION</h3>
+              <div class="info-grid">
+                <div class="info-item">
+                  <label>Name</label>
+                  <div class="info-value">{{ court?.owner?.full_name || 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                  <label>Email</label>
+                  <div class="info-value">{{ court?.contact_email || 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                  <label>Phone</label>
+                  <div class="info-value">{{ court?.contact_phone || 'N/A' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Information -->
+            <div class="info-section payment-section">
+              <h3 class="section-heading">PAYMENT INFORMATION</h3>
+              <div class="payment-summary">
+                <div class="payment-row">
+                  <span class="payment-label">Subtotal</span>
+                  <span class="payment-value"
+                    >{{
+                      new Intl.NumberFormat('vi-VN').format(bookingDetails.totalPrice)
+                    }}
+                    VNĐ</span
+                  >
                 </div>
               </div>
             </div>
@@ -991,7 +1193,7 @@ onMounted(() => {
   min-height: 56px;
 }
 
-.time-slot-btn:hover {
+.time-slot-btn:hover:not(:disabled) {
   border-color: #2d5016;
   background: #f0fdf4;
   transform: translateY(-2px);
@@ -1002,6 +1204,20 @@ onMounted(() => {
   background: linear-gradient(135deg, #2d5016 0%, #3d6620 100%);
   border-color: #2d5016;
   box-shadow: 0 3px 10px rgba(45, 80, 22, 0.3);
+}
+
+.time-slot-btn.disabled,
+.time-slot-btn:disabled {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.time-slot-btn.disabled .slot-time,
+.time-slot-btn:disabled .slot-time {
+  color: #9ca3af;
+  text-decoration: line-through;
 }
 
 .slot-time {
@@ -1245,6 +1461,121 @@ onMounted(() => {
   transform: translateX(4px);
 }
 
+/* Order Confirmation (Step 2) */
+.confirmation-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.confirmation-card {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.info-section {
+  margin-bottom: 32px;
+  padding-bottom: 32px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.info-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.section-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0a2463;
+  margin: 0 0 24px 0;
+  letter-spacing: 0.5px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-item label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.info-value {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1f2937;
+  padding: 12px 0;
+}
+
+.info-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1f2937;
+  transition: all 0.3s;
+  background: white;
+}
+
+.info-input:focus {
+  outline: none;
+  border-color: #0a2463;
+  box-shadow: 0 0 0 3px rgba(10, 36, 99, 0.1);
+}
+
+.info-input::placeholder {
+  color: #9ca3af;
+}
+
+.payment-section {
+  background: #f8fafc;
+  padding: 24px;
+  border-radius: 12px;
+  margin-top: 32px;
+}
+
+.payment-section .section-heading {
+  margin-bottom: 16px;
+}
+
+.payment-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.payment-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.payment-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.payment-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0a2463;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .booking-container {
@@ -1299,6 +1630,15 @@ onMounted(() => {
   .date-number {
     font-size: 1.5rem;
   }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .confirmation-card {
+    padding: 24px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1326,6 +1666,14 @@ onMounted(() => {
 
   .picker-label {
     font-size: 1rem;
+  }
+
+  .confirmation-card {
+    padding: 20px;
+  }
+
+  .section-heading {
+    font-size: 0.9rem;
   }
 }
 </style>
