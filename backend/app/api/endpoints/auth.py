@@ -50,7 +50,11 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
             "full_name": user.full_name,
             "role": user.role,
             "phone_number": user.phone_number,
-            "is_active": user.is_active
+            "is_active": user.is_active,
+            "bank_account_number": user.bank_account_number,
+            "bank_account_name": user.bank_account_name,
+            "bank_name": user.bank_name,
+            "bank_code": user.bank_code
         }
     }
 
@@ -104,6 +108,10 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
             "full_name": new_user.full_name,
             "role": new_user.role,
             "phone_number": new_user.phone_number,
-            "is_active": new_user.is_active
+            "is_active": new_user.is_active,
+            "bank_account_number": new_user.bank_account_number,
+            "bank_account_name": new_user.bank_account_name,
+            "bank_name": new_user.bank_name,
+            "bank_code": new_user.bank_code
         }
     }

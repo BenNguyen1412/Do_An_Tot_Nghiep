@@ -148,6 +148,12 @@
                     📧 {{ booking.user.email }}
                   </p>
                   <p class="customer-phone">📱 {{ booking.phone_number }}</p>
+                  <p class="booking-price" v-if="booking.total_price">
+                    <strong>💰 {{ booking.total_price.toLocaleString('vi-VN') }} VNĐ</strong>
+                  </p>
+                  <p class="payment-method" v-if="booking.payment_method">
+                    💳 {{ booking.payment_method === 'vietqr' ? 'VietQR' : booking.payment_method }}
+                  </p>
                 </div>
 
                 <div class="booking-meta">
@@ -156,6 +162,22 @@
               </div>
 
               <div class="booking-actions">
+                <button
+                  v-if="booking.status === 'pending'"
+                  @click="confirmBooking(booking.id)"
+                  class="btn-confirm"
+                  title="Xác nhận đã nhận thanh toán"
+                >
+                  ✓ Xác nhận thanh toán
+                </button>
+                <button
+                  v-if="booking.status === 'pending'"
+                  @click="updateBookingStatus(booking.id, 'cancelled')"
+                  class="btn-cancel"
+                  title="Hủy đơn đặt sân"
+                >
+                  ✗ Hủy
+                </button>
                 <button
                   v-if="booking.status === 'active' && booking.displayStatus === 'active'"
                   @click="updateBookingStatus(booking.id, 'cancelled')"
@@ -188,6 +210,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import axios from '@/utils/axios'
+import { useToast } from 'vue-toastification'
 
 interface User {
   id: number
@@ -215,11 +238,15 @@ interface Booking {
   court_name: string
   individual_court: IndividualCourt
   user: User
+  total_price?: number
+  payment_method?: string
 }
 
 interface BookingWithDisplayStatus extends Booking {
   displayStatus: string
 }
+
+const toast = useToast()
 
 interface Court {
   id: number
@@ -485,7 +512,7 @@ const loadBookings = async () => {
     console.log('Bookings data:', response.data)
   } catch (error) {
     console.error('Error loading bookings:', error)
-    alert('Không thể tải danh sách đặt sân')
+    toast.error('Không thể tải danh sách đặt sân')
   } finally {
     loading.value = false
   }
@@ -499,31 +526,40 @@ const resetFilters = () => {
 }
 
 const updateBookingStatus = async (bookingId: number, newStatus: string) => {
-  const confirmMessage =
-    newStatus === 'completed' ? 'Xác nhận hoàn thành lịch đặt này?' : 'Xác nhận hủy lịch đặt này?'
-
-  if (!confirm(confirmMessage)) return
-
   try {
     await axios.put(`/bookings/${bookingId}`, { status: newStatus })
-    alert('Cập nhật trạng thái thành công!')
+    if (newStatus === 'completed') {
+      toast.success('✅ Đã hoàn thành lịch đặt sân!')
+    } else {
+      toast.warning('❌ Đã hủy lịch đặt sân')
+    }
     loadBookings() // Reload lại sẽ tự động update summary
   } catch (error) {
     console.error('Error updating booking:', error)
-    alert('Không thể cập nhật trạng thái')
+    toast.error('Không thể cập nhật trạng thái')
+  }
+}
+
+// Confirm payment received and activate booking
+const confirmBooking = async (bookingId: number) => {
+  try {
+    await axios.post(`/bookings/${bookingId}/confirm-payment`)
+    toast.success('✅ Đã xác nhận thanh toán thành công! Đơn đặt sân đã được kích hoạt.')
+    loadBookings() // Reload to update list and summary
+  } catch (error) {
+    console.error('Error confirming booking:', error)
+    toast.error('Không thể xác nhận thanh toán')
   }
 }
 
 const deleteBooking = async (bookingId: number) => {
-  if (!confirm('Bạn có chắc chắn muốn xóa lịch đặt này vĩnh viễn?')) return
-
   try {
     await axios.delete(`/bookings/${bookingId}`)
-    alert('Đã xóa lịch đặt thành công!')
+    toast.success('🗑️ Đã xóa lịch đặt thành công!')
     loadBookings() // Reload to update list and summary
   } catch (error) {
     console.error('Error deleting booking:', error)
-    alert('Không thể xóa lịch đặt')
+    toast.error('Không thể xóa lịch đặt')
   }
 }
 
@@ -584,6 +620,8 @@ const updateDateRangeForCalendar = async () => {
 
 const getStatusText = (status: string): string => {
   const statusMap: Record<string, string> = {
+    pending: '⏳ Chờ xác nhận',
+    confirmed: '✅ Đã xác nhận',
     active: 'Đang hoạt động',
     in_progress: '🔴 Đang diễn ra',
     completed: 'Đã hoàn thành',
@@ -1200,6 +1238,15 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+.booking-card.status-pending {
+  border-left-color: #f59e0b;
+  background: linear-gradient(to right, #fffbeb 0%, #ffffff 100%);
+}
+
+.booking-card.status-confirmed {
+  border-left-color: #10b981;
+}
+
 .booking-card.status-active {
   border-left-color: #48bb78;
 }
@@ -1239,6 +1286,18 @@ onMounted(() => {
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+.badge-pending {
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 600;
+}
+
+.badge-confirmed {
+  background: #d1fae5;
+  color: #065f46;
+  font-weight: 600;
 }
 
 .badge-active {
@@ -1326,6 +1385,17 @@ onMounted(() => {
 
 .btn-complete:hover {
   background: #38a169;
+}
+
+.btn-confirm {
+  background: #10b981;
+  color: white;
+  font-weight: 600;
+}
+
+.btn-confirm:hover {
+  background: #059669;
+  transform: scale(1.05);
 }
 
 .btn-cancel {

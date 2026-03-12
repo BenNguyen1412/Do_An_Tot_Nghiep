@@ -2,10 +2,45 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
+from app.core.security import get_current_user
+from app.models.user import User
 from app.schemas.user import UserResponse, UserListResponse, UserUpdate
 from app.crud import user as crud_user
 
 router = APIRouter()
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_profile(current_user: User = Depends(get_current_user)):
+    """
+    Get current authenticated user's profile
+    """
+    return current_user
+
+
+@router.put("/me", response_model=UserResponse)
+async def update_current_user_profile(
+    user_data: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update current authenticated user's profile (including bank account info)
+    """
+    # Only update non-None fields
+    update_data = user_data.model_dump(exclude_unset=True)
+    
+    # If updating email, check if email already exists (except current user's email)
+    if 'email' in update_data:
+        email_check = crud_user.get_user_by_email(db, update_data['email'])
+        if email_check and email_check.id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email đã được sử dụng bởi tài khoản khác"
+            )
+    
+    user = crud_user.update_user(db, current_user.id, update_data)
+    return user
+
 
 @router.get("/", response_model=UserListResponse)
 async def get_users(

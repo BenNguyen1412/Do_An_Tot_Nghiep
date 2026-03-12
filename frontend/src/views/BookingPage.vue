@@ -24,6 +24,14 @@ interface IndividualCourt {
   is_available: boolean
 }
 
+interface ApiError {
+  response?: {
+    data?: {
+      detail?: string
+    }
+  }
+}
+
 interface CourtOwner {
   id: number
   full_name: string
@@ -65,6 +73,22 @@ const userInfo = ref({
   email: '',
   phone: '',
 })
+
+// Step 3: Payment
+const bookingId = ref<number | null>(null)
+const paymentInfo = ref<{
+  qr_code_url: string
+  bank_name: string
+  account_number: string
+  account_name: string
+  amount: number
+  content: string
+  booking_id: number
+  expires_at: string
+} | null>(null)
+const isCreatingBooking = ref(false)
+const isVerifyingPayment = ref(false)
+const paymentVerified = ref(false)
 
 // Generate available dates (next 7 days)
 const generateAvailableDates = () => {
@@ -348,8 +372,17 @@ const fetchCourtDetails = async () => {
     const courtId = route.params.id
     const response = await axiosInstance.get(`/courts/${courtId}`)
     court.value = response.data
+
+    // Fetch individual courts for this court
+    if (court.value) {
+      const individualCourtsResponse = await axiosInstance.get(
+        `/courts/${courtId}/individual-courts`,
+      )
+      court.value.individual_courts = individualCourtsResponse.data
+    }
   } catch (error) {
     console.error('Error fetching court details:', error)
+    toast.error('Không thể tải thông tin sân. Vui lòng thử lại.')
   } finally {
     isLoading.value = false
   }
@@ -376,7 +409,7 @@ const goBack = () => {
   }
 }
 
-const goNext = () => {
+const goNext = async () => {
   if (currentStep.value === 1) {
     if (selectedTimeSlots.value.length === 0) {
       toast.error('Vui lòng chọn khung giờ bắt đầu và kết thúc')
@@ -416,9 +449,83 @@ const goNext = () => {
       toast.error('Số điện thoại không hợp lệ (10-11 chữ số)')
       return
     }
-    currentStep.value = 3
+    // Create booking and get payment info
+    await createBooking()
   } else if (currentStep.value === 3) {
-    // TODO: Implement payment step
+    // Verify payment before completing
+    await verifyPayment()
+  }
+}
+
+// Create booking with payment
+const createBooking = async () => {
+  if (isCreatingBooking.value) return
+
+  isCreatingBooking.value = true
+  try {
+    // Find first available individual court
+    const individualCourt = court.value?.individual_courts?.find(
+      (c: IndividualCourt) => c.is_available,
+    )
+
+    if (!individualCourt) {
+      toast.error('Không có sân nào khả dụng. Vui lòng thử lại sau.')
+      return
+    }
+
+    // Format booking date to ISO string
+    const bookingDate = new Date(selectedDate.value)
+    bookingDate.setHours(0, 0, 0, 0)
+
+    const bookingData = {
+      individual_court_id: individualCourt.id,
+      booking_date: bookingDate.toISOString(),
+      start_time: bookingDetails.value.startTime,
+      end_time: bookingDetails.value.endTime,
+      phone_number: userInfo.value.phone,
+      customer_name: userInfo.value.name,
+      customer_email: userInfo.value.email,
+      payment_method: 'vietqr',
+    }
+
+    const response = await axiosInstance.post('/bookings', bookingData)
+
+    if (response.data) {
+      bookingId.value = response.data.id
+      paymentInfo.value = response.data.payment_info
+      currentStep.value = 3
+      toast.success('Booking created! Please complete payment.')
+    }
+  } catch (error: unknown) {
+    console.error('Error creating booking:', error)
+    const errorMsg =
+      (error as ApiError).response?.data?.detail || 'Không thể tạo booking. Vui lòng thử lại.'
+    toast.error(errorMsg)
+  } finally {
+    isCreatingBooking.value = false
+  }
+}
+
+// Verify payment
+const verifyPayment = async () => {
+  if (!bookingId.value || isVerifyingPayment.value) return
+
+  isVerifyingPayment.value = true
+
+  // Just confirm user has completed payment - show success message on same page
+  setTimeout(() => {
+    paymentVerified.value = true
+    isVerifyingPayment.value = false
+  }, 800)
+}
+
+// Copy to clipboard
+const copyToClipboard = async (text: string, label: string) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.success(`Đã copy ${label}!`)
+  } catch {
+    toast.error('Không thể copy. Vui lòng copy thủ công.')
   }
 }
 
@@ -826,8 +933,309 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- Step 3: Payment -->
+      <div class="main-section" v-if="currentStep === 3">
+        <div class="payment-container">
+          <div class="payment-card">
+            <!-- Payment Status Banner -->
+            <div class="payment-status-banner" :class="{ verified: paymentVerified }">
+              <div class="status-icon">
+                <svg
+                  v-if="!paymentVerified"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <circle cx="12" cy="12" r="10" stroke-width="2" />
+                  <polyline points="12 6 12 12 16 14" stroke-width="2" />
+                </svg>
+                <svg
+                  v-else
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="3"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <div class="status-content">
+                <h3 class="status-title">
+                  {{ paymentVerified ? 'Đã Ghi Nhận Thanh Toán!' : 'Chờ Thanh Toán' }}
+                </h3>
+                <p class="status-subtitle">
+                  {{
+                    paymentVerified
+                      ? 'Chủ sân sẽ kiểm tra và xác nhận đơn đặt sân của bạn'
+                      : 'Vui lòng quét mã QR và hoàn tất thanh toán'
+                  }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Payment Content -->
+            <div class="payment-content" v-if="paymentInfo && !paymentVerified">
+              <!-- QR Code Section -->
+              <div class="qr-section">
+                <h3 class="section-heading">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2" />
+                  </svg>
+                  SCAN QR CODE TO PAY
+                </h3>
+                <div class="qr-code-container">
+                  <img :src="paymentInfo.qr_code_url" alt="QR Code" class="qr-code-image" />
+                  <p class="qr-instruction">
+                    Open your banking app and scan this QR code to complete payment
+                  </p>
+                </div>
+              </div>
+
+              <!-- Bank Details Section -->
+              <div class="bank-details-section">
+                <h3 class="section-heading">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                    />
+                  </svg>
+                  OR TRANSFER MANUALLY
+                </h3>
+
+                <div class="bank-info-grid">
+                  <div class="bank-info-item">
+                    <label>Bank Name</label>
+                    <div class="info-value-copy">
+                      <span>{{ paymentInfo.bank_name }}</span>
+                      <button
+                        class="copy-btn"
+                        @click="copyToClipboard(paymentInfo.bank_name, 'bank name')"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                        >
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2" />
+                          <path
+                            d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                            stroke-width="2"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="bank-info-item">
+                    <label>Account Number</label>
+                    <div class="info-value-copy">
+                      <span>{{ paymentInfo.account_number }}</span>
+                      <button
+                        class="copy-btn"
+                        @click="copyToClipboard(paymentInfo.account_number, 'account number')"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                        >
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2" />
+                          <path
+                            d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                            stroke-width="2"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="bank-info-item">
+                    <label>Account Name</label>
+                    <div class="info-value-copy">
+                      <span>{{ paymentInfo.account_name }}</span>
+                      <button
+                        class="copy-btn"
+                        @click="copyToClipboard(paymentInfo.account_name, 'account name')"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                        >
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2" />
+                          <path
+                            d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                            stroke-width="2"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="bank-info-item highlight">
+                    <label>Amount</label>
+                    <div class="info-value-copy">
+                      <span class="amount-value"
+                        >{{ new Intl.NumberFormat('vi-VN').format(paymentInfo.amount) }} VNĐ</span
+                      >
+                      <button
+                        class="copy-btn"
+                        @click="copyToClipboard(paymentInfo.amount.toString(), 'amount')"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                        >
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2" />
+                          <path
+                            d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                            stroke-width="2"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Important Notice -->
+                <div class="payment-notice">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <div>
+                    <strong>Important:</strong> Please scan the QR code or transfer manually with
+                    the exact amount shown above. Your booking will be confirmed automatically
+                    within 1-2 minutes after successful payment.
+                  </div>
+                </div>
+
+                <!-- Verify Payment Button -->
+                <button
+                  class="verify-payment-btn"
+                  @click="verifyPayment"
+                  :disabled="isVerifyingPayment"
+                >
+                  <svg
+                    v-if="!isVerifyingPayment"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <svg
+                    v-else
+                    class="animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      class="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      stroke-width="4"
+                    ></circle>
+                    <path
+                      class="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  {{ isVerifyingPayment ? 'Verifying...' : 'I have completed the payment' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Success State -->
+            <div class="payment-success" v-if="paymentVerified">
+              <div class="success-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="3"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <h2>🎉 Đặt Sân Thành Công!</h2>
+              <p class="success-main-text">✅ Đã ghi nhận thông tin thanh toán của bạn!</p>
+              <div class="success-info-box">
+                <div class="info-icon">📧</div>
+                <p class="success-description">
+                  Hãy kiểm tra <strong>email</strong> để nhận được thông báo xác nhận từ chủ sân sau
+                  khi chủ sân kiểm tra thanh toán.
+                </p>
+              </div>
+              <div class="success-info-box secondary">
+                <div class="info-icon">⏳</div>
+                <p class="success-description">
+                  Đơn đặt sân của bạn đang ở trạng thái <strong>"Chờ xác nhận"</strong>. Chủ sân sẽ
+                  xác nhận trong thời gian sớm nhất.
+                </p>
+              </div>
+              <div class="booking-id-display" v-if="bookingId">
+                <span class="label">Mã đặt sân:</span>
+                <span class="value">#{{ bookingId }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Navigation Buttons -->
-      <div class="navigation-section">
+      <div class="navigation-section" v-if="currentStep < 3 || paymentVerified">
         <div class="navigation-container">
           <button class="nav-btn btn-back" @click="goBack">
             <svg
@@ -845,9 +1253,15 @@ onMounted(() => {
             </svg>
             Back
           </button>
-          <button class="nav-btn btn-next" @click="goNext">
-            Next
+          <button
+            class="nav-btn btn-next"
+            @click="goNext"
+            :disabled="isCreatingBooking || paymentVerified"
+          >
+            <span v-if="!isCreatingBooking">Next</span>
+            <span v-else>Creating Booking...</span>
             <svg
+              v-if="!isCreatingBooking"
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               fill="none"
@@ -859,6 +1273,27 @@ onMounted(() => {
                 stroke-width="2"
                 d="M14 5l7 7m0 0l-7 7m7-7H3"
               />
+            </svg>
+            <svg
+              v-else
+              class="animate-spin"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
           </button>
         </div>
@@ -1461,6 +1896,25 @@ onMounted(() => {
   transform: translateX(4px);
 }
 
+.btn-next:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Order Confirmation (Step 2) */
 .confirmation-container {
   max-width: 800px;
@@ -1576,6 +2030,518 @@ onMounted(() => {
   color: #0a2463;
 }
 
+/* Payment Section (Step 3) */
+.payment-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.payment-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.payment-status-banner {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  padding: 28px 36px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.payment-status-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.3;
+  }
+}
+
+.payment-status-banner.verified {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.payment-status-banner.verified::before {
+  animation: none;
+}
+
+.status-icon {
+  width: 68px;
+  height: 68px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 1;
+}
+
+.status-icon svg {
+  width: 38px;
+  height: 38px;
+  color: white;
+  stroke-width: 2.5;
+}
+
+.status-content {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.status-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: white;
+  margin: 0 0 8px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.status-subtitle {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0;
+  font-weight: 500;
+}
+
+.payment-content {
+  padding: 48px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  background: linear-gradient(to bottom, #f8fafc 0%, white 100%);
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 24px 0;
+  padding-bottom: 12px;
+  border-bottom: 3px solid #e2e8f0;
+}
+
+.section-heading svg {
+  width: 24px;
+  height: 24px;
+  color: #16a34a;
+  stroke-width: 2.5;
+}
+
+.qr-section,
+.bank-details-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.qr-code-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 32px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-radius: 16px;
+  border: 3px dashed #86efac;
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.1);
+  transition: all 0.3s;
+}
+
+.qr-code-container:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.15);
+}
+
+.qr-code-image {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  border-radius: 12px;
+  background: white;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transition: all 0.3s;
+}
+
+.qr-code-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+.qr-instruction {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #16a34a;
+  font-weight: 600;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.bank-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bank-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.3s;
+}
+
+.bank-info-item:hover {
+  transform: translateY(-2px);
+}
+
+.bank-info-item.highlight {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px solid #fbbf24;
+  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.2);
+}
+
+.bank-info-item label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  transition: all 0.2s;
+}
+
+.info-value-copy:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.bank-info-item.highlight .info-value-copy {
+  border-color: #fbbf24;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.amount-value {
+  color: #dc2626;
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.content-value {
+  font-family: 'Courier New', monospace;
+  color: #dc2626;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.copy-btn {
+  padding: 10px;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.copy-btn:hover {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+}
+
+.copy-btn:hover svg {
+  color: white;
+}
+
+.copy-btn:active {
+  transform: scale(0.95);
+}
+
+.copy-btn svg {
+  width: 20px;
+  height: 20px;
+  color: #64748b;
+  stroke-width: 2;
+  transition: color 0.2s;
+}
+
+.help-text {
+  font-size: 0.85rem;
+  color: #92400e;
+  margin: 8px 0 0 0;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.payment-notice {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border: 2px solid #60a5fa;
+  border-radius: 10px;
+  margin-top: 24px;
+  color: #1e40af;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.payment-notice svg {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  stroke-width: 2.5;
+  color: #2563eb;
+}
+
+.payment-notice strong {
+  color: #1e3a8a;
+  font-weight: 800;
+}
+
+.verify-payment-btn {
+  width: 100%;
+  padding: 18px 28px;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 28px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.verify-payment-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition:
+    width 0.6s,
+    height 0.6s;
+}
+
+.verify-payment-btn:hover:not(:disabled)::before {
+  width: 400px;
+  height: 400px;
+}
+
+.verify-payment-btn:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 24px rgba(22, 163, 74, 0.4);
+}
+
+.verify-payment-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.verify-payment-btn svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2;
+}
+
+.payment-success {
+  padding: 60px 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  animation: fadeIn 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.success-icon {
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: scaleIn 0.5s ease-out;
+  box-shadow: 0 10px 40px rgba(16, 185, 129, 0.3);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.success-icon svg {
+  width: 56px;
+  height: 56px;
+  color: white;
+  stroke-width: 3;
+}
+
+.payment-success h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #10b981;
+  margin: 0;
+}
+
+.success-main-text {
+  font-size: 1.25rem;
+  color: #10b981;
+  font-weight: 600;
+  margin: 0;
+}
+
+.success-info-box {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 20px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  border-radius: 12px;
+  border-left: 4px solid #3b82f6;
+  max-width: 500px;
+  width: 100%;
+  text-align: left;
+  animation: slideIn 0.6s ease-out 0.3s both;
+}
+
+.success-info-box.secondary {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-left-color: #f59e0b;
+  animation-delay: 0.5s;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.success-info-box .info-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.success-description {
+  font-size: 0.95rem;
+  color: #374151;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.success-description strong {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.booking-id-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 2px dashed #cbd5e0;
+  margin-top: 8px;
+}
+
+.booking-id-display .label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.booking-id-display .value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #667eea;
+  font-family: 'Courier New', monospace;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .booking-container {
@@ -1638,6 +2604,78 @@ onMounted(() => {
 
   .confirmation-card {
     padding: 24px;
+  }
+
+  .payment-content {
+    grid-template-columns: 1fr;
+    padding: 24px;
+    gap: 32px;
+  }
+
+  .bank-info-grid {
+    gap: 14px;
+  }
+
+  .qr-code-image {
+    max-width: 280px;
+  }
+
+  .payment-container {
+    padding: 12px;
+  }
+
+  .payment-status-banner {
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .status-icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .status-icon svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .status-title {
+    font-size: 1.3rem;
+  }
+
+  .status-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .payment-content {
+    padding: 28px 20px;
+  }
+
+  .section-heading {
+    font-size: 0.9rem;
+  }
+
+  .section-heading svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .qr-code-container {
+    padding: 24px 16px;
+  }
+
+  .bank-info-item.highlight {
+    padding: 16px;
+  }
+
+  .payment-notice {
+    padding: 16px;
+    font-size: 0.88rem;
+  }
+
+  .verify-payment-btn {
+    padding: 16px 20px;
+    font-size: 1.05rem;
   }
 }
 

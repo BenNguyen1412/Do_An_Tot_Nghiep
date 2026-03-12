@@ -30,6 +30,61 @@ const courtForm = ref({
   contact_email: '',
 })
 
+// Bank account info
+const bankForm = ref({
+  bank_account_number: '',
+  bank_account_name: '',
+  bank_name: '',
+  bank_code: '',
+})
+
+// Vietnamese banks list
+const vietnameseBanks = [
+  { code: '970436', name: 'Vietcombank' },
+  { code: '970415', name: 'Vietinbank' },
+  { code: '970405', name: 'Agribank' },
+  { code: '970422', name: 'MB Bank' },
+  { code: '970407', name: 'Techcombank' },
+  { code: '970416', name: 'ACB' },
+  { code: '970432', name: 'VPBank' },
+  { code: '970423', name: 'TPBank' },
+  { code: '970403', name: 'Sacombank' },
+  { code: '970448', name: 'OCB' },
+  { code: '970414', name: 'Oceanbank' },
+  { code: '970419', name: 'NCB' },
+  { code: '970418', name: 'BIDV' },
+  { code: '970406', name: 'DongA Bank' },
+  { code: '970409', name: 'BacA Bank' },
+  { code: '970437', name: 'HDBank' },
+  { code: '970438', name: 'BVBank' },
+  { code: '970440', name: 'Seabank' },
+  { code: '970443', name: 'SHB' },
+  { code: '970431', name: 'Eximbank' },
+  { code: '970426', name: 'MSB' },
+  { code: '970441', name: 'VIB' },
+  { code: '970427', name: 'VietCapital Bank' },
+  { code: '970428', name: 'Nam A Bank' },
+  { code: '970429', name: 'SCB' },
+  { code: '970433', name: 'VietBank' },
+  { code: '970439', name: 'Public Bank' },
+  { code: '970442', name: 'HongLeong Bank' },
+  { code: '970449', name: 'LienVietPostBank' },
+  { code: '970454', name: 'VietABank' },
+  { code: '970455', name: 'IBK - NH Công nghiệp Hàn Quốc' },
+  { code: '970456', name: 'IBKHCM' },
+  { code: '970458', name: 'UOB' },
+  { code: '970410', name: 'StandardChartered' },
+  { code: '970412', name: 'PBVN' },
+  { code: '970424', name: 'Shinhan Bank' },
+  { code: '970446', name: 'Coop Bank' },
+  { code: '970425', name: 'ABBank' },
+  { code: '970408', name: 'GPBank' },
+  { code: '970430', name: 'PGBank' },
+  { code: '970434', name: 'IndovinaBank' },
+  { code: '970452', name: 'KienLongBank' },
+  { code: '970444', name: 'CBBank' },
+]
+
 const timeSlots = ref<TimeSlot[]>([])
 let nextSlotId = 1
 
@@ -89,10 +144,22 @@ onMounted(async () => {
     courtForm.value.contact_phone = authStore.user.phone_number || ''
     courtForm.value.contact_email = authStore.user.email || ''
 
+    // Load bank account info if available
+    bankForm.value.bank_account_number = authStore.user.bank_account_number || ''
+    bankForm.value.bank_account_name = authStore.user.bank_account_name || ''
+    bankForm.value.bank_name = authStore.user.bank_name || ''
+    bankForm.value.bank_code = authStore.user.bank_code || ''
+
     // Try to fetch approved court
     await fetchApprovedCourt()
   }
 })
+
+// Auto uppercase bank account name
+const handleBankAccountNameInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  bankForm.value.bank_account_name = target.value.toUpperCase()
+}
 
 const images = ref<File[]>([])
 const imagePreviews = ref<string[]>([])
@@ -308,6 +375,22 @@ const validateForm = () => {
     return false
   }
 
+  // Validate bank account info (required for payment receiving)
+  if (!bankForm.value.bank_account_number.trim()) {
+    toast.error('Vui lòng nhập số tài khoản ngân hàng để nhận thanh toán')
+    return false
+  }
+
+  if (!bankForm.value.bank_account_name.trim()) {
+    toast.error('Vui lòng nhập tên chủ tài khoản')
+    return false
+  }
+
+  if (!bankForm.value.bank_name || !bankForm.value.bank_code) {
+    toast.error('Vui lòng chọn ngân hàng')
+    return false
+  }
+
   // Validate images (only for new court, not edit mode)
   if (!isEditMode.value && images.value.length < 5) {
     toast.error(`Vui lòng tải lên ít nhất 5 hình ảnh (hiện tại: ${images.value.length}/5)`)
@@ -340,6 +423,26 @@ const handleSubmit = async () => {
 
   isSaving.value = true
   try {
+    // Update bank account info first
+    try {
+      const bankUpdateResponse = await axiosInstance.put('/users/me', {
+        bank_account_number: bankForm.value.bank_account_number.trim(),
+        bank_account_name: bankForm.value.bank_account_name.trim().toUpperCase(),
+        bank_name: bankForm.value.bank_name,
+        bank_code: bankForm.value.bank_code,
+      })
+
+      // Update auth store with new user data
+      if (bankUpdateResponse.data) {
+        authStore.user = bankUpdateResponse.data
+        localStorage.setItem('user', JSON.stringify(bankUpdateResponse.data))
+      }
+    } catch (bankError) {
+      console.error('Failed to update bank info:', bankError)
+      toast.error('Không thể cập nhật thông tin ngân hàng. Vui lòng thử lại.')
+      return
+    }
+
     let imageUrls: string[] = []
 
     // Upload new images if any
@@ -1073,6 +1176,110 @@ const formatTimeWithPeriod = (time: string) => {
         </div>
       </div>
 
+      <!-- Bank Account Information -->
+      <div class="form-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              style="
+                width: 24px;
+                height: 24px;
+                display: inline-block;
+                vertical-align: middle;
+                margin-right: 8px;
+              "
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+              />
+            </svg>
+            Tài khoản ngân hàng
+          </h2>
+          <p class="section-description">
+            Thông tin tài khoản để nhận thanh toán từ khách hàng đặt sân
+          </p>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label class="form-label required">Ngân hàng</label>
+            <select
+              v-model="bankForm.bank_code"
+              class="form-input"
+              @change="
+                (e) => {
+                  const selected = vietnameseBanks.find(
+                    (b) => b.code === (e.target as HTMLSelectElement).value,
+                  )
+                  if (selected) {
+                    bankForm.bank_name = selected.name
+                  }
+                }
+              "
+            >
+              <option value="">-- Chọn ngân hàng --</option>
+              <option v-for="bank in vietnameseBanks" :key="bank.code" :value="bank.code">
+                {{ bank.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required">Số tài khoản</label>
+            <input
+              v-model="bankForm.bank_account_number"
+              type="text"
+              class="form-input"
+              placeholder="VD: 1234567890"
+              maxlength="20"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required">Tên chủ tài khoản</label>
+            <input
+              v-model="bankForm.bank_account_name"
+              type="text"
+              class="form-input"
+              placeholder="VD: NGUYEN VAN A"
+              @input="handleBankAccountNameInput"
+            />
+            <small style="color: #6b7280; font-size: 12px; margin-top: 4px; display: block">
+              Tên chủ tài khoản phải giống với tên trên tài khoản ngân hàng (tự động viết hoa)
+            </small>
+          </div>
+
+          <div class="bank-info-notice">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              style="width: 20px; height: 20px; flex-shrink: 0"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <div>
+              <strong>Lưu ý:</strong> Thông tin tài khoản ngân hàng dùng để nhận thanh toán từ khách
+              hàng. Vui lòng đảm bảo thông tin chính xác để tránh trục trặc trong quá trình giao
+              dịch.
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Individual Courts List (if created) -->
       <!-- Form Actions -->
       <div class="form-actions">
@@ -1207,6 +1414,13 @@ const formatTimeWithPeriod = (time: string) => {
   font-weight: 700;
   color: #1f2937;
   margin: 0;
+}
+
+.section-description {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin: 0;
+  line-height: 1.5;
 }
 
 .section-subtitle {
@@ -1815,6 +2029,25 @@ input[type='time']::-webkit-outer-spin-button {
   color: #1e40af;
   font-size: 0.9rem;
   font-weight: 500;
+}
+
+/* Bank Account Notice */
+.bank-info-notice {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 10px;
+  margin-top: 8px;
+  color: #92400e;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.bank-info-notice strong {
+  color: #78350f;
 }
 
 /* Form Actions */

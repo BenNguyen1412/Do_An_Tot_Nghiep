@@ -216,11 +216,47 @@ def find_available_courts(db: Session, court_id: int, booking_date, start_time: 
 
 
 def create_booking(db: Session, booking: BookingCreate, user_id: int) -> Booking:
-    """Create a new booking"""
+    """Create a new booking with payment info"""
+    from datetime import datetime as dt
+    from app.models.court import PaymentMethod, PaymentStatus, BookingStatus
+    from app.core.vietqr_service import VietQRService
+    from app.crud.user import get_user_by_id
+    
     # Check for booking overlap
     if check_booking_overlap(db, booking.individual_court_id, booking.booking_date, booking.start_time, booking.end_time):
         raise ValueError("Sân đã được đặt trong khung giờ này. Vui lòng chọn khung giờ khác.")
     
+    # Get individual court and parent court
+    individual_court = get_individual_court(db, booking.individual_court_id)
+    if not individual_court:
+        raise ValueError("Không tìm thấy sân")
+    
+    parent_court = get_court(db, individual_court.court_id)
+    if not parent_court:
+        raise ValueError("Không tìm thấy thông tin sân")
+    
+    # Calculate total hours and price
+    start_dt = dt.strptime(booking.start_time, "%H:%M")
+    end_dt = dt.strptime(booking.end_time, "%H:%M")
+    total_hours = (end_dt - start_dt).seconds / 3600
+    
+    # Get price from time slots
+    total_price = 0.0
+    if parent_court.time_slots:
+        for slot in parent_court.time_slots:
+            slot_start = slot.get("start_time")
+            slot_end = slot.get("end_time")
+            
+            # Simple price calculation - find matching slot
+            if booking.start_time >= slot_start and booking.end_time <= slot_end:
+                total_price = slot.get("price", 0) * total_hours
+                break
+        
+        # If no exact match, use first slot price
+        if total_price == 0 and parent_court.time_slots:
+            total_price = parent_court.time_slots[0].get("price", 0) * total_hours
+    
+    # Create booking
     db_booking = Booking(
         individual_court_id=booking.individual_court_id,
         user_id=user_id,
@@ -228,11 +264,48 @@ def create_booking(db: Session, booking: BookingCreate, user_id: int) -> Booking
         start_time=booking.start_time,
         end_time=booking.end_time,
         phone_number=booking.phone_number,
-        customer_name=booking.customer_name,  # Store customer name if provided
+        customer_name=booking.customer_name,
+        customer_email=booking.customer_email,
+        total_hours=total_hours,
+        total_price=total_price,
+        payment_method=PaymentMethod.vietqr if booking.payment_method == "vietqr" else PaymentMethod.cash,
+        payment_status=PaymentStatus.pending,
+        booking_status=BookingStatus.pending,
+        status="pending"  # Legacy field
     )
+    
     db.add(db_booking)
     db.commit()
     db.refresh(db_booking)
+    
+    # Generate VietQR code if payment method is vietqr
+    if booking.payment_method == "vietqr":
+        owner = get_user_by_id(db, parent_court.owner_id)
+        if owner and owner.bank_account_number and owner.bank_code:
+            vietqr_service = VietQRService()
+            payment_content = f"BOOKING{db_booking.id}"
+            
+            qr_url = vietqr_service.generate_qr_url(
+                bank_code=owner.bank_code,
+                account_number=owner.bank_account_number,
+                amount=int(total_price),
+                description=payment_content,
+                account_name=owner.bank_account_name
+            )
+            
+            db_booking.qr_code_url = qr_url
+            db_booking.payment_status = PaymentStatus.pending
+            db.commit()
+            db.refresh(db_booking)
+    
+    # Cash payments are automatically confirmed
+    elif booking.payment_method == "cash":
+        db_booking.payment_status = PaymentStatus.paid
+        db_booking.booking_status = BookingStatus.confirmed
+        db_booking.status = "confirmed"
+        db.commit()
+        db.refresh(db_booking)
+    
     return db_booking
 
 
@@ -353,4 +426,138 @@ def get_owner_bookings_summary(db: Session, owner_id: int) -> dict:
         "cancelled_bookings": cancelled_bookings,
         "period_days": 30
     }
+
+
+# Payment CRUD
+async def auto_verify_booking_payment(db: Session, booking_id: int) -> Optional[Booking]:
+    """
+    Automatically verify payment for a booking using bank transaction API
+    
+    Args:
+        booking_id: ID of the booking to verify
+        
+    Returns:
+        Updated booking if payment verified, None otherwise
+    """
+    from app.core.bank_verification_service import get_bank_verification_service
+    from app.models.court import PaymentStatus, BookingStatus
+    from app.crud.user import get_user_by_id
+    
+    booking = get_booking(db, booking_id)
+    if not booking or booking.payment_status == PaymentStatus.paid:
+        return booking
+    
+    # Get court and owner info
+    individual_court = get_individual_court(db, booking.individual_court_id)
+    if not individual_court:
+        return None
+    
+    parent_court = get_court(db, individual_court.court_id)
+    if not parent_court:
+        return None
+    
+    owner = get_user_by_id(db, parent_court.owner_id)
+    if not owner or not owner.bank_account_number:
+        return None
+    
+    # Try to verify payment
+    bank_service = get_bank_verification_service()
+    verified = await bank_service.auto_verify_booking(
+        db=db,
+        booking=booking,
+        owner_bank_code=owner.bank_code,
+        owner_account_number=owner.bank_account_number
+    )
+    
+    if verified:
+        db.refresh(booking)
+        return booking
+    
+    return None
+
+
+def manual_verify_booking_payment(
+    db: Session,
+    booking_id: int,
+    transaction_id: str,
+    note: Optional[str] = None
+) -> Optional[Booking]:
+    """
+    Manually verify payment for a booking (owner/admin action)
+    
+    Args:
+        booking_id: ID of the booking to verify
+        transaction_id: Bank transaction ID
+        note: Optional verification note
+        
+    Returns:
+        Updated booking
+    """
+    from app.core.bank_verification_service import get_bank_verification_service
+    from datetime import datetime as dt
+    from app.models.court import PaymentStatus, BookingStatus
+    
+    booking = get_booking(db, booking_id)
+    if not booking:
+        return None
+    
+    # Manually verify
+    booking.payment_status = PaymentStatus.paid
+    booking.booking_status = BookingStatus.confirmed
+    booking.status = "confirmed"  # Legacy field
+    booking.bank_transaction_id = transaction_id
+    booking.payment_verified_at = dt.now()
+    booking.payment_note = note or "Manually verified"
+    
+    db.commit()
+    db.refresh(booking)
+    
+    return booking
+
+
+def get_payment_info(db: Session, booking_id: int) -> Optional[dict]:
+    """
+    Get payment information for a booking
+    
+    Args:
+        booking_id: ID of the booking
+        
+    Returns:
+        Dict with payment information including QR code
+    """
+    from datetime import datetime as dt, timedelta
+    from app.crud.user import get_user_by_id
+    from app.schemas.court import PaymentInfo
+    
+    booking = get_booking(db, booking_id)
+    if not booking:
+        return None
+    
+    # Get court and owner info
+    individual_court = get_individual_court(db, booking.individual_court_id)
+    if not individual_court:
+        return None
+    
+    parent_court = get_court(db, individual_court.court_id)
+    if not parent_court:
+        return None
+    
+    owner = get_user_by_id(db, parent_court.owner_id)
+    if not owner:
+        return None
+    
+    # Calculate expiration (30 minutes from creation)
+    expires_at = booking.created_at + timedelta(minutes=30)
+    
+    return {
+        "qr_code_url": booking.qr_code_url,
+        "bank_name": owner.bank_name or "",
+        "account_number": owner.bank_account_number or "",
+        "account_name": owner.bank_account_name or "",
+        "amount": float(booking.total_price) if booking.total_price else 0,
+        "content": f"BOOKING{booking.id}",
+        "booking_id": booking.id,
+        "expires_at": expires_at
+    }
+
 

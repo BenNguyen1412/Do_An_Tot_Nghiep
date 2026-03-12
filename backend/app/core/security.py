@@ -79,3 +79,27 @@ def get_current_user(
         )
     
     return user
+
+
+def get_current_owner(current_user = Depends(get_current_user)):
+    """
+    Dependency to ensure current user is an owner or admin.
+    """
+    if current_user.role not in ["owner", "admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions. Owner or admin access required."
+        )
+    return current_user
+
+
+def get_current_admin(current_user = Depends(get_current_user)):
+    """
+    Dependency to ensure current user is an admin.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions. Admin access required."
+        )
+    return current_user

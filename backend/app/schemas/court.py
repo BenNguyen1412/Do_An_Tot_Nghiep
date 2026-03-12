@@ -112,26 +112,60 @@ class BookingBase(BaseModel):
     end_time: str
     phone_number: str
     customer_name: Optional[str] = None  # Name of customer (for owner bookings)
+    customer_email: Optional[str] = None
 
 
 class BookingCreate(BookingBase):
     individual_court_id: int
+    payment_method: str = "vietqr"  # vietqr or cash
 
 
 class BookingUpdate(BaseModel):
     status: Optional[str] = None
+    booking_status: Optional[str] = None
+    payment_status: Optional[str] = None
 
 
 class Booking(BookingBase):
     id: int
     individual_court_id: int
     user_id: int
-    status: str
+    status: Optional[str] = "active"  # Legacy status field (kept for backward compatibility)
+    
+    # Payment fields
+    total_hours: Optional[float] = None
+    total_price: Optional[float] = None
+    payment_method: Optional[str] = None
+    payment_status: Optional[str] = None
+    booking_status: Optional[str] = None
+    qr_code_url: Optional[str] = None
+    bank_transaction_id: Optional[str] = None
+    payment_verified_at: Optional[datetime] = None
+    payment_note: Optional[str] = None
+    
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+# Payment info response
+class PaymentInfo(BaseModel):
+    """Payment information for a booking"""
+    qr_code_url: str
+    bank_name: str
+    account_number: str
+    account_name: str
+    amount: float
+    content: str
+    booking_id: int
+    expires_at: datetime
+
+
+# Booking with payment info
+class BookingWithPayment(Booking):
+    payment_info: Optional[PaymentInfo] = None
 
 
 # Response schemas with relationships

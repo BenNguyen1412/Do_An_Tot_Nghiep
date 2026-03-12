@@ -23,6 +23,12 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     phone_number: Optional[str] = None
     password: Optional[str] = None
+    
+    # Bank account fields (for owners)
+    bank_account_number: Optional[str] = None
+    bank_account_name: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_code: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: int
@@ -31,6 +37,12 @@ class UserResponse(BaseModel):
     phone_number: Optional[str] = None
     is_active: bool
     role: UserRole
+    
+    # Bank account info (for owners)
+    bank_account_number: Optional[str] = None
+    bank_account_name: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_code: Optional[str] = None
 
     class Config:
         from_attributes = True

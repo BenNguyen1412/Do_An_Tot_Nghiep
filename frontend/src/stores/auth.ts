@@ -9,6 +9,12 @@ interface User {
   role: string
   phone_number?: string | null
   is_active: boolean
+
+  // Bank account fields (for owners)
+  bank_account_number?: string | null
+  bank_account_name?: string | null
+  bank_name?: string | null
+  bank_code?: string | null
 }
 
 interface LoginResponse {

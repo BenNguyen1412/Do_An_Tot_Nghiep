@@ -194,13 +194,15 @@ async def update_individual_court(
 
 
 # Booking endpoints
-@router.post("/bookings", response_model=Booking, status_code=status.HTTP_201_CREATED)
-async def create_booking(
+# Legacy endpoint - DEPRECATED: Use /api/bookings from bookings.py instead
+# This endpoint is kept for backward compatibility with owner manual bookings
+@router.post("/courts/bookings", response_model=Booking, status_code=status.HTTP_201_CREATED)
+async def create_booking_legacy(
     booking: BookingCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new booking"""
+    """Create a new booking (Legacy endpoint for owner manual bookings)"""
     # Check if individual court exists
     individual_court = court_crud.get_individual_court(db, booking.individual_court_id)
     if not individual_court:

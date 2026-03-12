@@ -1,7 +1,34 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float, Text, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float, Text, ForeignKey, JSON, Enum as SQLEnum, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+import enum
+
+
+class PaymentMethod(str, enum.Enum):
+    """Payment method options"""
+    vietqr = "vietqr"  # VietQR bank transfer
+    cash = "cash"      # Cash payment at venue
+
+
+class PaymentStatus(str, enum.Enum):
+    """Payment status tracking"""
+    pending = "pending"      # Waiting for payment
+    verifying = "verifying"  # Payment detected, verifying
+    paid = "paid"           # Payment confirmed
+    partial = "partial"      # Partial payment received
+    failed = "failed"        # Payment failed/expired
+    refunded = "refunded"    # Payment refunded
+
+
+class BookingStatus(str, enum.Enum):
+    """Booking status"""
+    pending = "pending"      # Created, waiting payment
+    confirmed = "confirmed"  # Payment confirmed
+    active = "active"        # Currently active/in-use
+    completed = "completed"  # Finished
+    cancelled = "cancelled"  # Cancelled by user/owner
+
 
 class Court(Base):
     """Main venue/court complex model"""
@@ -58,8 +85,26 @@ class Booking(Base):
     start_time = Column(String, nullable=False)  # Format: "HH:MM"
     end_time = Column(String, nullable=False)  # Format: "HH:MM"
     phone_number = Column(String, nullable=False)
-    customer_name = Column(String, nullable=True)  # Name of person who booked (for owner bookings)
-    status = Column(String, default="active")  # active, completed, cancelled
+    customer_name = Column(String, nullable=True)  # Name of person who booked
+    
+    # Payment Information
+    total_hours = Column(Numeric(4, 2), nullable=True)  # Total hours booked
+    total_price = Column(Numeric(10, 2), nullable=True)  # Total amount
+    customer_email = Column(String, nullable=True)  # Customer email
+    
+    payment_method = Column(SQLEnum(PaymentMethod), default=PaymentMethod.vietqr, nullable=False)
+    payment_status = Column(SQLEnum(PaymentStatus), default=PaymentStatus.pending, nullable=False)
+    booking_status = Column(SQLEnum(BookingStatus), default=BookingStatus.pending, nullable=False)
+    
+    # VietQR specific fields
+    qr_code_url = Column(String, nullable=True)  # VietQR image URL
+    bank_transaction_id = Column(String, nullable=True)  # Bank transaction reference
+    payment_verified_at = Column(DateTime(timezone=True), nullable=True)  # When payment was verified
+    payment_note = Column(Text, nullable=True)  # Payment notes/description
+    
+    # Legacy status field (deprecated, use booking_status instead)
+    status = Column(String, default="pending", server_default="pending", nullable=False)  # pending, active, completed, cancelled
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

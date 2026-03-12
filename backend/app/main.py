@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.api.api import api_router
+from app.api.endpoints import webhooks
 from pathlib import Path
 
 # Create database tables
@@ -19,14 +20,18 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include API router
 app.include_router(api_router, prefix="/api")
+
+# Include webhooks router (no auth required)
+app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 
 # Mount static files for uploads
 uploads_dir = Path("uploads")
