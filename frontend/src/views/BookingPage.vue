@@ -21,7 +21,14 @@ interface TimeSlot {
 interface IndividualCourt {
   id: number
   name: string
+  is_active?: boolean
   is_available: boolean
+  bookings?: Array<{
+    booking_date: string
+    start_time: string
+    end_time: string
+    status?: string
+  }>
 }
 
 interface ApiError {
@@ -83,7 +90,7 @@ const paymentInfo = ref<{
   account_name: string
   amount: number
   content: string
-  booking_id: number
+  booking_id?: number | null
   expires_at: string
 } | null>(null)
 const isCreatingBooking = ref(false)
@@ -197,6 +204,17 @@ const formatDateForBooking = (date: Date) => {
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
 }
 
+const formatDateKeyLocal = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const formatBookingDatePayload = (date: Date): string => {
+  return `${formatDateKeyLocal(date)}T00:00:00`
+}
+
 // Generate time slots (30-minute intervals)
 const generateTimeSlots = () => {
   if (!court.value) return []
@@ -243,11 +261,47 @@ const isSlotInPast = (slot: string): boolean => {
   return false
 }
 
+const isBlockingBookingStatus = (status?: string): boolean => {
+  return status === 'pending' || status === 'active' || status === 'confirmed'
+}
+
+const isCourtBookedAtSlot = (courtData: IndividualCourt, slot: string): boolean => {
+  if (!courtData.bookings || courtData.bookings.length === 0) {
+    return false
+  }
+
+  const selectedDateStr = formatDateKeyLocal(selectedDate.value)
+
+  return courtData.bookings.some((booking) => {
+    if (!isBlockingBookingStatus(booking.status)) return false
+
+    const bookingDate = booking.booking_date?.split('T')[0]
+    if (bookingDate !== selectedDateStr) return false
+
+    return slot >= booking.start_time && slot < booking.end_time
+  })
+}
+
+const isSlotFullyBooked = (slot: string): boolean => {
+  const activeCourts = (court.value?.individual_courts || []).filter((c) => c.is_active !== false)
+
+  if (activeCourts.length === 0) {
+    return true
+  }
+
+  return activeCourts.every((c) => isCourtBookedAtSlot(c, slot))
+}
+
 // Toggle time slot selection (range selection with start and end)
 const toggleTimeSlot = (slot: string) => {
   // Check if slot is in the past
   if (isSlotInPast(slot)) {
     toast.error('Không thể đặt sân cho khung giờ đã qua')
+    return
+  }
+
+  if (isSlotFullyBooked(slot)) {
+    toast.error('Khung giờ này đã kín ở tất cả sân. Vui lòng chọn giờ khác.')
     return
   }
 
@@ -276,9 +330,16 @@ const toggleTimeSlot = (slot: string) => {
       // Check if any slot in the range is in the past
       const rangeSlots = allSlots.slice(startIndex, endIndex + 1)
       const hasPastSlot = rangeSlots.some((s) => isSlotInPast(s))
+      const hasFullyBookedSlot = rangeSlots.some((s) => isSlotFullyBooked(s))
 
       if (hasPastSlot) {
         toast.error('Không thể đặt sân cho khung giờ bao gồm thời gian đã qua')
+        selectedTimeSlots.value = []
+        return
+      }
+
+      if (hasFullyBookedSlot) {
+        toast.error('Khung giờ bạn chọn đã kín ở tất cả sân. Vui lòng chọn lại.')
         selectedTimeSlots.value = []
         return
       }
@@ -449,11 +510,36 @@ const goNext = async () => {
       toast.error('Số điện thoại không hợp lệ (10-11 chữ số)')
       return
     }
-    // Create booking and get payment info
-    await createBooking()
+    // Move to payment step with payment preview only (no booking created yet)
+    await preparePaymentPreview()
   } else if (currentStep.value === 3) {
-    // Verify payment before completing
+    // Create booking only when user presses Complete on payment step
     await verifyPayment()
+  }
+}
+
+const preparePaymentPreview = async () => {
+  if (!court.value) return
+
+  isCreatingBooking.value = true
+  try {
+    const response = await axiosInstance.post('/bookings/payment-preview', {
+      court_id: court.value.id,
+      booking_date: formatBookingDatePayload(selectedDate.value),
+      start_time: bookingDetails.value.startTime,
+      end_time: bookingDetails.value.endTime,
+    })
+
+    paymentInfo.value = response.data
+    currentStep.value = 3
+  } catch (error: unknown) {
+    console.error('Error preparing payment preview:', error)
+    const errorMsg =
+      (error as ApiError).response?.data?.detail ||
+      'Không thể tạo thông tin thanh toán. Vui lòng thử lại.'
+    toast.error(errorMsg)
+  } finally {
+    isCreatingBooking.value = false
   }
 }
 
@@ -463,9 +549,10 @@ const createBooking = async () => {
 
   isCreatingBooking.value = true
   try {
-    // Find first available individual court
+    // Backend will always allocate from first available court to last.
+    // We only pass a valid court id in this venue as a reference.
     const individualCourt = court.value?.individual_courts?.find(
-      (c: IndividualCourt) => c.is_available,
+      (c: IndividualCourt) => c.is_active !== false,
     )
 
     if (!individualCourt) {
@@ -473,13 +560,9 @@ const createBooking = async () => {
       return
     }
 
-    // Format booking date to ISO string
-    const bookingDate = new Date(selectedDate.value)
-    bookingDate.setHours(0, 0, 0, 0)
-
     const bookingData = {
       individual_court_id: individualCourt.id,
-      booking_date: bookingDate.toISOString(),
+      booking_date: formatBookingDatePayload(selectedDate.value),
       start_time: bookingDetails.value.startTime,
       end_time: bookingDetails.value.endTime,
       phone_number: userInfo.value.phone,
@@ -492,15 +575,16 @@ const createBooking = async () => {
 
     if (response.data) {
       bookingId.value = response.data.id
-      paymentInfo.value = response.data.payment_info
-      currentStep.value = 3
-      toast.success('Booking created! Please complete payment.')
+      return true
     }
+
+    return false
   } catch (error: unknown) {
     console.error('Error creating booking:', error)
     const errorMsg =
       (error as ApiError).response?.data?.detail || 'Không thể tạo booking. Vui lòng thử lại.'
     toast.error(errorMsg)
+    return false
   } finally {
     isCreatingBooking.value = false
   }
@@ -508,15 +592,19 @@ const createBooking = async () => {
 
 // Verify payment
 const verifyPayment = async () => {
-  if (!bookingId.value || isVerifyingPayment.value) return
+  if (isVerifyingPayment.value) return
 
   isVerifyingPayment.value = true
+  try {
+    const created = await createBooking()
+    if (!created) {
+      return
+    }
 
-  // Just confirm user has completed payment - show success message on same page
-  setTimeout(() => {
     paymentVerified.value = true
+  } finally {
     isVerifyingPayment.value = false
-  }, 800)
+  }
 }
 
 // Copy to clipboard
@@ -688,9 +776,9 @@ onMounted(() => {
                   class="time-slot-btn"
                   :class="{
                     selected: isSlotSelected(slot),
-                    disabled: isSlotInPast(slot),
+                    disabled: isSlotInPast(slot) || isSlotFullyBooked(slot),
                   }"
-                  :disabled="isSlotInPast(slot)"
+                  :disabled="isSlotInPast(slot) || isSlotFullyBooked(slot)"
                   @click="toggleTimeSlot(slot)"
                 >
                   <span class="slot-time">{{ slot }}</span>

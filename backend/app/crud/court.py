@@ -1,9 +1,26 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, or_, func
 from typing import Optional, List
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from app.models.court import Court, IndividualCourt, Booking
 from app.schemas.court import CourtCreate, CourtUpdate, IndividualCourtCreate, IndividualCourtUpdate, BookingCreate, BookingUpdate
+
+
+LOCAL_TIMEZONE = ZoneInfo("Asia/Ho_Chi_Minh")
+
+
+def normalize_booking_date(booking_date):
+    """Convert incoming datetime/date to local calendar date for booking comparisons."""
+    if isinstance(booking_date, datetime):
+        if booking_date.tzinfo is not None:
+            return booking_date.astimezone(LOCAL_TIMEZONE).date()
+        return booking_date.date()
+
+    if hasattr(booking_date, "date"):
+        return booking_date.date()
+
+    return booking_date
 
 # Court CRUD
 def get_court(db: Session, court_id: int) -> Optional[Court]:
@@ -123,7 +140,12 @@ def get_individual_court(db: Session, individual_court_id: int) -> Optional[Indi
 
 def get_individual_courts_by_court(db: Session, court_id: int) -> List[IndividualCourt]:
     """Get all individual courts for a specific court"""
-    return db.query(IndividualCourt).filter(IndividualCourt.court_id == court_id).all()
+    return (
+        db.query(IndividualCourt)
+        .filter(IndividualCourt.court_id == court_id)
+        .order_by(IndividualCourt.id.asc())
+        .all()
+    )
 
 
 def update_individual_court(db: Session, individual_court_id: int, individual_court_update: IndividualCourtUpdate) -> Optional[IndividualCourt]:
@@ -162,12 +184,13 @@ def check_booking_overlap(db: Session, individual_court_id: int, booking_date, s
     from datetime import datetime
     
     # Get the date only (without time)
-    booking_date_only = booking_date.date() if hasattr(booking_date, 'date') else booking_date
+    booking_date_only = normalize_booking_date(booking_date)
     
-    # Query all active bookings for the same court and date
+    # Query all blocking bookings for the same court.
+    # Pending/active/confirmed all block the slot.
     query = db.query(Booking).filter(
         Booking.individual_court_id == individual_court_id,
-        Booking.status == 'active'
+        Booking.status.in_(["pending", "active", "confirmed"])
     )
     
     # Exclude current booking if updating
@@ -194,7 +217,7 @@ def find_available_courts(db: Session, court_id: int, booking_date, start_time: 
     from datetime import datetime
     
     # Get the date only (without time)
-    booking_date_only = booking_date.date() if hasattr(booking_date, 'date') else booking_date
+    booking_date_only = normalize_booking_date(booking_date)
     
     # Get all individual courts for this venue
     all_courts = get_individual_courts_by_court(db, court_id)
@@ -204,12 +227,23 @@ def find_available_courts(db: Session, court_id: int, booking_date, start_time: 
         all_courts = [c for c in all_courts if c.id != exclude_court_id]
     
     available_courts = []
-    
+
     for court in all_courts:
-        # Check if this court has any overlapping bookings
-        has_conflict = check_booking_overlap(db, court.id, booking_date, start_time, end_time)
-        
-        if not has_conflict:
+        if not court.is_active:
+            continue
+
+        conflict_query = db.query(Booking).filter(
+            Booking.individual_court_id == court.id,
+            func.date(Booking.booking_date) == booking_date_only,
+            Booking.start_time < end_time,
+            Booking.end_time > start_time,
+            or_(
+                Booking.status.in_(["pending", "active", "confirmed"]),
+                Booking.booking_status.in_(["pending", "active", "confirmed"]),
+            ),
+        )
+
+        if not conflict_query.first():
             available_courts.append(court)
     
     return available_courts
@@ -222,18 +256,28 @@ def create_booking(db: Session, booking: BookingCreate, user_id: int) -> Booking
     from app.core.vietqr_service import VietQRService
     from app.crud.user import get_user_by_id
     
-    # Check for booking overlap
-    if check_booking_overlap(db, booking.individual_court_id, booking.booking_date, booking.start_time, booking.end_time):
-        raise ValueError("Sân đã được đặt trong khung giờ này. Vui lòng chọn khung giờ khác.")
-    
-    # Get individual court and parent court
-    individual_court = get_individual_court(db, booking.individual_court_id)
-    if not individual_court:
+    # Resolve parent court from requested individual court
+    requested_court = get_individual_court(db, booking.individual_court_id)
+    if not requested_court:
         raise ValueError("Không tìm thấy sân")
     
-    parent_court = get_court(db, individual_court.court_id)
+    parent_court = get_court(db, requested_court.court_id)
     if not parent_court:
         raise ValueError("Không tìm thấy thông tin sân")
+
+    # Always allocate from the first available individual court to the last.
+    available_courts = find_available_courts(
+        db,
+        parent_court.id,
+        booking.booking_date,
+        booking.start_time,
+        booking.end_time,
+    )
+
+    if not available_courts:
+        raise ValueError("Tất cả sân đã có lịch đặt trong khung giờ này. Vui lòng chọn khung giờ khác.")
+
+    allocated_court = available_courts[0]
     
     # Calculate total hours and price
     start_dt = dt.strptime(booking.start_time, "%H:%M")
@@ -256,11 +300,14 @@ def create_booking(db: Session, booking: BookingCreate, user_id: int) -> Booking
         if total_price == 0 and parent_court.time_slots:
             total_price = parent_court.time_slots[0].get("price", 0) * total_hours
     
+    booking_date_only = normalize_booking_date(booking.booking_date)
+    booking_datetime = datetime.combine(booking_date_only, datetime.min.time())
+
     # Create booking
     db_booking = Booking(
-        individual_court_id=booking.individual_court_id,
+        individual_court_id=allocated_court.id,
         user_id=user_id,
-        booking_date=booking.booking_date,
+        booking_date=booking_datetime,
         start_time=booking.start_time,
         end_time=booking.end_time,
         phone_number=booking.phone_number,

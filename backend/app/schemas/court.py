@@ -159,8 +159,16 @@ class PaymentInfo(BaseModel):
     account_name: str
     amount: float
     content: str
-    booking_id: int
+    booking_id: Optional[int] = None
     expires_at: datetime
+
+
+class PaymentPreviewRequest(BaseModel):
+    """Request payload to preview VietQR payment before creating booking"""
+    court_id: int
+    booking_date: datetime
+    start_time: str
+    end_time: str
 
 
 # Booking with payment info

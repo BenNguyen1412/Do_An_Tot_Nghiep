@@ -15,11 +15,104 @@ from app.schemas.court import (
     Booking,
     BookingWithPayment,
     PaymentInfo,
+    PaymentPreviewRequest,
     BookingUpdate
 )
 from app.crud import court as court_crud
+from app.crud.user import get_user_by_id
+from app.core.vietqr_service import VietQRService
 
 router = APIRouter()
+
+
+@router.post("/payment-preview", response_model=PaymentInfo)
+async def get_payment_preview(
+    preview_data: PaymentPreviewRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Generate VietQR payment preview without creating a booking.
+
+    Booking will only be created when user presses Complete on payment step.
+    """
+    court = court_crud.get_court(db, preview_data.court_id)
+    if not court:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy thông tin sân"
+        )
+
+    available_courts = court_crud.find_available_courts(
+        db,
+        court.id,
+        preview_data.booking_date,
+        preview_data.start_time,
+        preview_data.end_time,
+    )
+
+    if not available_courts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tất cả sân đã có lịch đặt trong khung giờ này. Vui lòng chọn khung giờ khác.",
+        )
+
+    owner = get_user_by_id(db, court.owner_id)
+    if not owner or not owner.bank_account_number or not owner.bank_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Chủ sân chưa cấu hình tài khoản ngân hàng để nhận thanh toán.",
+        )
+
+    # Calculate amount similarly to create_booking but without persisting data.
+    from datetime import datetime as dt
+
+    start_dt = dt.strptime(preview_data.start_time, "%H:%M")
+    end_dt = dt.strptime(preview_data.end_time, "%H:%M")
+    total_hours = (end_dt - start_dt).seconds / 3600
+    amount = 0.0
+
+    if court.time_slots:
+        for slot in court.time_slots:
+            slot_start = slot.get("start_time")
+            slot_end = slot.get("end_time")
+            if preview_data.start_time >= slot_start and preview_data.end_time <= slot_end:
+                amount = slot.get("price", 0) * total_hours
+                break
+
+        if amount == 0 and court.time_slots:
+            amount = court.time_slots[0].get("price", 0) * total_hours
+
+    if amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Không thể tính giá đặt sân cho khung giờ đã chọn.",
+        )
+
+    payment_content = (
+        f"TMP{preview_data.court_id}-"
+        f"{preview_data.booking_date.strftime('%d%m%y')}-"
+        f"{preview_data.start_time.replace(':', '')}"
+    )
+
+    qr_url = VietQRService().generate_qr_url(
+        bank_code=owner.bank_code,
+        account_number=owner.bank_account_number,
+        amount=int(amount),
+        description=payment_content,
+        account_name=owner.bank_account_name,
+    )
+
+    return {
+        "qr_code_url": qr_url,
+        "bank_name": owner.bank_name or "Ngân hàng",
+        "account_number": owner.bank_account_number,
+        "account_name": owner.bank_account_name or owner.full_name,
+        "amount": amount,
+        "content": payment_content,
+        "booking_id": None,
+        "expires_at": datetime.utcnow(),
+    }
 
 
 @router.post("/", response_model=BookingWithPayment, status_code=status.HTTP_201_CREATED)
