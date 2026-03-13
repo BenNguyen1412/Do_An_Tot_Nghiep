@@ -1229,8 +1229,9 @@ onMounted(() => {
                   </svg>
                   <div>
                     <strong>Important:</strong> Please scan the QR code or transfer manually with
-                    the exact amount shown above. Your booking will be confirmed automatically
-                    within 1-2 minutes after successful payment.
+                    the exact amount shown above. Your booking will be confirmed via email by the
+                    owner after they verify the payment. If you have any issues, please contact the
+                    owner directly using the contact information provided above.
                   </div>
                 </div>
 
