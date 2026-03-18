@@ -1324,7 +1324,10 @@ onMounted(() => {
       </div>
 
       <!-- Navigation Buttons -->
-      <div class="navigation-section" v-if="currentStep < 3 || paymentVerified">
+      <div
+        class="navigation-section"
+        v-if="currentStep < 3 || (currentStep === 3 && !paymentVerified)"
+      >
         <div class="navigation-container">
           <button class="nav-btn btn-back" @click="goBack">
             <svg
@@ -1345,7 +1348,8 @@ onMounted(() => {
           <button
             class="nav-btn btn-next"
             @click="goNext"
-            :disabled="isCreatingBooking || paymentVerified"
+            :disabled="isCreatingBooking || (currentStep === 3 && !paymentVerified)"
+            v-if="currentStep < 3"
           >
             <span v-if="!isCreatingBooking">Next</span>
             <span v-else>Creating Booking...</span>

@@ -22,6 +22,46 @@ def normalize_booking_date(booking_date):
 
     return booking_date
 
+
+def calculate_multi_tier_price(start_time: str, end_time: str, time_slots: list) -> float:
+    """
+    Calculate price for multi-tier time slots.
+    
+    Iterate through 30-minute intervals and sum up prices for each interval
+    that falls into a time slot tier. This matches the frontend calculation.
+    """
+    if not time_slots:
+        return 0.0
+    
+    start_dt = datetime.strptime(start_time, "%H:%M")
+    end_dt = datetime.strptime(end_time, "%H:%M")
+    
+    total_price = 0.0
+    current_time = start_dt
+    
+    # Iterate through 30-minute intervals (0.5 hour each)
+    while current_time < end_dt:
+        next_time = current_time + timedelta(minutes=30)
+        
+        # Find which time_slot this interval belongs to
+        for slot in time_slots:
+            slot_start_str = slot.get("start_time", "")
+            slot_end_str = slot.get("end_time", "")
+            slot_price = slot.get("price", 0)
+            
+            slot_start = datetime.strptime(slot_start_str, "%H:%M")
+            slot_end = datetime.strptime(slot_end_str, "%H:%M")
+            
+            # Check if current interval starts within this slot
+            if current_time >= slot_start and current_time < slot_end:
+                # Add price for this 30-minute interval (0.5 hour)
+                total_price += slot_price * 0.5
+                break
+        
+        current_time = next_time
+    
+    return total_price
+
 # Court CRUD
 def get_court(db: Session, court_id: int) -> Optional[Court]:
     """Get a court by ID"""
@@ -279,26 +319,17 @@ def create_booking(db: Session, booking: BookingCreate, user_id: int) -> Booking
 
     allocated_court = available_courts[0]
     
-    # Calculate total hours and price
+    # Calculate price using multi-tier pricing (same as payment preview endpoint)
+    total_price = calculate_multi_tier_price(
+        booking.start_time,
+        booking.end_time,
+        parent_court.time_slots or []
+    )
+    
+    # Calculate total hours
     start_dt = dt.strptime(booking.start_time, "%H:%M")
     end_dt = dt.strptime(booking.end_time, "%H:%M")
     total_hours = (end_dt - start_dt).seconds / 3600
-    
-    # Get price from time slots
-    total_price = 0.0
-    if parent_court.time_slots:
-        for slot in parent_court.time_slots:
-            slot_start = slot.get("start_time")
-            slot_end = slot.get("end_time")
-            
-            # Simple price calculation - find matching slot
-            if booking.start_time >= slot_start and booking.end_time <= slot_end:
-                total_price = slot.get("price", 0) * total_hours
-                break
-        
-        # If no exact match, use first slot price
-        if total_price == 0 and parent_court.time_slots:
-            total_price = parent_court.time_slots[0].get("price", 0) * total_hours
     
     booking_date_only = normalize_booking_date(booking.booking_date)
     booking_datetime = datetime.combine(booking_date_only, datetime.min.time())

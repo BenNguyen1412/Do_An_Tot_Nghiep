@@ -25,6 +25,49 @@ from app.core.vietqr_service import VietQRService
 router = APIRouter()
 
 
+def calculate_multi_tier_price(start_time: str, end_time: str, time_slots: list) -> float:
+    """
+    Calculate price for multi-tier time slots.
+    
+    Similar to frontend calculation: iterate through 30-minute intervals
+    and sum up prices for each interval that falls into a time slot tier.
+    """
+    if not time_slots:
+        return 0.0
+    
+    from datetime import datetime as dt, timedelta
+    
+    # Parse times
+    start_dt = dt.strptime(start_time, "%H:%M")
+    end_dt = dt.strptime(end_time, "%H:%M")
+    
+    total_price = 0.0
+    current_time = start_dt
+    
+    # Iterate through 30-minute intervals (0.5 hour each)
+    while current_time < end_dt:
+        next_time = current_time + timedelta(minutes=30)
+        
+        # Find which time_slot this interval belongs to
+        for slot in time_slots:
+            slot_start_str = slot.get("start_time", "")
+            slot_end_str = slot.get("end_time", "")
+            slot_price = slot.get("price", 0)
+            
+            slot_start = dt.strptime(slot_start_str, "%H:%M")
+            slot_end = dt.strptime(slot_end_str, "%H:%M")
+            
+            # Check if current interval starts within this slot
+            if current_time >= slot_start and current_time < slot_end:
+                # Add price for this 30-minute interval (0.5 hour)
+                total_price += slot_price * 0.5
+                break
+        
+        current_time = next_time
+    
+    return total_price
+
+
 @router.post("/payment-preview", response_model=PaymentInfo)
 async def get_payment_preview(
     preview_data: PaymentPreviewRequest,
@@ -64,24 +107,12 @@ async def get_payment_preview(
             detail="Chủ sân chưa cấu hình tài khoản ngân hàng để nhận thanh toán.",
         )
 
-    # Calculate amount similarly to create_booking but without persisting data.
-    from datetime import datetime as dt
-
-    start_dt = dt.strptime(preview_data.start_time, "%H:%M")
-    end_dt = dt.strptime(preview_data.end_time, "%H:%M")
-    total_hours = (end_dt - start_dt).seconds / 3600
-    amount = 0.0
-
-    if court.time_slots:
-        for slot in court.time_slots:
-            slot_start = slot.get("start_time")
-            slot_end = slot.get("end_time")
-            if preview_data.start_time >= slot_start and preview_data.end_time <= slot_end:
-                amount = slot.get("price", 0) * total_hours
-                break
-
-        if amount == 0 and court.time_slots:
-            amount = court.time_slots[0].get("price", 0) * total_hours
+    # Calculate amount using multi-tier pricing (same as frontend)
+    amount = calculate_multi_tier_price(
+        preview_data.start_time,
+        preview_data.end_time,
+        court.time_slots or []
+    )
 
     if amount <= 0:
         raise HTTPException(
