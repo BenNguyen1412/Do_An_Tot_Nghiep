@@ -1346,10 +1346,10 @@ onMounted(() => {
             Back
           </button>
           <button
+            v-if="currentStep < 3"
             class="nav-btn btn-next"
             @click="goNext"
-            :disabled="isCreatingBooking || (currentStep === 3 && !paymentVerified)"
-            v-if="currentStep < 3"
+            :disabled="isCreatingBooking"
           >
             <span v-if="!isCreatingBooking">Next</span>
             <span v-else>Creating Booking...</span>

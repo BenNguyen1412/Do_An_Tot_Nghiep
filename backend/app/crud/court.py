@@ -2,12 +2,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from typing import Optional, List
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from app.models.court import Court, IndividualCourt, Booking
 from app.schemas.court import CourtCreate, CourtUpdate, IndividualCourtCreate, IndividualCourtUpdate, BookingCreate, BookingUpdate
 
 
-LOCAL_TIMEZONE = ZoneInfo("Asia/Ho_Chi_Minh")
+try:
+    LOCAL_TIMEZONE = ZoneInfo("Asia/Ho_Chi_Minh")
+except ZoneInfoNotFoundError:
+    LOCAL_TIMEZONE = ZoneInfo("UTC")
 
 
 def normalize_booking_date(booking_date):
