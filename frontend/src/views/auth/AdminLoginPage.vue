@@ -25,7 +25,7 @@ const handleAdminLogin = async () => {
 
   // Validation
   if (!email.value || !password.value) {
-    const msg = 'Vui lòng nhập đầy đủ thông tin'
+    const msg = 'Please enter all required information'
     errorMessage.value = msg
     toast.error(`❌ ${msg}`)
     return
@@ -34,7 +34,7 @@ const handleAdminLogin = async () => {
   // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email.value)) {
-    const msg = 'Email không hợp lệ'
+    const msg = 'Invalid email'
     errorMessage.value = msg
     toast.error(`❌ ${msg}`)
     return
@@ -55,7 +55,7 @@ const handleAdminLogin = async () => {
         // Logout user
         authStore.logout()
 
-        const msg = `Chỉ tài khoản Admin mới có quyền truy cập!`
+        const msg = `Only Admin accounts can access this page!`
         errorMessage.value = msg
         toast.error(`❌ ${msg}`, {
           timeout: 4000,
@@ -64,7 +64,7 @@ const handleAdminLogin = async () => {
       }
 
       // Admin role matched - proceed with login
-      toast.success('✅ Đăng nhập Admin thành công!', {
+      toast.success('✅ Admin login successful!', {
         timeout: 2000,
       })
 
@@ -73,14 +73,14 @@ const handleAdminLogin = async () => {
         router.push('/admin/profile')
       }, 1000)
     } else {
-      const error = result.error || 'Đăng nhập thất bại. Vui lòng thử lại!'
+      const error = result.error || 'Login failed. Please try again!'
       errorMessage.value = error
       toast.error(`❌ ${error}`, {
         timeout: 4000,
       })
     }
   } catch {
-    const errorMsg = 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại!'
+    const errorMsg = 'An unexpected error occurred. Please try again!'
     errorMessage.value = errorMsg
     toast.error(`❌ ${errorMsg}`)
   }
@@ -200,7 +200,7 @@ const goToUserLogin = () => {
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span>Chỉ dành cho quản trị viên hệ thống.</span>
+            <span>For system administrators only.</span>
           </div>
 
           <!-- Error Message -->

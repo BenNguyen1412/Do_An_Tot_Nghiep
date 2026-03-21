@@ -70,7 +70,7 @@ const vietnameseBanks = [
   { code: '970442', name: 'HongLeong Bank' },
   { code: '970449', name: 'LienVietPostBank' },
   { code: '970454', name: 'VietABank' },
-  { code: '970455', name: 'IBK - NH Công nghiệp Hàn Quốc' },
+  { code: '970455', name: 'IBK - Industrial Bank of Korea' },
   { code: '970456', name: 'IBKHCM' },
   { code: '970458', name: 'UOB' },
   { code: '970410', name: 'StandardChartered' },
@@ -168,14 +168,14 @@ const imagePreviews = ref<string[]>([])
 
 // Available facilities
 const availableFacilities = [
-  { id: 'parking', label: 'Bãi đỗ xe', icon: '🚗' },
-  { id: 'locker', label: 'Tủ khóa', icon: '🔐' },
-  { id: 'shower', label: 'Phòng tắm', icon: '🚿' },
-  { id: 'water', label: 'Nước uống', icon: '💧' },
-  { id: 'toilet', label: 'Nhà vệ sinh', icon: '🚻' },
-  { id: 'lighting', label: 'Đèn chiếu sáng', icon: '💡' },
+  { id: 'parking', label: 'Parking', icon: '🚗' },
+  { id: 'locker', label: 'Locker', icon: '🔐' },
+  { id: 'shower', label: 'Shower', icon: '🚿' },
+  { id: 'water', label: 'Drinking Water', icon: '💧' },
+  { id: 'toilet', label: 'Restroom', icon: '🚻' },
+  { id: 'lighting', label: 'Lighting', icon: '💡' },
   { id: 'wifi', label: 'WiFi', icon: '📶' },
-  { id: 'shop', label: 'Cửa hàng', icon: '🏪' },
+  { id: 'shop', label: 'Shop', icon: '🏪' },
 ]
 
 const isSaving = ref(false)
@@ -210,18 +210,18 @@ const handleImageUpload = (event: Event) => {
   const files = Array.from(target.files || [])
 
   if (images.value.length + files.length > 10) {
-    toast.error('Tối đa 10 hình ảnh')
+    toast.error('Maximum 10 images allowed')
     return
   }
 
   files.forEach((file) => {
     if (!file.type.startsWith('image/')) {
-      toast.error('Chỉ chấp nhận file hình ảnh')
+      toast.error('Only image files are accepted')
       return
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Kích thước ảnh không được vượt quá 5MB')
+      toast.error('Image size must not exceed 5MB')
       return
     }
 
@@ -238,13 +238,13 @@ const handleImageUpload = (event: Event) => {
 // Remove existing image (for edit mode)
 const removeExistingImage = (index: number) => {
   imagePreviews.value.splice(index, 1)
-  toast.success('Đã xóa ảnh')
+  toast.success('Image removed')
 }
 
 // Remove new image
 const removeNewImage = (index: number) => {
   images.value.splice(index, 1)
-  toast.success('Đã xóa ảnh')
+  toast.success('Image removed')
 }
 
 // Helper to get image preview URL
@@ -274,59 +274,59 @@ const resetForm = () => {
 
 const validateForm = () => {
   if (!courtForm.value.name.trim()) {
-    toast.error('Vui lòng nhập tên sân')
+    toast.error('Please enter court name')
     return false
   }
   if (!courtForm.value.court_quantity || courtForm.value.court_quantity < 1) {
-    toast.error('Số lượng sân phải từ 1 trở lên')
+    toast.error('Court quantity must be at least 1')
     return false
   }
 
   if (!courtForm.value.address.trim()) {
-    toast.error('Vui lòng nhập địa chỉ')
+    toast.error('Please enter address')
     return false
   }
 
   if (!courtForm.value.district.trim()) {
-    toast.error('Vui lòng nhập quận/huyện')
+    toast.error('Please enter district')
     return false
   }
 
   if (!courtForm.value.city.trim()) {
-    toast.error('Vui lòng nhập thành phố')
+    toast.error('Please enter city')
     return false
   }
 
   // Validate time slots
   if (timeSlots.value.length === 0) {
-    toast.error('Vui lòng thêm ít nhất một khung giờ')
+    toast.error('Please add at least one time slot')
     return false
   }
 
   for (const slot of timeSlots.value) {
     if (!slot.startTime || !slot.endTime) {
-      toast.error('Vui lòng nhập đầy đủ giờ bắt đầu và kết thúc cho tất cả khung giờ')
+      toast.error('Please enter start and end time for all slots')
       return false
     }
     if (slot.startTime >= slot.endTime) {
-      toast.error(`Giờ kết thúc (${slot.endTime}) phải sau giờ bắt đầu (${slot.startTime})`)
+      toast.error(`End time (${slot.endTime}) must be later than start time (${slot.startTime})`)
       return false
     }
     if (!slot.price || parseFloat(slot.price) <= 0) {
-      toast.error('Vui lòng nhập giá thuê hợp lệ cho tất cả khung giờ')
+      toast.error('Please enter valid price for all slots')
       return false
     }
   }
 
   // Validate time slots coverage
   if (!courtForm.value.opening_time || !courtForm.value.closing_time) {
-    toast.error('Vui lòng nhập giờ mở cửa và đóng cửa')
+    toast.error('Please enter opening and closing time')
     return false
   }
 
   if (courtForm.value.opening_time >= courtForm.value.closing_time) {
     toast.error(
-      `Giờ đóng cửa (${courtForm.value.closing_time}) phải sau giờ mở cửa (${courtForm.value.opening_time})`,
+      `Closing time (${courtForm.value.closing_time}) must be later than opening time (${courtForm.value.opening_time})`,
     )
     return false
   }
@@ -339,7 +339,7 @@ const validateForm = () => {
   // Check if first slot starts at opening time
   if (sortedSlots[0].startTime !== openingTime) {
     toast.error(
-      `Khung giờ đầu tiên phải bắt đầu từ giờ mở cửa (${openingTime}). Hiện tại bắt đầu từ ${sortedSlots[0].startTime}`,
+      `The first slot must start at opening time (${openingTime}). Current start: ${sortedSlots[0].startTime}`,
     )
     window.scrollTo({ top: 0, behavior: 'smooth' })
     return false
@@ -348,7 +348,7 @@ const validateForm = () => {
   // Check if last slot ends at closing time
   if (sortedSlots[sortedSlots.length - 1].endTime !== closingTime) {
     toast.error(
-      `Khung giờ cuối cùng phải kết thúc vào giờ đóng cửa (${closingTime}). Hiện tại kết thúc lúc ${sortedSlots[sortedSlots.length - 1].endTime}`,
+      `The last slot must end at closing time (${closingTime}). Current end: ${sortedSlots[sortedSlots.length - 1].endTime}`,
     )
     window.scrollTo({ top: 0, behavior: 'smooth' })
     return false
@@ -358,7 +358,7 @@ const validateForm = () => {
   for (let i = 0; i < sortedSlots.length - 1; i++) {
     if (sortedSlots[i].endTime !== sortedSlots[i + 1].startTime) {
       toast.error(
-        `Có khoảng trống giữa các khung giờ (${sortedSlots[i].endTime} - ${sortedSlots[i + 1].startTime}). Vui lòng điền đầy đủ tất cả khung giờ từ ${openingTime} đến ${closingTime}`,
+        `There is a gap between slots (${sortedSlots[i].endTime} - ${sortedSlots[i + 1].startTime}). Please cover all time slots from ${openingTime} to ${closingTime}`,
       )
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return false
@@ -366,34 +366,34 @@ const validateForm = () => {
   }
 
   if (!courtForm.value.contact_phone.trim()) {
-    toast.error('Vui lòng nhập số điện thoại liên hệ')
+    toast.error('Please enter contact phone number')
     return false
   }
 
   if (!/^[0-9]{10}$/.test(courtForm.value.contact_phone.trim())) {
-    toast.error('Số điện thoại phải gồm 10 chữ số')
+    toast.error('Phone number must contain 10 digits')
     return false
   }
 
   // Validate bank account info (required for payment receiving)
   if (!bankForm.value.bank_account_number.trim()) {
-    toast.error('Vui lòng nhập số tài khoản ngân hàng để nhận thanh toán')
+    toast.error('Please enter bank account number for receiving payments')
     return false
   }
 
   if (!bankForm.value.bank_account_name.trim()) {
-    toast.error('Vui lòng nhập tên chủ tài khoản')
+    toast.error('Please enter account holder name')
     return false
   }
 
   if (!bankForm.value.bank_name || !bankForm.value.bank_code) {
-    toast.error('Vui lòng chọn ngân hàng')
+    toast.error('Please select a bank')
     return false
   }
 
   // Validate images (only for new court, not edit mode)
   if (!isEditMode.value && images.value.length < 5) {
-    toast.error(`Vui lòng tải lên ít nhất 5 hình ảnh (hiện tại: ${images.value.length}/5)`)
+    toast.error(`Please upload at least 5 images (current: ${images.value.length}/5)`)
     return false
   }
 
@@ -401,7 +401,7 @@ const validateForm = () => {
   if (isEditMode.value) {
     const totalImages = imagePreviews.value.length + images.value.length
     if (totalImages < 5) {
-      toast.error(`Vui lòng có ít nhất 5 hình ảnh (hiện tại: ${totalImages}/5)`)
+      toast.error(`At least 5 images are required (current: ${totalImages}/5)`)
       return false
     }
   }
@@ -417,7 +417,7 @@ const handleSubmit = async () => {
 
   // Kiểm tra authentication token
   if (!authStore.token) {
-    toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!')
+    toast.error('Session expired. Please log in again!')
     return
   }
 
@@ -439,7 +439,7 @@ const handleSubmit = async () => {
       }
     } catch (bankError) {
       console.error('Failed to update bank info:', bankError)
-      toast.error('Không thể cập nhật thông tin ngân hàng. Vui lòng thử lại.')
+      toast.error('Unable to update bank information. Please try again.')
       return
     }
 
@@ -492,7 +492,7 @@ const handleSubmit = async () => {
 
       await axiosInstance.put(`/courts/${currentCourtId.value}`, courtUpdateData)
 
-      toast.success('Cập nhật thông tin sân thành công!')
+      toast.success('Court information updated successfully!')
 
       // Reload court data
       await fetchApprovedCourt()
@@ -526,7 +526,7 @@ const handleSubmit = async () => {
       resetForm()
 
       toast.success(
-        'Đã gửi yêu cầu đăng sân! Admin sẽ xem xét và phê duyệt trong thời gian sớm nhất.',
+        'Court submission sent! Admin will review and approve it as soon as possible.',
       )
     }
 
@@ -534,7 +534,7 @@ const handleSubmit = async () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch (error) {
     const err = error as { response?: { data?: { detail?: string } } }
-    toast.error(err.response?.data?.detail || 'Thao tác thất bại. Vui lòng thử lại!')
+    toast.error(err.response?.data?.detail || 'Action failed. Please try again!')
   } finally {
     isSaving.value = false
   }
@@ -585,9 +585,9 @@ const formatTimeWithPeriod = (time: string) => {
             <rect x="7" y="6" width="10" height="4" rx="2" fill="#fbbf24" />
             <rect x="9" y="2" width="6" height="4" rx="2" fill="#3b82f6" />
           </svg>
-          Đăng tải sân
+          Upload Court
         </h1>
-        <p class="page-subtitle">Điền đầy đủ thông tin để đăng tải sân của bạn</p>
+        <p class="page-subtitle">Fill in all required details to upload your court</p>
       </div>
       <button class="preview-btn" type="button">
         <svg
@@ -609,7 +609,7 @@ const formatTimeWithPeriod = (time: string) => {
             d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
           />
         </svg>
-        Xem trước
+        Preview
       </button>
     </div>
 
@@ -638,53 +638,53 @@ const formatTimeWithPeriod = (time: string) => {
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            Thông tin cơ bản
+            Basic Information
           </h2>
         </div>
 
         <div class="form-grid">
           <div class="form-group full-width">
-            <label class="form-label required">Tên sân</label>
+            <label class="form-label required">Court Name</label>
             <input
               v-model="courtForm.name"
               type="text"
               class="form-input"
-              placeholder="VD: Sân Pickleball VIP A1"
+              placeholder="Ex: Pickleball Court VIP A1"
             />
           </div>
 
           <div class="form-group full-width">
-            <label class="form-label required">Địa chỉ</label>
+            <label class="form-label required">Address</label>
             <input
               v-model="courtForm.address"
               type="text"
               class="form-input"
-              placeholder="VD: 123 Nguyễn Văn A"
+              placeholder="Ex: 123 Nguyen Van A"
             />
           </div>
 
           <div class="form-group">
-            <label class="form-label required">Quận/Huyện</label>
+            <label class="form-label required">District</label>
             <input
               v-model="courtForm.district"
               type="text"
               class="form-input"
-              placeholder="VD: Quận 1"
+              placeholder="Ex: District 1"
             />
           </div>
 
           <div class="form-group">
-            <label class="form-label required">Thành phố</label>
+            <label class="form-label required">City</label>
             <input
               v-model="courtForm.city"
               type="text"
               class="form-input"
-              placeholder="VD: TP. Hồ Chí Minh"
+              placeholder="Ex: Ho Chi Minh City"
             />
           </div>
 
           <div class="form-group">
-            <label class="form-label required">Số lượng sân</label>
+            <label class="form-label required">Court Quantity</label>
             <input
               v-model.number="courtForm.court_quantity"
               type="number"
@@ -696,12 +696,12 @@ const formatTimeWithPeriod = (time: string) => {
           </div>
 
           <div class="form-group full-width">
-            <label class="form-label">Mô tả</label>
+            <label class="form-label">Description</label>
             <textarea
               v-model="courtForm.description"
               class="form-textarea"
               rows="4"
-              placeholder="Mô tả chi tiết về sân của bạn..."
+              placeholder="Detailed description of your court..."
             ></textarea>
           </div>
         </div>
@@ -731,9 +731,9 @@ const formatTimeWithPeriod = (time: string) => {
                 d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            Giá thuê theo khung giờ
+            Time-slot Pricing
           </h2>
-          <span class="section-subtitle">Thêm các khung giờ và giá thuê tương ứng</span>
+          <span class="section-subtitle">Add time slots with corresponding pricing</span>
         </div>
 
         <div v-if="timeSlots.length === 0" class="empty-slots">
@@ -751,7 +751,7 @@ const formatTimeWithPeriod = (time: string) => {
               d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
             />
           </svg>
-          <p class="empty-text">Chưa có khung giờ nào. Nhấn nút bên dưới để thêm.</p>
+          <p class="empty-text">No time slots yet. Click the button below to add one.</p>
         </div>
 
         <div v-else class="time-slots-list">
@@ -765,12 +765,12 @@ const formatTimeWithPeriod = (time: string) => {
           >
             <div class="slot-inputs">
               <div class="slot-input-group">
-                <label class="slot-label">Từ</label>
+                <label class="slot-label">From</label>
                 <input
                   v-model="slot.startTime"
                   type="time"
                   class="slot-time-input"
-                  placeholder="Bắt đầu"
+                  placeholder="Start"
                   pattern="[0-9]{2}:[0-9]{2}"
                   step="3600"
                   lang="vi-VN"
@@ -780,12 +780,12 @@ const formatTimeWithPeriod = (time: string) => {
               <span class="slot-separator">→</span>
 
               <div class="slot-input-group">
-                <label class="slot-label">Đến</label>
+                <label class="slot-label">To</label>
                 <input
                   v-model="slot.endTime"
                   type="time"
                   class="slot-time-input"
-                  placeholder="Kết thúc"
+                  placeholder="End"
                   pattern="[0-9]{2}:[0-9]{2}"
                   step="3600"
                   lang="vi-VN"
@@ -793,7 +793,7 @@ const formatTimeWithPeriod = (time: string) => {
               </div>
 
               <div class="slot-input-group slot-price-group">
-                <label class="slot-label">Giá thuê</label>
+                <label class="slot-label">Price</label>
                 <div class="slot-price-input-wrapper">
                   <input
                     v-model="slot.price"
@@ -803,7 +803,7 @@ const formatTimeWithPeriod = (time: string) => {
                     min="0"
                     step="1000"
                   />
-                  <span class="price-unit">VNĐ/giờ</span>
+                  <span class="price-unit">VND/hour</span>
                 </div>
               </div>
             </div>
@@ -812,7 +812,7 @@ const formatTimeWithPeriod = (time: string) => {
               type="button"
               class="remove-slot-btn"
               @click="removeTimeSlot(slot.id)"
-              title="Xóa khung giờ"
+              title="Delete time slot"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -854,7 +854,7 @@ const formatTimeWithPeriod = (time: string) => {
                 />
               </svg>
               {{ formatTimeWithPeriod(slot.startTime) }} -
-              {{ formatTimeWithPeriod(slot.endTime) }} • {{ formatCurrency(slot.price) }} đồng/giờ
+              {{ formatTimeWithPeriod(slot.endTime) }} • {{ formatCurrency(slot.price) }} VND/hour
             </div>
           </div>
         </div>
@@ -873,12 +873,12 @@ const formatTimeWithPeriod = (time: string) => {
               d="M12 6v6m0 0v6m0-6h6m-6 0H6"
             />
           </svg>
-          <span>Thêm khung giờ</span>
+          <span>Add time slot</span>
         </button>
 
         <div class="form-grid" style="margin-top: 24px">
           <div class="form-group">
-            <label class="form-label">Giờ mở cửa</label>
+            <label class="form-label">Opening time</label>
             <input
               v-model="courtForm.opening_time"
               type="time"
@@ -886,12 +886,12 @@ const formatTimeWithPeriod = (time: string) => {
               pattern="[0-9]{2}:[0-9]{2}"
               step="3600"
               lang="vi-VN"
-              title="VD: 06:00 (6h sáng)"
+              title="Ex: 06:00 (6 AM)"
             />
           </div>
 
           <div class="form-group">
-            <label class="form-label">Giờ đóng cửa</label>
+            <label class="form-label">Closing time</label>
             <input
               v-model="courtForm.closing_time"
               type="time"
@@ -899,7 +899,7 @@ const formatTimeWithPeriod = (time: string) => {
               pattern="[0-9]{2}:[0-9]{2}"
               step="3600"
               lang="vi-VN"
-              title="VD: 22:00 (10h tối)"
+              title="Ex: 22:00 (10 PM)"
             />
           </div>
         </div>
@@ -957,9 +957,9 @@ const formatTimeWithPeriod = (time: string) => {
                 d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
               />
             </svg>
-            Tiện ích
+            Amenities
           </h2>
-          <span class="section-subtitle">Chọn các tiện ích có sẵn tại sân</span>
+          <span class="section-subtitle">Select available amenities for this court</span>
         </div>
 
         <div class="facilities-grid">
@@ -1016,13 +1016,13 @@ const formatTimeWithPeriod = (time: string) => {
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            Hình ảnh
+            Images
           </h2>
           <span class="section-subtitle">
             {{
               isEditMode
-                ? `Yêu cầu tối thiểu 5 ảnh (Hiện có: ${imagePreviews.length + images.length}/10)`
-                : 'Yêu cầu 5 ảnh chụp của sân muốn đăng tải'
+                ? `Minimum 5 images required (Current: ${imagePreviews.length + images.length}/10)`
+                : '5 court photos are required for submission'
             }}
           </span>
         </div>
@@ -1030,7 +1030,7 @@ const formatTimeWithPeriod = (time: string) => {
         <div class="images-section">
           <!-- Existing images (for edit mode) -->
           <div v-if="isEditMode && imagePreviews.length > 0" class="existing-images-section">
-            <h3 class="subsection-title">Hình ảnh hiện tại</h3>
+            <h3 class="subsection-title">Current images</h3>
             <div class="images-preview">
               <div
                 v-for="(preview, index) in imagePreviews"
@@ -1042,7 +1042,7 @@ const formatTimeWithPeriod = (time: string) => {
                   type="button"
                   class="remove-btn"
                   @click="removeExistingImage(index)"
-                  title="Xóa ảnh này"
+                  title="Delete this image"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -1058,14 +1058,14 @@ const formatTimeWithPeriod = (time: string) => {
                     />
                   </svg>
                 </button>
-                <span v-if="index === 0" class="primary-badge">Ảnh chính</span>
+                <span v-if="index === 0" class="primary-badge">Primary image</span>
               </div>
             </div>
           </div>
 
           <!-- New images -->
           <div v-if="images.length > 0" class="new-images-section">
-            <h3 v-if="isEditMode" class="subsection-title">Hình ảnh mới thêm</h3>
+            <h3 v-if="isEditMode" class="subsection-title">Newly added images</h3>
             <div class="images-preview">
               <div v-for="(image, index) in images" :key="'new-' + index" class="preview-item">
                 <img :src="getImagePreview(image)" :alt="'New image ' + (index + 1)" />
@@ -1073,7 +1073,7 @@ const formatTimeWithPeriod = (time: string) => {
                   type="button"
                   class="remove-btn"
                   @click="removeNewImage(index)"
-                  title="Xóa ảnh này"
+                  title="Delete this image"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -1089,7 +1089,7 @@ const formatTimeWithPeriod = (time: string) => {
                     />
                   </svg>
                 </button>
-                <span class="new-badge">Mới</span>
+                <span class="new-badge">New</span>
               </div>
             </div>
           </div>
@@ -1118,7 +1118,7 @@ const formatTimeWithPeriod = (time: string) => {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              <span>{{ isEditMode ? 'Thêm hình ảnh mới' : 'Thêm hình ảnh' }}</span>
+              <span>{{ isEditMode ? 'Add new images' : 'Add images' }}</span>
             </label>
           </div>
         </div>
@@ -1148,13 +1148,13 @@ const formatTimeWithPeriod = (time: string) => {
                 d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
               />
             </svg>
-            Thông tin liên hệ
+            Contact Information
           </h2>
         </div>
 
         <div class="form-grid">
           <div class="form-group">
-            <label class="form-label required">Số điện thoại</label>
+            <label class="form-label required">Phone Number</label>
             <input
               v-model="courtForm.contact_phone"
               type="tel"
@@ -1200,16 +1200,16 @@ const formatTimeWithPeriod = (time: string) => {
                 d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
               />
             </svg>
-            Tài khoản ngân hàng
+            Bank Account
           </h2>
           <p class="section-description">
-            Thông tin tài khoản để nhận thanh toán từ khách hàng đặt sân
+            Account information for receiving customer payments
           </p>
         </div>
 
         <div class="form-grid">
           <div class="form-group full-width">
-            <label class="form-label required">Ngân hàng</label>
+            <label class="form-label required">Bank</label>
             <select
               v-model="bankForm.bank_code"
               class="form-input"
@@ -1224,7 +1224,7 @@ const formatTimeWithPeriod = (time: string) => {
                 }
               "
             >
-              <option value="">-- Chọn ngân hàng --</option>
+              <option value="">-- Select bank --</option>
               <option v-for="bank in vietnameseBanks" :key="bank.code" :value="bank.code">
                 {{ bank.name }}
               </option>
@@ -1232,7 +1232,7 @@ const formatTimeWithPeriod = (time: string) => {
           </div>
 
           <div class="form-group">
-            <label class="form-label required">Số tài khoản</label>
+            <label class="form-label required">Account Number</label>
             <input
               v-model="bankForm.bank_account_number"
               type="text"
@@ -1243,7 +1243,7 @@ const formatTimeWithPeriod = (time: string) => {
           </div>
 
           <div class="form-group">
-            <label class="form-label required">Tên chủ tài khoản</label>
+            <label class="form-label required">Account Holder Name</label>
             <input
               v-model="bankForm.bank_account_name"
               type="text"
@@ -1252,7 +1252,7 @@ const formatTimeWithPeriod = (time: string) => {
               @input="handleBankAccountNameInput"
             />
             <small style="color: #6b7280; font-size: 12px; margin-top: 4px; display: block">
-              Tên chủ tài khoản phải giống với tên trên tài khoản ngân hàng (tự động viết hoa)
+              Account holder name must match the bank account name (auto-uppercase)
             </small>
           </div>
 
@@ -1272,9 +1272,8 @@ const formatTimeWithPeriod = (time: string) => {
               />
             </svg>
             <div>
-              <strong>Lưu ý:</strong> Thông tin tài khoản ngân hàng dùng để nhận thanh toán từ khách
-              hàng. Vui lòng đảm bảo thông tin chính xác để tránh trục trặc trong quá trình giao
-              dịch.
+              <strong>Note:</strong> Bank account details are used to receive customer payments.
+              Please ensure all information is accurate to avoid transaction issues.
             </div>
           </div>
         </div>
@@ -1322,11 +1321,11 @@ const formatTimeWithPeriod = (time: string) => {
           {{
             isSaving
               ? isEditMode
-                ? 'Đang cập nhật...'
-                : 'Đang gửi yêu cầu...'
+                ? 'Updating...'
+                : 'Submitting request...'
               : isEditMode
-                ? 'Cập nhật thông tin sân'
-                : 'Gửi yêu cầu đăng sân'
+                ? 'Update Court Information'
+                : 'Submit Court Request'
           }}
         </button>
       </div>

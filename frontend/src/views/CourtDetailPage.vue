@@ -310,7 +310,7 @@ onMounted(() => {
                     d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
-                <span>{{ court.address }}, Quận {{ court.district }}, {{ court.city }}</span>
+                <span>{{ court.address }}, District {{ court.district }}, {{ court.city }}</span>
               </div>
               <div class="contact-item" v-if="court.contact_email">
                 <svg
@@ -455,7 +455,7 @@ onMounted(() => {
                     </div>
                     <div class="pricing-amount">
                       <span class="price-value">{{ formatPrice(slot.price) }}</span>
-                      <span class="price-unit">VNĐ/hour</span>
+                      <span class="price-unit">VND/hour</span>
                     </div>
                   </div>
                 </div>
@@ -629,7 +629,7 @@ onMounted(() => {
 
               <div class="pricing">
                 <div class="price-main">
-                  <span class="price">{{ formatPrice(displayPrice) }}đ/h</span>
+                  <span class="price">{{ formatPrice(displayPrice) }} VND/h</span>
                   <span class="guests">{{ priceLabel }}</span>
                 </div>
                 <div v-if="currentTimeSlot" class="price-range current-slot">

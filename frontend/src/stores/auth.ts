@@ -83,11 +83,11 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: true, data: response.data }
       }
 
-      return { success: false, error: 'Đăng ký thất bại' }
+      return { success: false, error: 'Registration failed' }
     } catch (err: unknown) {
       console.error('❌ Signup error:', err)
 
-      let errorMessage = 'Đăng ký thất bại. Vui lòng thử lại.'
+      let errorMessage = 'Registration failed. Please try again.'
 
       if (err && typeof err === 'object' && 'response' in err) {
         const error = err as {
@@ -104,9 +104,9 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('   Error detail:', detail)
 
         if (status === 400 && detail?.includes('đã')) {
-          errorMessage = 'Email đã được đăng ký. Vui lòng sử dụng email khác.'
+          errorMessage = 'This email is already registered. Please use another email.'
         } else if (status === 422) {
-          errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.'
+          errorMessage = 'Invalid data. Please check again.'
         } else if (detail) {
           errorMessage = detail
         }
@@ -146,11 +146,11 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: true }
       }
 
-      return { success: false, error: 'Đăng nhập thất bại' }
+      return { success: false, error: 'Login failed' }
     } catch (err: unknown) {
       console.error('❌ Login error:', err)
 
-      let errorMessage = 'Đăng nhập thất bại'
+      let errorMessage = 'Login failed'
 
       if (err && typeof err === 'object' && 'response' in err) {
         const error = err as {
@@ -216,11 +216,11 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: true, data: response.data }
       }
 
-      return { success: false, error: 'Cập nhật thất bại' }
+      return { success: false, error: 'Update failed' }
     } catch (err: unknown) {
       console.error('❌ Update profile error:', err)
 
-      let errorMessage = 'Cập nhật thất bại. Vui lòng thử lại.'
+      let errorMessage = 'Update failed. Please try again.'
 
       if (err && typeof err === 'object' && 'response' in err) {
         const error = err as {
@@ -238,10 +238,10 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('   Full error response:', error.response?.data)
 
         if (status === 404) {
-          errorMessage = 'Không tìm thấy người dùng.'
+          errorMessage = 'User not found.'
         } else if (status === 400) {
           if (typeof detail === 'string' && detail.includes('Email')) {
-            errorMessage = 'Email đã được sử dụng.'
+            errorMessage = 'Email is already in use.'
           } else if (typeof detail === 'string') {
             errorMessage = detail
           } else if (Array.isArray(detail)) {

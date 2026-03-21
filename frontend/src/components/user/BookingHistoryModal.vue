@@ -24,33 +24,33 @@ const bookings = ref<Booking[]>([
   // Mock data - sẽ được thay thế bằng API call
   {
     id: 1,
-    court_name: 'Sân Pickleball VIP A1',
+    court_name: 'Pickleball Court VIP A1',
     date: '2025-11-28',
     time: '18:00',
-    duration: '2 giờ',
+    duration: '2 hours',
     status: 'confirmed',
     total_price: 300000,
-    location: 'Quận 1, TP.HCM',
+    location: 'District 1, Ho Chi Minh City',
   },
   {
     id: 2,
-    court_name: 'Sân Pickleball Premium B2',
+    court_name: 'Pickleball Court Premium B2',
     date: '2025-11-25',
     time: '15:00',
-    duration: '1 giờ',
+    duration: '1 hour',
     status: 'completed',
     total_price: 150000,
-    location: 'Quận 3, TP.HCM',
+    location: 'District 3, Ho Chi Minh City',
   },
   {
     id: 3,
-    court_name: 'Sân Pickleball Standard C3',
+    court_name: 'Pickleball Court Standard C3',
     date: '2025-11-20',
     time: '09:00',
-    duration: '1.5 giờ',
+    duration: '1.5 hours',
     status: 'cancelled',
     total_price: 200000,
-    location: 'Quận 7, TP.HCM',
+    location: 'District 7, Ho Chi Minh City',
   },
 ])
 
@@ -97,10 +97,10 @@ const formatPrice = (price: number) => {
 
 const getStatusInfo = (status: string) => {
   const statusMap = {
-    confirmed: { label: 'Đã xác nhận', color: '#3b82f6', bg: '#dbeafe' },
-    pending: { label: 'Chờ xác nhận', color: '#f59e0b', bg: '#fef3c7' },
-    cancelled: { label: 'Đã hủy', color: '#ef4444', bg: '#fee2e2' },
-    completed: { label: 'Hoàn thành', color: '#10b981', bg: '#d1fae5' },
+    confirmed: { label: 'Confirmed', color: '#3b82f6', bg: '#dbeafe' },
+    pending: { label: 'Pending confirmation', color: '#f59e0b', bg: '#fef3c7' },
+    cancelled: { label: 'Cancelled', color: '#ef4444', bg: '#fee2e2' },
+    completed: { label: 'Completed', color: '#10b981', bg: '#d1fae5' },
   }
   return statusMap[status as keyof typeof statusMap] || statusMap.pending
 }
@@ -111,7 +111,7 @@ const viewDetails = (booking: Booking) => {
 }
 
 const cancelBooking = (booking: Booking) => {
-  if (confirm('Bạn có chắc chắn muốn hủy lịch đặt sân này?')) {
+  if (confirm('Are you sure you want to cancel this booking?')) {
     console.log('Cancel booking:', booking)
     // TODO: Call API to cancel booking
   }
@@ -141,7 +141,7 @@ const cancelBooking = (booking: Booking) => {
                   />
                 </svg>
               </div>
-              <h2 class="modal-title">Lịch sử đặt sân</h2>
+              <h2 class="modal-title">Booking History</h2>
             </div>
             <button class="close-btn" @click="closeModal">
               <svg
@@ -167,7 +167,7 @@ const cancelBooking = (booking: Booking) => {
               :class="{ active: activeTab === 'all' }"
               @click="setActiveTab('all')"
             >
-              <span>Tất cả</span>
+              <span>All</span>
               <span class="tab-count">{{ bookings.length }}</span>
             </button>
             <button
@@ -175,7 +175,7 @@ const cancelBooking = (booking: Booking) => {
               :class="{ active: activeTab === 'confirmed' }"
               @click="setActiveTab('confirmed')"
             >
-              <span>Đã xác nhận</span>
+              <span>Confirmed</span>
               <span class="tab-count">{{
                 bookings.filter((b) => b.status === 'confirmed').length
               }}</span>
@@ -185,7 +185,7 @@ const cancelBooking = (booking: Booking) => {
               :class="{ active: activeTab === 'completed' }"
               @click="setActiveTab('completed')"
             >
-              <span>Hoàn thành</span>
+              <span>Completed</span>
               <span class="tab-count">{{
                 bookings.filter((b) => b.status === 'completed').length
               }}</span>
@@ -195,7 +195,7 @@ const cancelBooking = (booking: Booking) => {
               :class="{ active: activeTab === 'cancelled' }"
               @click="setActiveTab('cancelled')"
             >
-              <span>Đã hủy</span>
+              <span>Cancelled</span>
               <span class="tab-count">{{
                 bookings.filter((b) => b.status === 'cancelled').length
               }}</span>
@@ -206,8 +206,8 @@ const cancelBooking = (booking: Booking) => {
           <div class="modal-body">
             <div v-if="filteredBookings.length === 0" class="empty-state">
               <div class="empty-icon">📋</div>
-              <h3 class="empty-title">Chưa có lịch đặt sân</h3>
-              <p class="empty-description">Bạn chưa có lịch đặt sân nào trong danh mục này</p>
+              <h3 class="empty-title">No bookings yet</h3>
+              <p class="empty-description">You do not have any bookings in this category</p>
             </div>
 
             <div v-else class="bookings-list">
@@ -303,7 +303,7 @@ const cancelBooking = (booking: Booking) => {
                         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                       />
                     </svg>
-                    Chi tiết
+                    Details
                   </button>
                   <button
                     v-if="booking.status === 'confirmed'"
@@ -323,7 +323,7 @@ const cancelBooking = (booking: Booking) => {
                         d="M6 18L18 6M6 6l12 12"
                       />
                     </svg>
-                    Hủy đặt
+                    Cancel booking
                   </button>
                 </div>
               </div>

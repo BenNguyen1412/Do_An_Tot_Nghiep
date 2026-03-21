@@ -110,10 +110,10 @@ const formatTime = (dateString: string) => {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (minutes < 1) return 'Vừa xong'
-  if (minutes < 60) return `${minutes} phút trước`
-  if (hours < 24) return `${hours} giờ trước`
-  return `${days} ngày trước`
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes} minutes ago`
+  if (hours < 24) return `${hours} hours ago`
+  return `${days} days ago`
 }
 
 // Close dropdown when clicking outside
@@ -161,9 +161,9 @@ onUnmounted(() => {
     <transition name="dropdown">
       <div v-if="showDropdown" class="notification-dropdown">
         <div class="dropdown-header">
-          <h3>Thông báo</h3>
+          <h3>Notifications</h3>
           <button v-if="unreadCount > 0" @click="markAllAsRead" class="mark-all-btn">
-            Đánh dấu đã đọc
+            Mark all as read
           </button>
         </div>
 
@@ -199,7 +199,7 @@ onUnmounted(() => {
                 d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
               />
             </svg>
-            <p>Không có thông báo nào</p>
+            <p>No notifications</p>
           </div>
         </div>
       </div>

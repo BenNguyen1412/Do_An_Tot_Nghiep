@@ -296,12 +296,12 @@ const isSlotFullyBooked = (slot: string): boolean => {
 const toggleTimeSlot = (slot: string) => {
   // Check if slot is in the past
   if (isSlotInPast(slot)) {
-    toast.error('Không thể đặt sân cho khung giờ đã qua')
+    toast.error('Cannot book a past time slot')
     return
   }
 
   if (isSlotFullyBooked(slot)) {
-    toast.error('Khung giờ này đã kín ở tất cả sân. Vui lòng chọn giờ khác.')
+    toast.error('This time slot is fully booked across all courts. Please choose another.')
     return
   }
 
@@ -333,13 +333,13 @@ const toggleTimeSlot = (slot: string) => {
       const hasFullyBookedSlot = rangeSlots.some((s) => isSlotFullyBooked(s))
 
       if (hasPastSlot) {
-        toast.error('Không thể đặt sân cho khung giờ bao gồm thời gian đã qua')
+        toast.error('Cannot book a range that includes past time')
         selectedTimeSlots.value = []
         return
       }
 
       if (hasFullyBookedSlot) {
-        toast.error('Khung giờ bạn chọn đã kín ở tất cả sân. Vui lòng chọn lại.')
+        toast.error('Your selected range is fully booked across all courts. Please choose again.')
         selectedTimeSlots.value = []
         return
       }
@@ -443,7 +443,7 @@ const fetchCourtDetails = async () => {
     }
   } catch (error) {
     console.error('Error fetching court details:', error)
-    toast.error('Không thể tải thông tin sân. Vui lòng thử lại.')
+    toast.error('Unable to load court information. Please try again.')
   } finally {
     isLoading.value = false
   }
@@ -473,12 +473,12 @@ const goBack = () => {
 const goNext = async () => {
   if (currentStep.value === 1) {
     if (selectedTimeSlots.value.length === 0) {
-      toast.error('Vui lòng chọn khung giờ bắt đầu và kết thúc')
+      toast.error('Please select start and end time slots')
       return
     }
     // Check minimum 1 hour (2 slots of 30 minutes: start and end)
     if (selectedTimeSlots.value.length < 3) {
-      toast.error('Thời gian đặt sân tối thiểu là 1 giờ')
+      toast.error('Minimum booking duration is 1 hour')
       return
     }
     // Pre-fill user info from auth store if available
@@ -491,23 +491,23 @@ const goNext = async () => {
   } else if (currentStep.value === 2) {
     // Validate user information
     if (!userInfo.value.name.trim()) {
-      toast.error('Vui lòng nhập họ tên')
+      toast.error('Please enter your full name')
       return
     }
     if (!userInfo.value.email.trim()) {
-      toast.error('Vui lòng nhập email')
+      toast.error('Please enter your email')
       return
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userInfo.value.email)) {
-      toast.error('Email không hợp lệ')
+      toast.error('Invalid email address')
       return
     }
     if (!userInfo.value.phone.trim()) {
-      toast.error('Vui lòng nhập số điện thoại')
+      toast.error('Please enter your phone number')
       return
     }
     if (!/^[0-9]{10,11}$/.test(userInfo.value.phone.replace(/\s/g, ''))) {
-      toast.error('Số điện thoại không hợp lệ (10-11 chữ số)')
+      toast.error('Invalid phone number (10-11 digits)')
       return
     }
     // Move to payment step with payment preview only (no booking created yet)
@@ -536,7 +536,7 @@ const preparePaymentPreview = async () => {
     console.error('Error preparing payment preview:', error)
     const errorMsg =
       (error as ApiError).response?.data?.detail ||
-      'Không thể tạo thông tin thanh toán. Vui lòng thử lại.'
+      'Unable to create payment information. Please try again.'
     toast.error(errorMsg)
   } finally {
     isCreatingBooking.value = false
@@ -556,7 +556,7 @@ const createBooking = async () => {
     )
 
     if (!individualCourt) {
-      toast.error('Không có sân nào khả dụng. Vui lòng thử lại sau.')
+      toast.error('No courts are available. Please try again later.')
       return
     }
 
@@ -582,7 +582,7 @@ const createBooking = async () => {
   } catch (error: unknown) {
     console.error('Error creating booking:', error)
     const errorMsg =
-      (error as ApiError).response?.data?.detail || 'Không thể tạo booking. Vui lòng thử lại.'
+      (error as ApiError).response?.data?.detail || 'Unable to create booking. Please try again.'
     toast.error(errorMsg)
     return false
   } finally {
@@ -611,9 +611,9 @@ const verifyPayment = async () => {
 const copyToClipboard = async (text: string, label: string) => {
   try {
     await navigator.clipboard.writeText(text)
-    toast.success(`Đã copy ${label}!`)
+    toast.success(`Copied ${label}!`)
   } catch {
-    toast.error('Không thể copy. Vui lòng copy thủ công.')
+    toast.error('Unable to copy. Please copy manually.')
   }
 }
 
@@ -1012,7 +1012,7 @@ onMounted(() => {
                     >{{
                       new Intl.NumberFormat('vi-VN').format(bookingDetails.totalPrice)
                     }}
-                    VNĐ</span
+                    VND</span
                   >
                 </div>
               </div>
@@ -1055,13 +1055,13 @@ onMounted(() => {
               </div>
               <div class="status-content">
                 <h3 class="status-title">
-                  {{ paymentVerified ? 'Đã Ghi Nhận Thanh Toán!' : 'Chờ Thanh Toán' }}
+                  {{ paymentVerified ? 'Payment Confirmed!' : 'Pending Payment' }}
                 </h3>
                 <p class="status-subtitle">
                   {{
                     paymentVerified
-                      ? 'Chủ sân sẽ kiểm tra và xác nhận đơn đặt sân của bạn'
-                      : 'Vui lòng quét mã QR và hoàn tất thanh toán'
+                      ? 'The court owner will verify and confirm your booking'
+                      : 'Please scan the QR code and complete payment'
                   }}
                 </p>
               </div>
@@ -1189,7 +1189,7 @@ onMounted(() => {
                     <label>Amount</label>
                     <div class="info-value-copy">
                       <span class="amount-value"
-                        >{{ new Intl.NumberFormat('vi-VN').format(paymentInfo.amount) }} VNĐ</span
+                        >{{ new Intl.NumberFormat('vi-VN').format(paymentInfo.amount) }} VND</span
                       >
                       <button
                         class="copy-btn"
@@ -1298,24 +1298,24 @@ onMounted(() => {
                   />
                 </svg>
               </div>
-              <h2>🎉 Đặt Sân Thành Công!</h2>
-              <p class="success-main-text">✅ Đã ghi nhận thông tin thanh toán của bạn!</p>
+              <h2>🎉 Booking Successful!</h2>
+              <p class="success-main-text">✅ Your payment information has been recorded!</p>
               <div class="success-info-box">
                 <div class="info-icon">📧</div>
                 <p class="success-description">
-                  Hãy kiểm tra <strong>email</strong> để nhận được thông báo xác nhận từ chủ sân sau
-                  khi chủ sân kiểm tra thanh toán.
+                  Please check your <strong>email</strong> to receive the confirmation after the
+                  owner verifies your payment.
                 </p>
               </div>
               <div class="success-info-box secondary">
                 <div class="info-icon">⏳</div>
                 <p class="success-description">
-                  Đơn đặt sân của bạn đang ở trạng thái <strong>"Chờ xác nhận"</strong>. Chủ sân sẽ
-                  xác nhận trong thời gian sớm nhất.
+                  Your booking is currently <strong>"Pending confirmation"</strong>. The owner
+                  will confirm it as soon as possible.
                 </p>
               </div>
               <div class="booking-id-display" v-if="bookingId">
-                <span class="label">Mã đặt sân:</span>
+                <span class="label">Booking ID:</span>
                 <span class="value">#{{ bookingId }}</span>
               </div>
             </div>

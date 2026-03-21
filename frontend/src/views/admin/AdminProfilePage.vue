@@ -317,7 +317,7 @@ const closeEditModal = () => {
 
 const saveChanges = async () => {
   if (!authStore.user?.id) {
-    updateError.value = 'User ID không tồn tại'
+    updateError.value = 'User ID does not exist'
     return
   }
 
@@ -339,11 +339,11 @@ const saveChanges = async () => {
       closeEditModal()
       console.log('✅ Profile updated successfully')
     } else {
-      updateError.value = result.error || 'Cập nhật thất bại'
+      updateError.value = result.error || 'Update failed'
     }
   } catch (error) {
     console.error('❌ Update error:', error)
-    updateError.value = 'Đã xảy ra lỗi. Vui lòng thử lại.'
+    updateError.value = 'An error occurred. Please try again.'
   } finally {
     isUpdating.value = false
   }

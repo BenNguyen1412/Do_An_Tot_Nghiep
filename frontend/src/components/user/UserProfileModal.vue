@@ -38,12 +38,12 @@ const cancelEdit = () => {
 const saveChanges = async () => {
   // Validation
   if (!editForm.value.full_name.trim()) {
-    toast.error('Họ và tên không được để trống')
+    toast.error('Full name cannot be empty')
     return
   }
 
   if (editForm.value.phone_number && !/^[0-9]{10}$/.test(editForm.value.phone_number.trim())) {
-    toast.error('Số điện thoại phải gồm 10 chữ số')
+    toast.error('Phone number must be 10 digits')
     return
   }
 
@@ -64,14 +64,14 @@ const saveChanges = async () => {
       localStorage.setItem('user', JSON.stringify(authStore.user))
     }
 
-    toast.success('✅ Cập nhật thông tin thành công!')
+    toast.success('✅ Profile updated successfully!')
     isEditing.value = false
     emit('update')
   } catch (error: unknown) {
     console.error('Error updating profile:', error)
     const errorMessage =
       (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-      'Cập nhật thông tin thất bại'
+      'Failed to update profile'
     toast.error(errorMessage)
   } finally {
     isSaving.value = false
@@ -85,10 +85,10 @@ const closeModal = () => {
 
 const getRoleName = (role: string | undefined) => {
   const roleMap: Record<string, string> = {
-    user: 'Người dùng',
-    enterprise: 'Doanh nghiệp',
-    owner: 'Chủ sân',
-    admin: 'Quản trị viên',
+    user: 'User',
+    enterprise: 'Enterprise',
+    owner: 'Court owner',
+    admin: 'Administrator',
   }
   return roleMap[role || 'user'] || role
 }
@@ -117,7 +117,7 @@ const getRoleName = (role: string | undefined) => {
                   />
                 </svg>
               </div>
-              <h2 class="modal-title">Thông tin cá nhân</h2>
+              <h2 class="modal-title">Profile Information</h2>
             </div>
             <button class="close-btn" @click="closeModal">
               <svg
@@ -177,7 +177,7 @@ const getRoleName = (role: string | undefined) => {
                         d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                       />
                     </svg>
-                    Họ và tên
+                    Full name
                   </label>
                   <input
                     v-if="isEditing"
@@ -207,7 +207,7 @@ const getRoleName = (role: string | undefined) => {
                     Email
                   </label>
                   <div class="info-value">{{ authStore.user?.email || 'N/A' }}</div>
-                  <span class="info-note">Email không thể thay đổi</span>
+                  <span class="info-note">Email cannot be changed</span>
                 </div>
 
                 <!-- Phone -->
@@ -226,17 +226,17 @@ const getRoleName = (role: string | undefined) => {
                         d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                       />
                     </svg>
-                    Số điện thoại
+                    Phone number
                   </label>
                   <input
                     v-if="isEditing"
                     v-model="editForm.phone_number"
                     type="tel"
                     class="info-input"
-                    placeholder="Nhập số điện thoại"
+                    placeholder="Enter phone number"
                   />
                   <div v-else class="info-value">
-                    {{ authStore.user?.phone_number || 'Chưa cập nhật' }}
+                    {{ authStore.user?.phone_number || 'Not updated' }}
                   </div>
                 </div>
 
@@ -256,10 +256,10 @@ const getRoleName = (role: string | undefined) => {
                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    Trạng thái tài khoản
+                    Account status
                   </label>
                   <div class="info-value">
-                    {{ authStore.user?.is_active ? 'Đang hoạt động' : 'Không hoạt động' }}
+                    {{ authStore.user?.is_active ? 'Active' : 'Inactive' }}
                   </div>
                 </div>
               </div>
@@ -271,14 +271,14 @@ const getRoleName = (role: string | undefined) => {
                 <div class="stat-icon">🏟️</div>
                 <div class="stat-content">
                   <div class="stat-number">0</div>
-                  <div class="stat-label">Lượt đặt sân</div>
+                  <div class="stat-label">Bookings</div>
                 </div>
               </div>
               <div class="stat-card">
                 <div class="stat-icon">⭐</div>
                 <div class="stat-content">
                   <div class="stat-number">0</div>
-                  <div class="stat-label">Điểm tích lũy</div>
+                  <div class="stat-label">Reward points</div>
                 </div>
               </div>
             </div>
@@ -300,10 +300,10 @@ const getRoleName = (role: string | undefined) => {
                   d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                 />
               </svg>
-              Chỉnh sửa
+              Edit
             </button>
             <template v-else>
-              <button class="btn-cancel" @click="cancelEdit" :disabled="isSaving">Hủy</button>
+              <button class="btn-cancel" @click="cancelEdit" :disabled="isSaving">Cancel</button>
               <button class="btn-save" @click="saveChanges" :disabled="isSaving">
                 <svg
                   v-if="!isSaving"
@@ -340,7 +340,7 @@ const getRoleName = (role: string | undefined) => {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                {{ isSaving ? 'Đang lưu...' : 'Lưu thay đổi' }}
+                {{ isSaving ? 'Saving...' : 'Save changes' }}
               </button>
             </template>
           </div>

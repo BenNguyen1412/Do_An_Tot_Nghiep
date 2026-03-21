@@ -151,20 +151,20 @@
         <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
           <div class="modal-content">
             <div class="modal-header">
-              <h2>⚠️ Xác nhận xóa</h2>
+              <h2>⚠️ Confirm Deletion</h2>
               <button class="close-btn" @click="closeDeleteModal">✕</button>
             </div>
             <div class="modal-body">
               <p>
-                Bạn có chắc chắn muốn xóa người dùng
-                <strong>{{ userToDelete?.full_name }}</strong> không?
+                Are you sure you want to delete user
+                <strong>{{ userToDelete?.full_name }}</strong>?
               </p>
-              <p class="warning-text">Hành động này không thể hoàn tác.</p>
+              <p class="warning-text">This action cannot be undone.</p>
             </div>
             <div class="modal-footer">
-              <button class="cancel-btn" @click="closeDeleteModal">Hủy</button>
+              <button class="cancel-btn" @click="closeDeleteModal">Cancel</button>
               <button class="confirm-delete-btn" @click="deleteUser" :disabled="isDeleting">
-                {{ isDeleting ? 'Đang xóa...' : 'Xóa' }}
+                {{ isDeleting ? 'Deleting...' : 'Delete' }}
               </button>
             </div>
           </div>

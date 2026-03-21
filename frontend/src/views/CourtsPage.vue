@@ -309,7 +309,7 @@ onMounted(() => {
                     d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
-                Quận {{ court.district }}, {{ court.city }}
+                District {{ court.district }}, {{ court.city }}
               </p>
 
               <div class="court-details">

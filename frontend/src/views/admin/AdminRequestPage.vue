@@ -60,12 +60,12 @@
           <tbody>
             <tr v-if="isLoading">
               <td colspan="6" style="text-align: center; padding: 40px">
-                <div style="color: #6b7280">Đang tải...</div>
+                <div style="color: #6b7280">Loading...</div>
               </td>
             </tr>
             <tr v-else-if="requests.length === 0">
               <td colspan="6" style="text-align: center; padding: 40px">
-                <div style="color: #6b7280">Không có yêu cầu nào</div>
+                <div style="color: #6b7280">No requests found</div>
               </td>
             </tr>
             <tr v-else v-for="request in paginatedRequests" :key="request.id" class="table-row">
@@ -92,9 +92,9 @@
                 <button
                   class="detail-btn"
                   @click="viewRequestDetails(request)"
-                  title="Xem chi tiết"
+                  title="View details"
                 >
-                  Chi tiết
+                  Details
                 </button>
               </td>
               <td>
@@ -165,61 +165,61 @@
       <div v-if="showModal" class="modal-overlay" @click="closeModal">
         <div class="modal-container" @click.stop>
           <div class="modal-header">
-            <h2>Chi tiết yêu cầu đăng sân</h2>
+            <h2>Court Submission Request Details</h2>
             <button class="modal-close-btn" @click="closeModal">✕</button>
           </div>
 
           <div v-if="selectedRequest" class="modal-body">
             <!-- Basic Info -->
             <div class="info-section">
-              <h3 class="section-title">Thông tin cơ bản</h3>
+              <h3 class="section-title">Basic Information</h3>
               <div class="info-grid">
                 <div class="info-item">
-                  <label>Tên sân</label>
+                  <label>Court Name</label>
                   <p>{{ selectedRequest.name }}</p>
                 </div>
                 <div class="info-item">
-                  <label>Số lượng sân</label>
+                  <label>Number of Courts</label>
                   <p>{{ selectedRequest.court_quantity }}</p>
                 </div>
                 <div class="info-item">
-                  <label>Địa chỉ</label>
+                  <label>Address</label>
                   <p>{{ selectedRequest.address }}</p>
                 </div>
                 <div class="info-item">
-                  <label>Quận/Huyện</label>
+                  <label>District</label>
                   <p>{{ selectedRequest.district }}</p>
                 </div>
                 <div class="info-item">
-                  <label>Thành phố</label>
+                  <label>City</label>
                   <p>{{ selectedRequest.city }}</p>
                 </div>
                 <div class="info-item">
-                  <label>Giờ mở cửa</label>
+                  <label>Opening Hours</label>
                   <p>{{ selectedRequest.opening_time }} - {{ selectedRequest.closing_time }}</p>
                 </div>
               </div>
 
               <div class="info-item full-width">
-                <label>Mô tả</label>
-                <p>{{ selectedRequest.description || 'Không có mô tả' }}</p>
+                <label>Description</label>
+                <p>{{ selectedRequest.description || 'No description' }}</p>
               </div>
             </div>
 
             <!-- Contact Info -->
             <div class="info-section">
-              <h3 class="section-title">Thông tin liên hệ</h3>
+              <h3 class="section-title">Contact Information</h3>
               <div class="info-grid">
                 <div class="info-item">
-                  <label>Số điện thoại</label>
+                  <label>Phone Number</label>
                   <p>{{ selectedRequest.contact_phone }}</p>
                 </div>
                 <div class="info-item">
                   <label>Email</label>
-                  <p>{{ selectedRequest.contact_email || 'Không có' }}</p>
+                  <p>{{ selectedRequest.contact_email || 'N/A' }}</p>
                 </div>
                 <div class="info-item">
-                  <label>Chủ sân</label>
+                  <label>Court Owner</label>
                   <p>{{ selectedRequest.owner?.full_name || 'N/A' }}</p>
                 </div>
               </div>
@@ -227,7 +227,7 @@
 
             <!-- Facilities -->
             <div class="info-section" v-if="parsedFacilities && parsedFacilities.length > 0">
-              <h3 class="section-title">Tiện ích</h3>
+              <h3 class="section-title">Amenities</h3>
               <div class="facilities-list">
                 <span v-for="facility in parsedFacilities" :key="facility" class="facility-badge">
                   {{ getFacilityLabel(facility) }}
@@ -237,7 +237,7 @@
 
             <!-- Time Slots -->
             <div class="info-section" v-if="parsedTimeSlots && parsedTimeSlots.length > 0">
-              <h3 class="section-title">Khung giờ & Giá</h3>
+              <h3 class="section-title">Time Slots & Pricing</h3>
               <div class="time-slots-list">
                 <div v-for="(slot, index) in parsedTimeSlots" :key="index" class="time-slot-item">
                   <span class="time-range">{{ slot.start_time }} - {{ slot.end_time }}</span>
@@ -248,7 +248,7 @@
 
             <!-- Images -->
             <div class="info-section" v-if="parsedImages && parsedImages.length > 0">
-              <h3 class="section-title">Hình ảnh</h3>
+              <h3 class="section-title">Images</h3>
               <div class="images-grid">
                 <img
                   v-for="(image, index) in parsedImages"
@@ -262,16 +262,16 @@
 
             <!-- Status -->
             <div class="info-section">
-              <h3 class="section-title">Trạng thái</h3>
+              <h3 class="section-title">Status</h3>
               <div class="info-grid">
                 <div class="info-item">
-                  <label>Trạng thái</label>
+                  <label>Status</label>
                   <span :class="['status-badge', selectedRequest.status.toLowerCase()]">
                     {{ selectedRequest.status }}
                   </span>
                 </div>
                 <div class="info-item" v-if="selectedRequest.rejection_reason">
-                  <label>Lý do từ chối</label>
+                  <label>Rejection Reason</label>
                   <p>{{ selectedRequest.rejection_reason }}</p>
                 </div>
               </div>
@@ -284,16 +284,16 @@
               class="btn-approve"
               @click="approveRequest(selectedRequest.id)"
             >
-              ✓ Duyệt
+              ✓ Approve
             </button>
             <button
               v-if="selectedRequest?.status === 'pending'"
               class="btn-reject"
               @click="rejectRequest(selectedRequest.id)"
             >
-              ✕ Từ chối
+              ✕ Reject
             </button>
-            <button class="btn-close" @click="closeModal">Đóng</button>
+            <button class="btn-close" @click="closeModal">Close</button>
           </div>
         </div>
       </div>
@@ -304,19 +304,19 @@
       <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
         <div class="modal-content">
           <div class="modal-header">
-            <h2>⚠️ Xác nhận xóa</h2>
+            <h2>⚠️ Confirm Deletion</h2>
             <button class="close-btn" @click="closeDeleteModal">✕</button>
           </div>
           <div class="modal-body">
             <p>
-              Bạn có chắc chắn muốn xóa yêu cầu <strong>{{ requestToDelete?.name }}</strong> không?
+              Are you sure you want to delete request <strong>{{ requestToDelete?.name }}</strong>?
             </p>
-            <p class="warning-text">Hành động này không thể hoàn tác.</p>
+            <p class="warning-text">This action cannot be undone.</p>
           </div>
           <div class="modal-footer">
-            <button class="cancel-btn" @click="closeDeleteModal">Hủy</button>
+            <button class="cancel-btn" @click="closeDeleteModal">Cancel</button>
             <button class="confirm-delete-btn" @click="deleteRequest" :disabled="isDeleting">
-              {{ isDeleting ? 'Đang xóa...' : 'Xóa' }}
+              {{ isDeleting ? 'Deleting...' : 'Delete' }}
             </button>
           </div>
         </div>
@@ -427,7 +427,7 @@ const fetchRequests = async () => {
     requests.value = response.data
   } catch (error) {
     console.error('Error fetching requests:', error)
-    toast.error('Không thể tải danh sách yêu cầu')
+    toast.error('Unable to load request list')
   } finally {
     isLoading.value = false
   }
@@ -461,11 +461,11 @@ const closeModal = () => {
 
 const getFacilityLabel = (facilityId: string) => {
   const facilityMap: Record<string, string> = {
-    parking: '🚗 Bãi đỗ xe',
-    locker: '🔐 Tủ khóa',
-    shower: '🚿 Phòng tắm',
-    water: '💧 Nước uống',
-    toilet: '🚻 Nhà vệ sinh',
+    parking: '🚗 Parking',
+    locker: '🔐 Locker',
+    shower: '🚿 Shower',
+    water: '💧 Drinking Water',
+    toilet: '🚻 Restroom',
   }
   return facilityMap[facilityId] || facilityId
 }
@@ -499,28 +499,28 @@ const approveRequest = async (requestId: number) => {
     await axiosInstance.put(`/court-requests/${requestId}`, {
       status: 'approved',
     })
-    toast.success('Đã phê duyệt yêu cầu')
+    toast.success('Request approved')
     closeModal()
     await fetchRequests()
   } catch (error) {
     console.error('Error approving request:', error)
-    toast.error('Không thể phê duyệt yêu cầu')
+    toast.error('Unable to approve request')
   }
 }
 
 const rejectRequest = async (requestId: number) => {
-  const reason = prompt('Nhập lý do từ chối (không bắt buộc):')
+  const reason = prompt('Enter rejection reason (optional):')
   try {
     await axiosInstance.put(`/court-requests/${requestId}`, {
       status: 'rejected',
       rejection_reason: reason || undefined,
     })
-    toast.success('Đã từ chối yêu cầu')
+    toast.success('Request rejected')
     closeModal()
     await fetchRequests()
   } catch (error) {
     console.error('Error rejecting request:', error)
-    toast.error('Không thể từ chối yêu cầu')
+    toast.error('Unable to reject request')
   }
 }
 
@@ -541,12 +541,12 @@ const deleteRequest = async () => {
 
   try {
     await axiosInstance.delete(`/court-requests/${requestToDelete.value.id}`)
-    toast.success('Đã xóa yêu cầu thành công')
+    toast.success('Request deleted successfully')
     closeDeleteModal()
     await fetchRequests()
   } catch (error) {
     console.error('Error deleting request:', error)
-    toast.error('Không thể xóa yêu cầu')
+    toast.error('Unable to delete request')
   } finally {
     isDeleting.value = false
   }

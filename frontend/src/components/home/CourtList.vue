@@ -207,7 +207,7 @@ onMounted(() => {
             </div>
 
             <p class="court-district">
-              <i class="fas fa-map-marker-alt"></i> Quận {{ court.district }}, {{ court.city }}
+              <i class="fas fa-map-marker-alt"></i> District {{ court.district }}, {{ court.city }}
             </p>
 
             <div class="court-footer">

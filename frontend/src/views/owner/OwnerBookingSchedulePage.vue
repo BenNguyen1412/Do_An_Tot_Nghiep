@@ -1,8 +1,8 @@
 <template>
   <div class="booking-schedule-container">
     <div class="page-header">
-      <h1 class="page-title">Quản Lý Lịch Đặt Sân</h1>
-      <p class="page-subtitle">Xem và quản lý tất cả lịch đặt sân của các sân bạn sở hữu</p>
+      <h1 class="page-title">Booking Schedule Management</h1>
+      <p class="page-subtitle">View and manage all bookings for your owned courts</p>
     </div>
 
     <!-- Statistics Cards -->
@@ -11,7 +11,7 @@
         <div class="stat-icon total">📊</div>
         <div class="stat-content">
           <h3>{{ bookingSummary.total_bookings }}</h3>
-          <p>Tổng lượt đặt</p>
+          <p>Total bookings</p>
           <span class="stat-period">{{ currentMonthYear }}</span>
         </div>
       </div>
@@ -19,54 +19,54 @@
         <div class="stat-icon completed">✅</div>
         <div class="stat-content">
           <h3>{{ bookingSummary.completed_bookings }}</h3>
-          <p>Đã hoàn thành</p>
+          <p>Completed</p>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon cancelled">❌</div>
         <div class="stat-content">
           <h3>{{ bookingSummary.cancelled_bookings }}</h3>
-          <p>Đã hủy</p>
+          <p>Cancelled</p>
         </div>
       </div>
     </div>
 
     <!-- Calendar Navigation -->
     <div class="calendar-navigation">
-      <button @click="previousMonth" class="nav-btn">← Tháng trước</button>
+      <button @click="previousMonth" class="nav-btn">← Previous month</button>
       <h2 class="current-month">{{ currentMonthYear }}</h2>
-      <button @click="nextMonth" class="nav-btn">Tháng sau →</button>
+      <button @click="nextMonth" class="nav-btn">Next month →</button>
     </div>
 
     <!-- Filters -->
     <div class="filters-section">
       <div class="filter-row">
         <div class="filter-group">
-          <label>Sân:</label>
+          <label>Court:</label>
           <select v-model="filters.individualCourtId" @change="loadBookings">
-            <option :value="null">Tất cả các sân</option>
+            <option :value="null">All courts</option>
             <option v-for="court in allIndividualCourts" :key="court.id" :value="court.id">
               {{ court.name }}
             </option>
           </select>
         </div>
         <div class="filter-group">
-          <label>Trạng thái:</label>
+          <label>Status:</label>
           <select v-model="filters.status" @change="loadBookings">
-            <option :value="null">Tất cả</option>
-            <option value="active">Đang hoạt động</option>
-            <option value="completed">Đã hoàn thành</option>
-            <option value="cancelled">Đã hủy</option>
+            <option :value="null">All</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
           </select>
         </div>
-        <button class="btn-reset" @click="resetFilters">🔄 Đặt lại</button>
+        <button class="btn-reset" @click="resetFilters">🔄 Reset</button>
       </div>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
-      <p>Đang tải dữ liệu...</p>
+      <p>Loading data...</p>
     </div>
 
     <!-- Calendar View -->
@@ -101,7 +101,7 @@
 
       <div class="select-date-prompt">
         <div class="prompt-icon">📅</div>
-        <p>Nhấn vào một ngày trên lịch để xem chi tiết lịch đặt sân</p>
+        <p>Click on a date to view booking details</p>
       </div>
     </div>
 
@@ -109,7 +109,7 @@
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal-container">
         <div class="modal-header">
-          <h3 class="modal-title">📅 Lịch đặt sân - {{ formatDateHeader(selectedDate!) }}</h3>
+          <h3 class="modal-title">📅 Booking Schedule - {{ formatDateHeader(selectedDate!) }}</h3>
           <button class="modal-close" @click="closeModal">✕</button>
         </div>
 
@@ -149,7 +149,7 @@
                   </p>
                   <p class="customer-phone">📱 {{ booking.phone_number }}</p>
                   <p class="booking-price" v-if="booking.total_price">
-                    <strong>💰 {{ booking.total_price.toLocaleString('vi-VN') }} VNĐ</strong>
+                    <strong>💰 {{ booking.total_price.toLocaleString('vi-VN') }} VND</strong>
                   </p>
                   <p class="payment-method" v-if="booking.payment_method">
                     💳 {{ booking.payment_method === 'vietqr' ? 'VietQR' : booking.payment_method }}
@@ -157,7 +157,7 @@
                 </div>
 
                 <div class="booking-meta">
-                  <small>Đặt lúc: {{ formatDateTime(booking.created_at) }}</small>
+                  <small>Booked at: {{ formatDateTime(booking.created_at) }}</small>
                 </div>
               </div>
 
@@ -166,32 +166,32 @@
                   v-if="booking.status === 'pending'"
                   @click="confirmBooking(booking.id)"
                   class="btn-confirm"
-                  title="Xác nhận đã nhận thanh toán"
+                  title="Confirm received payment"
                 >
-                  ✓ Xác nhận thanh toán
+                  ✓ Confirm payment
                 </button>
                 <button
                   v-if="booking.status === 'pending'"
                   @click="updateBookingStatus(booking.id, 'cancelled')"
                   class="btn-cancel"
-                  title="Hủy đơn đặt sân"
+                  title="Cancel booking"
                 >
-                  ✗ Hủy
+                  ✗ Cancel
                 </button>
                 <button
                   v-if="booking.status === 'active' && booking.displayStatus === 'active'"
                   @click="updateBookingStatus(booking.id, 'cancelled')"
                   class="btn-cancel"
                 >
-                  ✗ Hủy
+                  ✗ Cancel
                 </button>
                 <button
                   v-if="booking.status === 'cancelled'"
                   @click="deleteBooking(booking.id)"
                   class="btn-delete"
-                  title="Xóa lịch đặt"
+                  title="Delete booking"
                 >
-                  🗑️ Xóa
+                  🗑️ Delete
                 </button>
               </div>
             </div>
@@ -199,7 +199,7 @@
 
           <div v-else class="no-bookings-modal">
             <div class="empty-icon">📭</div>
-            <p>Không có lịch đặt sân nào trong ngày này</p>
+            <p>No bookings on this day</p>
           </div>
         </div>
       </div>
@@ -512,7 +512,7 @@ const loadBookings = async () => {
     console.log('Bookings data:', response.data)
   } catch (error) {
     console.error('Error loading bookings:', error)
-    toast.error('Không thể tải danh sách đặt sân')
+    toast.error('Unable to load booking list')
   } finally {
     loading.value = false
   }
@@ -529,14 +529,14 @@ const updateBookingStatus = async (bookingId: number, newStatus: string) => {
   try {
     await axios.put(`/bookings/${bookingId}`, { status: newStatus })
     if (newStatus === 'completed') {
-      toast.success('✅ Đã hoàn thành lịch đặt sân!')
+      toast.success('✅ Booking marked as completed!')
     } else {
-      toast.warning('❌ Đã hủy lịch đặt sân')
+      toast.warning('❌ Booking cancelled')
     }
     loadBookings() // Reload lại sẽ tự động update summary
   } catch (error) {
     console.error('Error updating booking:', error)
-    toast.error('Không thể cập nhật trạng thái')
+    toast.error('Unable to update status')
   }
 }
 
@@ -544,22 +544,22 @@ const updateBookingStatus = async (bookingId: number, newStatus: string) => {
 const confirmBooking = async (bookingId: number) => {
   try {
     await axios.post(`/bookings/${bookingId}/confirm-payment`)
-    toast.success('✅ Đã xác nhận thanh toán thành công! Đơn đặt sân đã được kích hoạt.')
+    toast.success('✅ Payment confirmed successfully! Booking has been activated.')
     loadBookings() // Reload to update list and summary
   } catch (error) {
     console.error('Error confirming booking:', error)
-    toast.error('Không thể xác nhận thanh toán')
+    toast.error('Unable to confirm payment')
   }
 }
 
 const deleteBooking = async (bookingId: number) => {
   try {
     await axios.delete(`/bookings/${bookingId}`)
-    toast.success('🗑️ Đã xóa lịch đặt thành công!')
+    toast.success('🗑️ Booking deleted successfully!')
     loadBookings() // Reload to update list and summary
   } catch (error) {
     console.error('Error deleting booking:', error)
-    toast.error('Không thể xóa lịch đặt')
+    toast.error('Unable to delete booking')
   }
 }
 
@@ -620,12 +620,12 @@ const updateDateRangeForCalendar = async () => {
 
 const getStatusText = (status: string): string => {
   const statusMap: Record<string, string> = {
-    pending: '⏳ Chờ xác nhận',
-    confirmed: '✅ Đã xác nhận',
-    active: 'Đang hoạt động',
-    in_progress: '🔴 Đang diễn ra',
-    completed: 'Đã hoàn thành',
-    cancelled: 'Đã hủy',
+    pending: '⏳ Pending confirmation',
+    confirmed: '✅ Confirmed',
+    active: 'Active',
+    in_progress: '🔴 In progress',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
   }
   return statusMap[status] || status
 }
@@ -648,7 +648,7 @@ const formatDateHeader = (dateStr: string): string => {
 
   if (dateStr === today) {
     return (
-      'Hôm nay - ' +
+      'Today - ' +
       date.toLocaleDateString('vi-VN', {
         weekday: 'long',
         year: 'numeric',
@@ -658,7 +658,7 @@ const formatDateHeader = (dateStr: string): string => {
     )
   } else if (dateStr === yesterday) {
     return (
-      'Hôm qua - ' +
+      'Yesterday - ' +
       date.toLocaleDateString('vi-VN', {
         weekday: 'long',
         year: 'numeric',

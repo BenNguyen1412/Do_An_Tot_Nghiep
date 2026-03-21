@@ -26,7 +26,7 @@ const handleLogin = async () => {
 
   // Validation
   if (!email.value || !password.value) {
-    const msg = 'Vui lòng nhập đầy đủ thông tin'
+    const msg = 'Please enter all required information'
     errorMessage.value = msg
     toast.error(`❌ ${msg}`)
     return
@@ -35,7 +35,7 @@ const handleLogin = async () => {
   // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email.value)) {
-    const msg = 'Email không hợp lệ'
+    const msg = 'Invalid email'
     errorMessage.value = msg
     toast.error(`❌ ${msg}`)
     return
@@ -56,7 +56,7 @@ const handleLogin = async () => {
         // Logout user
         authStore.logout()
 
-        const msg = `Tài khoản không tồn tại. Vui lòng kiểm tra lại.`
+        const msg = `Account does not exist. Please check again.`
         errorMessage.value = msg
         toast.error(`❌ ${msg}`, {
           timeout: 4000,
@@ -65,7 +65,7 @@ const handleLogin = async () => {
       }
 
       // Role matched - proceed with login
-      toast.success('✅ Đăng nhập thành công!', {
+      toast.success('✅ Login successful!', {
         timeout: 2000,
       })
 
@@ -82,14 +82,14 @@ const handleLogin = async () => {
         router.push(redirectPath)
       }, 1000)
     } else {
-      const error = result.error || 'Đăng nhập thất bại. Vui lòng thử lại!'
+      const error = result.error || 'Login failed. Please try again!'
       errorMessage.value = error
       toast.error(`❌ ${error}`, {
         timeout: 4000,
       })
     }
   } catch {
-    const errorMsg = 'Đã xảy ra lỗi không mong muốn. Vui lòng thử lại!'
+    const errorMsg = 'An unexpected error occurred. Please try again!'
     errorMessage.value = errorMsg
     toast.error(`❌ ${errorMsg}`)
   }

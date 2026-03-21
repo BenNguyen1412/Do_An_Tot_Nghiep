@@ -34,20 +34,20 @@ const handleSignUp = async () => {
 
   // Validation
   if (!name.value || !email.value || !password.value || !confirmPassword.value) {
-    errorMessage.value = 'Vui lòng điền đầy đủ thông tin'
-    toast.error('Vui lòng điền đầy đủ thông tin')
+    errorMessage.value = 'Please fill in all required information'
+    toast.error('Please fill in all required information')
     return
   }
 
   if (password.value.length < 6) {
-    errorMessage.value = 'Mật khẩu phải có ít nhất 6 ký tự'
-    toast.error('Mật khẩu phải có ít nhất 6 ký tự')
+    errorMessage.value = 'Password must be at least 6 characters'
+    toast.error('Password must be at least 6 characters')
     return
   }
 
   if (password.value !== confirmPassword.value) {
-    errorMessage.value = 'Mật khẩu xác nhận không khớp'
-    toast.error('Mật khẩu xác nhận không khớp')
+    errorMessage.value = 'Password confirmation does not match'
+    toast.error('Password confirmation does not match')
     return
   }
 
@@ -61,7 +61,7 @@ const handleSignUp = async () => {
 
   if (result.success) {
     // Hiển thị thông báo thành công
-    toast.success('🎉 Tạo tài khoản thành công!', {
+    toast.success('🎉 Account created successfully!', {
       timeout: 2000,
     })
 
@@ -70,7 +70,7 @@ const handleSignUp = async () => {
       router.push('/login')
     }, 2000)
   } else {
-    errorMessage.value = result.error || 'Đăng ký thất bại'
+    errorMessage.value = result.error || 'Registration failed'
     toast.error(errorMessage.value)
   }
 }

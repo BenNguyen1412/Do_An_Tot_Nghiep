@@ -66,7 +66,7 @@ interface SuggestedCourt {
 const courts = ref<CourtItem[]>([])
 const isLoading = ref(false)
 const venueInfo = ref({
-  name: 'Chưa có sân',
+  name: 'No courts yet',
   totalCourts: 0,
   opening_time: '06:00',
   closing_time: '22:00',
@@ -122,10 +122,10 @@ const generateCourts = (quantity: number) => {
   for (let i = 1; i <= quantity; i++) {
     newCourts.push({
       id: i,
-      name: `Sân ${i}`,
+      name: `Court ${i}`,
       isBooked: false,
       isEditing: false,
-      tempName: `Sân ${i}`,
+      tempName: `Court ${i}`,
     })
   }
   return newCourts
@@ -272,7 +272,7 @@ const fetchMyCourts = async () => {
   } catch (error) {
     console.error('Error fetching courts:', error)
     const err = error as { response?: { data?: { detail?: string } } }
-    toast.error(err.response?.data?.detail || 'Không thể tải danh sách sân')
+    toast.error(err.response?.data?.detail || 'Unable to load court list')
   } finally {
     isLoading.value = false
   }
@@ -305,7 +305,7 @@ const cancelEditCourtName = (court: CourtItem) => {
 
 const saveCourtName = async (court: CourtItem) => {
   if (!court.tempName.trim()) {
-    toast.error('Tên sân không được để trống')
+    toast.error('Court name cannot be empty')
     return
   }
 
@@ -321,13 +321,13 @@ const saveCourtName = async (court: CourtItem) => {
       if (hasBookingData) {
         // Validate all fields are filled
         if (!form.booking_date || !form.start_time || !form.end_time || !form.phone_number) {
-          toast.error('Vui lòng điền đầy đủ thông tin đặt sân')
+          toast.error('Please complete all booking information')
           return
         }
 
         // Validate phone number
         if (!/^\d{10}$/.test(form.phone_number)) {
-          toast.error('Số điện thoại phải gồm 10 chữ số')
+          toast.error('Phone number must contain 10 digits')
           return
         }
 
@@ -343,7 +343,7 @@ const saveCourtName = async (court: CourtItem) => {
 
         // Check if booking date is in the past
         if (selectedDate < today) {
-          toast.error('Không thể đặt sân vào ngày đã qua')
+          toast.error('Cannot book a court for a past date')
           return
         }
 
@@ -352,7 +352,7 @@ const saveCourtName = async (court: CourtItem) => {
           const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
           if (form.start_time <= currentTime) {
             toast.error(
-              'Không thể đặt sân vào giờ đã qua. Vui lòng chọn giờ bắt đầu sau thời gian hiện tại',
+              'Cannot book a past time. Please choose a start time after the current time',
             )
             return
           }
@@ -360,7 +360,7 @@ const saveCourtName = async (court: CourtItem) => {
 
         // Validate time range
         if (form.end_time <= form.start_time) {
-          toast.error('Giờ kết thúc phải sau giờ bắt đầu')
+          toast.error('End time must be later than start time')
           return
         }
 
@@ -372,7 +372,7 @@ const saveCourtName = async (court: CourtItem) => {
         const durationMinutes = endMinutes - startMinutes
 
         if (durationMinutes < 60) {
-          toast.error('Khung giờ đặt sân phải tối thiểu 1 tiếng')
+          toast.error('Booking duration must be at least 1 hour')
           return
         }
 
@@ -381,7 +381,7 @@ const saveCourtName = async (court: CourtItem) => {
         const endMinutesPart = parseInt(endTimeParts[1])
 
         if (![0, 30].includes(startMinutesPart) || ![0, 30].includes(endMinutesPart)) {
-          toast.error('Giờ đặt sân phải là giờ chẵn (ví dụ: 10:00, 10:30, 11:00, 11:30)')
+          toast.error('Booking time must be on half-hour marks (e.g. 10:00, 10:30, 11:00, 11:30)')
           return
         }
 
@@ -391,7 +391,7 @@ const saveCourtName = async (court: CourtItem) => {
           form.end_time > venueInfo.value.closing_time
         ) {
           toast.error(
-            `Thời gian đặt sân phải nằm trong giờ mở cửa (${venueInfo.value.opening_time} - ${venueInfo.value.closing_time})`,
+            `Booking time must be within opening hours (${venueInfo.value.opening_time} - ${venueInfo.value.closing_time})`,
           )
           return
         }
@@ -437,8 +437,8 @@ const saveCourtName = async (court: CourtItem) => {
     await fetchMyCourts()
 
     const successMessage = wasEditingBooking
-      ? 'Đã cập nhật đơn đặt sân thành công'
-      : 'Đã cập nhật thành công'
+      ? 'Booking updated successfully'
+      : 'Updated successfully'
     toast.success(successMessage)
   } catch (error) {
     console.error('Error updating court:', error)
@@ -463,15 +463,15 @@ const saveCourtName = async (court: CourtItem) => {
           customer_name: bookingForms.value[court.id].customer_name,
         }
         showSuggestionModal.value = true
-        toast.warning(detail.message || 'Sân đã được đặt. Vui lòng chọn sân khác.')
+        toast.warning(detail.message || 'Court is already booked. Please choose another.')
       } else {
-        toast.error(detail.message || 'Sân đã được đặt và không có sân trống khác.')
+        toast.error(detail.message || 'Court is booked and no other courts are available.')
       }
     } else {
       const errorMsg =
         typeof err.response?.data?.detail === 'string'
           ? err.response.data.detail
-          : 'Cập nhật thất bại'
+          : 'Update failed'
       toast.error(errorMsg)
     }
   }
@@ -483,23 +483,23 @@ const getCourtStatusClass = (court: CourtItem) => {
 
 const cancelBooking = async (court: CourtItem) => {
   if (!court.bookingId) {
-    toast.error('Không tìm thấy thông tin đặt sân')
+    toast.error('Booking information not found')
     return
   }
 
-  if (!confirm(`Bạn có chắc chắn muốn hủy đơn đặt sân "${court.name}"?`)) {
+  if (!confirm(`Are you sure you want to cancel booking "${court.name}"?`)) {
     return
   }
 
   try {
     // Update status to cancelled instead of deleting
     await axiosInstance.put(`/bookings/${court.bookingId}`, { status: 'cancelled' })
-    toast.success('Đã hủy đơn đặt sân thành công')
+    toast.success('Booking cancelled successfully')
     await fetchMyCourts()
   } catch (error) {
     console.error('Error canceling booking:', error)
     const err = error as { response?: { data?: { detail?: string } } }
-    toast.error(err.response?.data?.detail || 'Hủy đơn thất bại')
+    toast.error(err.response?.data?.detail || 'Failed to cancel booking')
   }
 }
 
@@ -513,7 +513,7 @@ const selectSuggestedCourt = async (suggestedCourtId: number) => {
       ...pendingBookingData.value,
     })
 
-    toast.success('Đã đặt sân thay thế thành công!')
+    toast.success('Replacement court booked successfully!')
 
     // Close modal and reset
     showSuggestionModal.value = false
@@ -526,7 +526,7 @@ const selectSuggestedCourt = async (suggestedCourtId: number) => {
   } catch (error) {
     console.error('Error booking suggested court:', error)
     const err = error as { response?: { data?: { detail?: unknown } } }
-    toast.error((err.response?.data?.detail as string) || 'Không thể đặt sân thay thế')
+    toast.error((err.response?.data?.detail as string) || 'Unable to book replacement court')
   }
 }
 
@@ -539,7 +539,7 @@ const closeSuggestionModal = () => {
 
 const refreshCourts = async () => {
   await fetchMyCourts()
-  toast.success('Đã làm mới danh sách')
+  toast.success('List refreshed')
 }
 </script>
 
@@ -549,12 +549,12 @@ const refreshCourts = async () => {
     <div v-if="showSuggestionModal" class="modal-overlay" @click="closeSuggestionModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h3>🏟️ Gợi ý sân trống</h3>
+          <h3>🏟️ Available Court Suggestions</h3>
           <button class="modal-close" @click="closeSuggestionModal">✕</button>
         </div>
         <div class="modal-body">
           <p class="modal-message">
-            Sân bạn chọn đã được đặt. Dưới đây là các sân còn trống trong cùng khung giờ:
+            Your selected court is booked. Here are available courts in the same time slot:
           </p>
           <div class="suggested-courts-list">
             <div
@@ -567,7 +567,7 @@ const refreshCourts = async () => {
                 <strong>{{ court.name }}</strong>
                 <span class="court-venue">{{ court.court_name }}</span>
               </div>
-              <button class="btn-select">Chọn sân này</button>
+              <button class="btn-select">Choose this court</button>
             </div>
           </div>
         </div>
@@ -598,9 +598,9 @@ const refreshCourts = async () => {
               d="M4 6h16M4 12h16M4 18h16"
             />
           </svg>
-          Danh sách sân
+          Court List
         </h1>
-        <p class="page-subtitle">Quản lý và theo dõi tình trạng các sân của bạn</p>
+        <p class="page-subtitle">Manage and monitor your court status</p>
       </div>
       <button class="refresh-btn" @click="refreshCourts" :disabled="isLoading">
         <svg
@@ -617,7 +617,7 @@ const refreshCourts = async () => {
             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
           />
         </svg>
-        Làm mới
+        Refresh
       </button>
     </div>
 
@@ -640,7 +640,7 @@ const refreshCourts = async () => {
           </svg>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Tổng số sân</span>
+          <span class="stat-label">Total Courts</span>
           <span class="stat-value">{{ courts.length }}</span>
         </div>
       </div>
@@ -662,7 +662,7 @@ const refreshCourts = async () => {
           </svg>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Sân trống</span>
+          <span class="stat-label">Available Courts</span>
           <span class="stat-value">{{ availableCourts }}</span>
         </div>
       </div>
@@ -684,7 +684,7 @@ const refreshCourts = async () => {
           </svg>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Đang được đặt</span>
+          <span class="stat-label">Booked Courts</span>
           <span class="stat-value">{{ bookedCourts }}</span>
         </div>
       </div>
@@ -706,7 +706,7 @@ const refreshCourts = async () => {
           </svg>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Tỷ lệ đặt sân</span>
+          <span class="stat-label">Booking Rate</span>
           <span class="stat-value"
             >{{ courts.length > 0 ? Math.round((bookedCourts / courts.length) * 100) : 0 }}%</span
           >
@@ -728,7 +728,7 @@ const refreshCourts = async () => {
             <rect x="7" y="6" width="10" height="4" rx="2" fill="#fbbf24" />
             <rect x="9" y="2" width="6" height="4" rx="2" fill="#3b82f6" />
           </svg>
-          Chi tiết các sân
+          Court Details
         </h2>
       </div>
 
@@ -737,12 +737,12 @@ const refreshCourts = async () => {
           <thead>
             <tr>
               <th>STT</th>
-              <th>Tên sân</th>
-              <th>Trạng thái</th>
-              <th>Ngày đặt</th>
-              <th>Khung giờ</th>
-              <th>SĐT người đặt</th>
-              <th>Thao tác</th>
+              <th>Court Name</th>
+              <th>Status</th>
+              <th>Booking Date</th>
+              <th>Time Slot</th>
+              <th>Customer Phone</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -796,7 +796,7 @@ const refreshCourts = async () => {
                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    {{ court.isBooked ? 'Đang được đặt' : 'Còn trống' }}
+                    {{ court.isBooked ? 'Booked' : 'Available' }}
                   </span>
                 </td>
                 <td>
@@ -855,7 +855,7 @@ const refreshCourts = async () => {
                         <button
                           class="btn-edit"
                           @click="initEditBookingForm(court)"
-                          title="Chỉnh sửa đơn"
+                          title="Edit booking"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -874,7 +874,7 @@ const refreshCourts = async () => {
                         <button
                           class="btn-cancel-booking"
                           @click="cancelBooking(court)"
-                          title="Hủy đơn đặt sân"
+                          title="Cancel booking"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -889,7 +889,7 @@ const refreshCourts = async () => {
                               d="M6 18L18 6M6 6l12 12"
                             />
                           </svg>
-                          Hủy đơn
+                          Cancel booking
                         </button>
                       </template>
                       <!-- Nếu sân trống: hiển thị nút Chỉnh sửa tên sân -->
@@ -897,7 +897,7 @@ const refreshCourts = async () => {
                         v-else
                         class="btn-edit"
                         @click="startEditCourtName(court)"
-                        title="Chỉnh sửa"
+                        title="Edit"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -915,7 +915,7 @@ const refreshCourts = async () => {
                       </button>
                     </template>
                     <template v-else>
-                      <button class="btn-save" @click="saveCourtName(court)" title="Lưu">
+                      <button class="btn-save" @click="saveCourtName(court)" title="Save">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
@@ -930,7 +930,7 @@ const refreshCourts = async () => {
                           />
                         </svg>
                       </button>
-                      <button class="btn-cancel" @click="cancelEditCourtName(court)" title="Hủy">
+                      <button class="btn-cancel" @click="cancelEditCourtName(court)" title="Cancel">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
@@ -971,8 +971,8 @@ const refreshCourts = async () => {
                       <h4>
                         {{
                           isEditingBooking[court.id]
-                            ? 'Chỉnh sửa đơn đặt sân'
-                            : 'Đặt lịch cho khách hàng (Tùy chọn)'
+                            ? 'Edit booking'
+                            : 'Create customer booking (Optional)'
                         }}
                       </h4>
                     </div>
@@ -993,7 +993,7 @@ const refreshCourts = async () => {
                               d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                             />
                           </svg>
-                          Ngày đặt sân
+                          Booking date
                         </label>
                         <input
                           v-model="bookingForms[court.id].booking_date"
@@ -1017,7 +1017,7 @@ const refreshCourts = async () => {
                               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                           </svg>
-                          Giờ bắt đầu
+                          Start time
                         </label>
                         <input
                           v-model="bookingForms[court.id].start_time"
@@ -1041,7 +1041,7 @@ const refreshCourts = async () => {
                               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                           </svg>
-                          Giờ kết thúc
+                          End time
                         </label>
                         <input
                           v-model="bookingForms[court.id].end_time"
@@ -1065,12 +1065,12 @@ const refreshCourts = async () => {
                               d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                             />
                           </svg>
-                          Số điện thoại
+                          Phone number
                         </label>
                         <input
                           v-model="bookingForms[court.id].phone_number"
                           type="tel"
-                          placeholder="Nhập 10 chữ số"
+                          placeholder="Enter 10 digits"
                           maxlength="10"
                           class="form-input"
                         />
@@ -1091,12 +1091,12 @@ const refreshCourts = async () => {
                               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                             />
                           </svg>
-                          Tên người đặt
+                          Customer name
                         </label>
                         <input
                           v-model="bookingForms[court.id].customer_name"
                           type="text"
-                          placeholder="Nhập tên người đặt"
+                          placeholder="Enter customer name"
                           class="form-input"
                         />
                       </div>
@@ -1123,8 +1123,8 @@ const refreshCourts = async () => {
             d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
           />
         </svg>
-        <p class="empty-text">Chưa có sân nào</p>
-        <p class="empty-hint">Hãy đăng tải sân và nhập số lượng sân để tự động tạo danh sách</p>
+        <p class="empty-text">No courts available</p>
+        <p class="empty-hint">Upload courts and set court quantity to generate the list automatically</p>
       </div>
     </div>
   </div>

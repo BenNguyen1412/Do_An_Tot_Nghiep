@@ -7,7 +7,7 @@ const selectedDate = ref(new Date().toISOString().split('T')[0])
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const selectedYear = ref(new Date().getFullYear().toString())
 
-// Mock data - sẽ được thay thế bằng API call
+// Mock data - will be replaced by API call
 const revenueData = ref({
   total: 45800000,
   bookings: 156,
@@ -27,10 +27,10 @@ const chartData = ref([
 ])
 
 const topCourts = ref([
-  { name: 'Sân VIP A1', revenue: 12500000, bookings: 42, growth: 15.2 },
-  { name: 'Sân Premium B2', revenue: 9800000, bookings: 38, growth: 8.7 },
-  { name: 'Sân Standard C3', revenue: 7600000, bookings: 35, growth: -2.3 },
-  { name: 'Sân VIP A2', revenue: 6900000, bookings: 28, growth: 22.1 },
+  { name: 'VIP Court A1', revenue: 12500000, bookings: 42, growth: 15.2 },
+  { name: 'Premium Court B2', revenue: 9800000, bookings: 38, growth: 8.7 },
+  { name: 'Standard Court C3', revenue: 7600000, bookings: 35, growth: -2.3 },
+  { name: 'VIP Court A2', revenue: 6900000, bookings: 28, growth: 22.1 },
 ])
 
 const formatCurrency = (value: number) => {
@@ -54,28 +54,28 @@ const maxChartValue = computed(() => {
     <!-- Filters -->
     <div class="filters-section">
       <div class="filter-group">
-        <label class="filter-label">Xem theo:</label>
+        <label class="filter-label">View by:</label>
         <div class="filter-buttons">
           <button
             class="filter-btn"
             :class="{ active: timeFilter === 'day' }"
             @click="timeFilter = 'day'"
           >
-            📅 Ngày
+            📅 Day
           </button>
           <button
             class="filter-btn"
             :class="{ active: timeFilter === 'month' }"
             @click="timeFilter = 'month'"
           >
-            📆 Tháng
+            📆 Month
           </button>
           <button
             class="filter-btn"
             :class="{ active: timeFilter === 'year' }"
             @click="timeFilter = 'year'"
           >
-            📊 Năm
+            📊 Year
           </button>
         </div>
       </div>
@@ -104,7 +104,7 @@ const maxChartValue = computed(() => {
       <div class="stat-card primary">
         <div class="stat-icon">💰</div>
         <div class="stat-content">
-          <span class="stat-label">Tổng doanh thu</span>
+          <span class="stat-label">Total Revenue</span>
           <span class="stat-value">{{ formatCurrency(revenueData.total) }}</span>
           <span class="stat-change positive">{{ formatPercent(revenueData.growth) }}</span>
         </div>
@@ -113,16 +113,16 @@ const maxChartValue = computed(() => {
       <div class="stat-card">
         <div class="stat-icon">🎯</div>
         <div class="stat-content">
-          <span class="stat-label">Số lượt đặt</span>
+          <span class="stat-label">Bookings</span>
           <span class="stat-value">{{ revenueData.bookings }}</span>
-          <span class="stat-change positive">+18 lượt</span>
+          <span class="stat-change positive">+18 bookings</span>
         </div>
       </div>
 
       <div class="stat-card">
         <div class="stat-icon">📈</div>
         <div class="stat-content">
-          <span class="stat-label">Trung bình/đặt</span>
+          <span class="stat-label">Average/Booking</span>
           <span class="stat-value">{{ formatCurrency(revenueData.averagePerBooking) }}</span>
           <span class="stat-change">~</span>
         </div>
@@ -131,9 +131,9 @@ const maxChartValue = computed(() => {
       <div class="stat-card">
         <div class="stat-icon">⭐</div>
         <div class="stat-content">
-          <span class="stat-label">Đánh giá TB</span>
+          <span class="stat-label">Avg Rating</span>
           <span class="stat-value">4.8 / 5.0</span>
-          <span class="stat-change positive">+0.2 điểm</span>
+          <span class="stat-change positive">+0.2 points</span>
         </div>
       </div>
     </div>
@@ -141,7 +141,7 @@ const maxChartValue = computed(() => {
     <!-- Chart Section -->
     <div class="chart-section">
       <div class="section-header">
-        <h2 class="section-title">📊 Biểu đồ doanh thu theo giờ</h2>
+        <h2 class="section-title">📊 Revenue by Hour</h2>
         <button class="export-btn">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -156,7 +156,7 @@ const maxChartValue = computed(() => {
               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
             />
           </svg>
-          Xuất báo cáo
+          Export Report
         </button>
       </div>
 
@@ -182,16 +182,16 @@ const maxChartValue = computed(() => {
     <!-- Top Courts Section -->
     <div class="top-courts-section">
       <div class="section-header">
-        <h2 class="section-title">🏆 Top sân có doanh thu cao nhất</h2>
+        <h2 class="section-title">🏆 Top Revenue Courts</h2>
       </div>
 
       <div class="courts-table">
         <div class="table-header">
-          <div class="table-cell">Thứ hạng</div>
-          <div class="table-cell">Tên sân</div>
-          <div class="table-cell">Doanh thu</div>
-          <div class="table-cell">Lượt đặt</div>
-          <div class="table-cell">Tăng trưởng</div>
+          <div class="table-cell">Rank</div>
+          <div class="table-cell">Court Name</div>
+          <div class="table-cell">Revenue</div>
+          <div class="table-cell">Bookings</div>
+          <div class="table-cell">Growth</div>
         </div>
         <div v-for="(court, index) in topCourts" :key="index" class="table-row">
           <div class="table-cell rank">
@@ -202,7 +202,7 @@ const maxChartValue = computed(() => {
             {{ court.name }}
           </div>
           <div class="table-cell revenue">{{ formatCurrency(court.revenue) }}</div>
-          <div class="table-cell bookings">{{ court.bookings }} lượt</div>
+          <div class="table-cell bookings">{{ court.bookings }} bookings</div>
           <div class="table-cell growth">
             <span class="growth-badge" :class="court.growth > 0 ? 'positive' : 'negative'">
               {{ formatPercent(court.growth) }}

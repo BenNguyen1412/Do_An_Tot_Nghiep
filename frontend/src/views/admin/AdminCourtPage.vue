@@ -156,58 +156,58 @@
         <div v-if="showModal" class="modal-overlay" @click="closeModal">
           <div class="modal-container" @click.stop>
             <div class="modal-header">
-              <h2>Chi tiết sân</h2>
+              <h2>Court Details</h2>
               <button class="modal-close-btn" @click="closeModal">✕</button>
             </div>
 
             <div v-if="selectedCourt" class="modal-body">
               <!-- Basic Info -->
               <div class="info-section">
-                <h3 class="section-title">Thông tin cơ bản</h3>
+                <h3 class="section-title">Basic Information</h3>
                 <div class="info-grid">
                   <div class="info-item">
-                    <label>Tên sân</label>
+                    <label>Court Name</label>
                     <p>{{ selectedCourt.name }}</p>
                   </div>
                   <div class="info-item">
-                    <label>Số lượng sân</label>
+                    <label>Number of Courts</label>
                     <p>{{ selectedCourt.court_quantity }}</p>
                   </div>
                   <div class="info-item">
-                    <label>Địa chỉ</label>
+                    <label>Address</label>
                     <p>{{ selectedCourt.address }}</p>
                   </div>
                   <div class="info-item">
-                    <label>Quận/Huyện</label>
-                    <p>Quận {{ selectedCourt.district }}</p>
+                    <label>District</label>
+                    <p>District {{ selectedCourt.district }}</p>
                   </div>
                   <div class="info-item">
-                    <label>Thành phố</label>
+                    <label>City</label>
                     <p>{{ selectedCourt.city }}</p>
                   </div>
                   <div class="info-item">
-                    <label>Giờ mở cửa</label>
+                    <label>Opening Hours</label>
                     <p>{{ selectedCourt.opening_time }} - {{ selectedCourt.closing_time }}</p>
                   </div>
                 </div>
 
                 <div class="info-item full-width">
-                  <label>Mô tả</label>
-                  <p>{{ selectedCourt.description || 'Không có mô tả' }}</p>
+                  <label>Description</label>
+                  <p>{{ selectedCourt.description || 'No description' }}</p>
                 </div>
               </div>
 
               <!-- Contact Info -->
               <div class="info-section">
-                <h3 class="section-title">Thông tin liên hệ</h3>
+                <h3 class="section-title">Contact Information</h3>
                 <div class="info-grid">
                   <div class="info-item">
-                    <label>Số điện thoại</label>
+                    <label>Phone Number</label>
                     <p>{{ selectedCourt.contact_phone }}</p>
                   </div>
                   <div class="info-item">
                     <label>Email</label>
-                    <p>{{ selectedCourt.contact_email || 'Không có' }}</p>
+                    <p>{{ selectedCourt.contact_email || 'N/A' }}</p>
                   </div>
                 </div>
               </div>
@@ -217,7 +217,7 @@
                 class="info-section"
                 v-if="selectedCourt.facilities && selectedCourt.facilities.length > 0"
               >
-                <h3 class="section-title">Tiện ích</h3>
+                <h3 class="section-title">Amenities</h3>
                 <div class="facilities-list">
                   <span
                     v-for="facility in selectedCourt.facilities"
@@ -234,7 +234,7 @@
                 class="info-section"
                 v-if="selectedCourt.time_slots && selectedCourt.time_slots.length > 0"
               >
-                <h3 class="section-title">Khung giờ & Giá</h3>
+                <h3 class="section-title">Time Slots & Pricing</h3>
                 <div class="time-slots-list">
                   <div
                     v-for="(slot, index) in selectedCourt.time_slots"
@@ -252,7 +252,7 @@
                 class="info-section"
                 v-if="selectedCourt.images && selectedCourt.images.length > 0"
               >
-                <h3 class="section-title">Hình ảnh</h3>
+                <h3 class="section-title">Images</h3>
                 <div class="images-grid">
                   <img
                     v-for="(image, index) in selectedCourt.images"
@@ -266,10 +266,10 @@
 
               <!-- Status -->
               <div class="info-section">
-                <h3 class="section-title">Trạng thái</h3>
+                <h3 class="section-title">Status</h3>
                 <div class="info-grid">
                   <div class="info-item">
-                    <label>Trạng thái</label>
+                    <label>Status</label>
                     <span
                       :class="['status-badge', selectedCourt.is_active ? 'active' : 'inactive']"
                     >
@@ -277,15 +277,15 @@
                     </span>
                   </div>
                   <div class="info-item">
-                    <label>Ngày tạo</label>
-                    <p>{{ new Date(selectedCourt.created_at).toLocaleDateString('vi-VN') }}</p>
+                    <label>Created Date</label>
+                    <p>{{ new Date(selectedCourt.created_at).toLocaleDateString('en-GB') }}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div class="modal-footer">
-              <button class="btn-close" @click="closeModal">Đóng</button>
+              <button class="btn-close" @click="closeModal">Close</button>
             </div>
           </div>
         </div>
@@ -295,19 +295,19 @@
       <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
         <div class="modal-content">
           <div class="modal-header">
-            <h2>⚠️ Xác nhận xóa</h2>
+            <h2>⚠️ Confirm Deletion</h2>
             <button class="close-btn" @click="closeDeleteModal">✕</button>
           </div>
           <div class="modal-body">
             <p>
-              Bạn có chắc chắn muốn xóa sân <strong>{{ courtToDelete?.name }}</strong> không?
+              Are you sure you want to delete court <strong>{{ courtToDelete?.name }}</strong>?
             </p>
-            <p class="warning-text">Hành động này không thể hoàn tác.</p>
+            <p class="warning-text">This action cannot be undone.</p>
           </div>
           <div class="modal-footer">
-            <button class="cancel-btn" @click="closeDeleteModal">Hủy</button>
+            <button class="cancel-btn" @click="closeDeleteModal">Cancel</button>
             <button class="confirm-delete-btn" @click="deleteCourt" :disabled="isDeleting">
-              {{ isDeleting ? 'Đang xóa...' : 'Xóa' }}
+              {{ isDeleting ? 'Deleting...' : 'Delete' }}
             </button>
           </div>
         </div>
@@ -403,7 +403,7 @@ const paginatedCourts = computed(() => {
 
 // Format location
 const getLocation = (court: Court) => {
-  return `${court.address}, Quận ${court.district}, ${court.city}`
+  return `${court.address}, District ${court.district}, ${court.city}`
 }
 
 // Get status text
@@ -436,12 +436,12 @@ const formatPrice = (price: number) => {
 // Get facility label
 const getFacilityLabel = (facility: string) => {
   const labels: Record<string, string> = {
-    parking: 'Bãi đỗ xe',
-    wifi: 'WiFi miễn phí',
-    shower: 'Phòng tắm',
-    locker: 'Tủ khóa',
-    drinks: 'Nước uống',
-    equipment: 'Thiết bị cho thuê',
+    parking: 'Parking',
+    wifi: 'Free WiFi',
+    shower: 'Shower',
+    locker: 'Locker',
+    drinks: 'Drinks',
+    equipment: 'Equipment Rental',
   }
   return labels[facility] || facility
 }
@@ -464,12 +464,12 @@ const deleteCourt = async () => {
 
   try {
     await axiosInstance.delete(`/courts/${courtToDelete.value.id}`)
-    alert('Đã xóa sân thành công')
+    alert('Court deleted successfully')
     closeDeleteModal()
     fetchCourts() // Refresh list
   } catch (error) {
     console.error('Error deleting court:', error)
-    alert('Không thể xóa sân')
+    alert('Unable to delete court')
   } finally {
     isDeleting.value = false
   }

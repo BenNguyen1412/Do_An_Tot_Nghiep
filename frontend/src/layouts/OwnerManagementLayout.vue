@@ -16,25 +16,25 @@ const toggleSidebar = () => {
 const menuItems = [
   {
     id: 'revenue',
-    label: 'Thống kê doanh thu',
+    label: 'Revenue Statistics',
     icon: 'chart-bar',
     path: '/owner/management/revenue',
   },
   {
     id: 'courts',
-    label: 'Đăng tải sân',
+    label: 'Upload Court',
     icon: 'building-stadium',
     path: '/owner/management/courts',
   },
   {
     id: 'court-list',
-    label: 'Danh sách sân',
+    label: 'Court List',
     icon: 'list-bullet',
     path: '/owner/management/court-list',
   },
   {
     id: 'bookings',
-    label: 'Lịch đặt sân',
+    label: 'Booking Schedule',
     icon: 'calendar',
     path: '/owner/management/bookings',
   },
