@@ -2,6 +2,7 @@
 Booking endpoints with VietQR payment integration
 """
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -21,6 +22,14 @@ from app.schemas.court import (
 from app.crud import court as court_crud
 from app.crud.user import get_user_by_id
 from app.core.vietqr_service import VietQRService
+from app.core.booking_qr_service import (
+    generate_booking_access_token,
+    decode_booking_access_token,
+    build_booking_info_url,
+    build_qr_image_url,
+    build_booking_info_html,
+)
+from app.core.email_service import send_booking_qr_email
 
 router = APIRouter()
 
@@ -394,12 +403,97 @@ async def confirm_payment(
     
     # Update booking status to active
     booking.status = "active"
-    booking.payment_verified = True
-    booking.verified_at = datetime.utcnow()
+    booking.booking_status = "active"
+    booking.payment_status = "paid"
+    booking.payment_verified_at = datetime.utcnow()
+    db.commit()
+    db.refresh(booking)
+
+    # Build and send booking info QR email to customer.
+    # Keep confirm successful even if email fails, but persist the result for UI/debugging.
+    customer = get_user_by_id(db, booking.user_id)
+    customer_email = booking.customer_email or (customer.email if customer else None)
+    customer_name = booking.customer_name or (customer.full_name if customer else "Khách hàng")
+
+    individual_court = court_crud.get_individual_court(db, booking.individual_court_id)
+    parent_court = court_crud.get_court(db, individual_court.court_id) if individual_court else None
+
+    if customer_email and individual_court and parent_court:
+        token = generate_booking_access_token(booking.id)
+        booking_info_url = build_booking_info_url(token)
+        qr_image_url = build_qr_image_url(booking_info_url)
+
+        booking_date_str = booking.booking_date.strftime("%d/%m/%Y") if booking.booking_date else "N/A"
+        total_price_str = f"{int(float(booking.total_price or 0)):,}".replace(",", ".")
+
+        sent_ok, sent_msg = send_booking_qr_email(
+            to_email=customer_email,
+            customer_name=customer_name,
+            booking_id=booking.id,
+            qr_image_url=qr_image_url,
+            booking_info_url=booking_info_url,
+            court_name=parent_court.name,
+            individual_court_name=individual_court.name,
+            booking_date=booking_date_str,
+            start_time=booking.start_time,
+            end_time=booking.end_time,
+            total_price=total_price_str,
+        )
+
+        booking.payment_note = f"EMAIL_SENT: {sent_msg}" if sent_ok else f"EMAIL_FAILED: {sent_msg}"
+    else:
+        booking.payment_note = "EMAIL_FAILED: Missing customer email or court information"
+
     db.commit()
     db.refresh(booking)
     
     return booking
+
+
+@router.get("/qr-booking/{token}", response_class=HTMLResponse, include_in_schema=False)
+async def view_booking_from_qr(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """Public booking details page opened when customer scans QR from email."""
+    booking_id = decode_booking_access_token(token)
+    if not booking_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired QR code"
+        )
+
+    booking = court_crud.get_booking(db, booking_id)
+    if not booking:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Booking not found"
+        )
+
+    customer = get_user_by_id(db, booking.user_id)
+    individual_court = court_crud.get_individual_court(db, booking.individual_court_id)
+    parent_court = court_crud.get_court(db, individual_court.court_id) if individual_court else None
+    owner = get_user_by_id(db, parent_court.owner_id) if parent_court else None
+
+    booking_date_str = booking.booking_date.strftime("%d/%m/%Y") if booking.booking_date else "N/A"
+    total_price_str = f"{int(float(booking.total_price or 0)):,}".replace(",", ".")
+
+    html = build_booking_info_html(
+        booking_id=booking.id,
+        customer_name=booking.customer_name or (customer.full_name if customer else "N/A"),
+        customer_email=booking.customer_email or (customer.email if customer else "N/A"),
+        phone_number=booking.phone_number or (customer.phone_number if customer else "N/A"),
+        booking_date=booking_date_str,
+        start_time=booking.start_time,
+        end_time=booking.end_time,
+        total_price=total_price_str,
+        court_name=parent_court.name if parent_court else "N/A",
+        individual_court_name=individual_court.name if individual_court else "N/A",
+        owner_name=owner.full_name if owner else "N/A",
+        owner_phone=owner.phone_number if owner and owner.phone_number else "N/A",
+    )
+
+    return HTMLResponse(content=html)
 
 
 @router.get("/user/my-bookings", response_model=List[Booking])

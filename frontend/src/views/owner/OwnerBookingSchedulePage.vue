@@ -543,8 +543,16 @@ const updateBookingStatus = async (bookingId: number, newStatus: string) => {
 // Confirm payment received and activate booking
 const confirmBooking = async (bookingId: number) => {
   try {
-    await axios.post(`/bookings/${bookingId}/confirm-payment`)
-    toast.success('✅ Payment confirmed successfully! Booking has been activated.')
+    const response = await axios.post(`/bookings/${bookingId}/confirm-payment`)
+    const paymentNote: string = response.data?.payment_note || ''
+
+    if (paymentNote.startsWith('EMAIL_FAILED:')) {
+      const message = paymentNote.replace('EMAIL_FAILED:', '').trim()
+      toast.warning(`Đã xác nhận thanh toán nhưng gửi email thất bại: ${message}`)
+    } else {
+      toast.success('✅ Payment confirmed successfully! Booking has been activated.')
+    }
+
     loadBookings() // Reload to update list and summary
   } catch (error) {
     console.error('Error confirming booking:', error)

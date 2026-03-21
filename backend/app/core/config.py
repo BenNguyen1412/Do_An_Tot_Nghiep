@@ -19,6 +19,18 @@ class Settings(BaseSettings):
     
     # CORS
     BACKEND_CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000"]
+
+    # Public URL used in QR links
+    BACKEND_PUBLIC_BASE_URL: str = "http://localhost:8000"
+
+    # SMTP settings for transactional email
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None
+    SMTP_FROM_NAME: str = "Pickleball NP SPORTCLUB"
+    SMTP_USE_TLS: bool = True
     
     class Config:
         env_file = ".env"
