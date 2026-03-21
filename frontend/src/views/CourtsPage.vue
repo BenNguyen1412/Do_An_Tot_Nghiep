@@ -5,8 +5,10 @@ import { useAuthStore } from '@/stores/auth'
 import axiosInstance from '@/utils/axios'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
+import { useToast } from 'vue-toastification'
 
 const authStore = useAuthStore()
+const toast = useToast()
 
 interface Court {
   id: number
@@ -33,6 +35,11 @@ const courts = ref<Court[]>([])
 const isLoading = ref(false)
 const searchQuery = ref('')
 const selectedDistrict = ref<string>('')
+const selectedBookingDate = ref('')
+const selectedStartTime = ref('')
+const selectedEndTime = ref('')
+const isAvailabilityFiltered = ref(false)
+const todayDate = new Date().toISOString().split('T')[0]
 
 // Check if user is owner or enterprise for header props
 const showManagement = computed(() => authStore.user?.role === 'owner')
@@ -42,13 +49,51 @@ const showAdvertisement = computed(() => authStore.user?.role === 'enterprise')
 const fetchCourts = async () => {
   isLoading.value = true
   try {
-    const response = await axiosInstance.get('/courts')
+    const params: Record<string, string> = {}
+
+    if (isAvailabilityFiltered.value) {
+      params.booking_date = selectedBookingDate.value
+      params.start_time = selectedStartTime.value
+      params.end_time = selectedEndTime.value
+    }
+
+    const response = await axiosInstance.get('/courts', { params })
     courts.value = response.data
   } catch (error) {
     console.error('Error fetching courts:', error)
+    toast.error('Unable to load courts. Please try again.')
   } finally {
     isLoading.value = false
   }
+}
+
+const applyAvailabilitySearch = async () => {
+  if (!selectedBookingDate.value || !selectedStartTime.value || !selectedEndTime.value) {
+    toast.error('Please choose date, start time, and end time.')
+    return
+  }
+
+  if (selectedStartTime.value >= selectedEndTime.value) {
+    toast.error('Start time must be earlier than end time.')
+    return
+  }
+
+  isAvailabilityFiltered.value = true
+  await fetchCourts()
+}
+
+const clearAvailabilitySearch = async () => {
+  selectedBookingDate.value = ''
+  selectedStartTime.value = ''
+  selectedEndTime.value = ''
+  isAvailabilityFiltered.value = false
+  await fetchCourts()
+}
+
+const clearAllFilters = async () => {
+  searchQuery.value = ''
+  selectedDistrict.value = ''
+  await clearAvailabilitySearch()
 }
 
 // Filter courts based on search and district
@@ -176,37 +221,89 @@ onMounted(() => {
           Find and book the best courts near you with premium facilities and instant confirmation
         </p>
 
-        <!-- Search Bar -->
-        <div class="search-container">
-          <div class="search-box">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              class="search-icon"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        <div class="search-hub">
+          <div class="search-main-row">
+            <div class="search-box">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                class="search-icon"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search by court name, district, or city..."
+                class="search-input"
               />
-            </svg>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search by court name, district, or city..."
-              class="search-input"
-            />
+            </div>
+
+            <div class="district-filter-wrap">
+              <select v-model="selectedDistrict" class="district-filter">
+                <option value="">All Districts</option>
+                <option v-for="district in districts" :key="district" :value="district">
+                  {{ district }}
+                </option>
+              </select>
+            </div>
+
+            <button
+              v-if="searchQuery || selectedDistrict || isAvailabilityFiltered"
+              class="clear-all-btn"
+              @click="clearAllFilters"
+            >
+              Clear All
+            </button>
           </div>
 
-          <select v-model="selectedDistrict" class="district-filter">
-            <option value="">All Districts</option>
-            <option v-for="district in districts" :key="district" :value="district">
-              {{ district }}
-            </option>
-          </select>
+          <div class="availability-row">
+            <div class="availability-heading">
+              <strong>Availability Search</strong>
+              <span>Find courts that are free at your preferred date and time</span>
+            </div>
+            <div class="availability-fields">
+              <input
+                v-model="selectedBookingDate"
+                type="date"
+                class="availability-input"
+                :min="todayDate"
+                aria-label="Booking date"
+              />
+              <div class="time-range-combined" aria-label="Time range">
+                <input
+                  v-model="selectedStartTime"
+                  type="time"
+                  class="time-part-input"
+                  aria-label="Start time"
+                />
+                <span class="time-range-divider">to</span>
+                <input
+                  v-model="selectedEndTime"
+                  type="time"
+                  class="time-part-input"
+                  aria-label="End time"
+                />
+              </div>
+              <button class="availability-btn" @click="applyAvailabilitySearch">
+                Search Availability
+              </button>
+              <button
+                v-if="isAvailabilityFiltered"
+                class="clear-availability-btn"
+                @click="clearAvailabilitySearch"
+              >
+                Clear Availability
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -458,15 +555,150 @@ onMounted(() => {
   animation: fadeInUp 0.8s ease 0.4s both;
 }
 
-.search-container {
-  display: flex;
-  gap: 16px;
-  max-width: 800px;
+.search-hub {
+  max-width: 1080px;
   margin: 0 auto;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.22);
+}
+
+.search-main-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.district-filter-wrap {
+  min-width: 360px;
+}
+
+.availability-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.availability-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+.availability-heading strong {
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+
+.availability-heading span {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.82rem;
+}
+
+.availability-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+}
+
+.availability-input {
+  padding: 12px 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  outline: none;
+  color: #1e293b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+
+.time-range-combined {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+
+.time-part-input {
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+  outline: none;
+  min-width: 120px;
+}
+
+.time-range-divider {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.availability-btn,
+.clear-availability-btn {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.availability-btn {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  color: #1e3a8a;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.22);
+}
+
+.availability-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.26);
+}
+
+.clear-availability-btn {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+}
+
+.clear-availability-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.clear-all-btn {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.clear-all-btn:hover {
+  background: rgba(255, 255, 255, 0.27);
+  transform: translateY(-1px);
 }
 
 .search-box {
   flex: 1;
+  min-width: 280px;
   position: relative;
 }
 
@@ -482,36 +714,38 @@ onMounted(() => {
 
 .search-input {
   width: 100%;
-  padding: 18px 20px 18px 60px;
+  padding: 14px 18px 14px 54px;
   border: none;
-  border-radius: 50px;
-  font-size: 1rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
   outline: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  color: #0f172a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   transition: all 0.3s;
 }
 
 .search-input:focus {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
 }
 
 .district-filter {
-  padding: 18px 24px;
+  padding: 14px 16px;
   border: none;
-  border-radius: 50px;
+  border-radius: 10px;
   font-size: 1rem;
   font-weight: 600;
   background: white;
-  color: #2d5016;
+  color: #0f172a;
   cursor: pointer;
   outline: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   transition: all 0.3s;
-  min-width: 200px;
+  min-width: 360px;
 }
 
 .district-filter:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.25);
 }
 
 /* Courts Section */
@@ -875,8 +1109,8 @@ onMounted(() => {
     font-size: 2.8rem;
   }
 
-  .search-container {
-    gap: 12px;
+  .search-hub {
+    max-width: 940px;
   }
 }
 
@@ -894,11 +1128,29 @@ onMounted(() => {
     margin-bottom: 40px;
   }
 
-  .search-container {
+  .search-main-row,
+  .availability-fields {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .availability-input,
+  .time-range-combined,
+  .availability-btn,
+  .clear-availability-btn {
+    width: 100%;
+  }
+
+  .time-part-input {
+    min-width: 0;
+    width: 100%;
   }
 
   .district-filter {
+    width: 100%;
+  }
+
+  .district-filter-wrap {
     width: 100%;
   }
 

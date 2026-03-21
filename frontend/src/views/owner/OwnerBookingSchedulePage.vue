@@ -242,7 +242,7 @@ interface Booking {
   payment_method?: string
 }
 
-interface BookingWithDisplayStatus extends Booking {
+type BookingWithDisplayStatus = Booking & {
   displayStatus: string
 }
 
@@ -359,7 +359,7 @@ const calendarDays = computed(() => {
   // Add previous month days to fill the week
   for (let i = firstDayOfWeek - 1; i >= 0; i--) {
     const dayNum = prevMonthLastDay.getDate() - i
-    const year = currentYear.value
+    const year = currentMonth.value === 0 ? currentYear.value - 1 : currentYear.value
     const month = currentMonth.value === 0 ? 11 : currentMonth.value - 1
     const dateStr = formatDateString(year, month, dayNum)
     days.push({
@@ -403,7 +403,7 @@ const calendarDays = computed(() => {
 })
 
 // Get bookings for selected date with real-time status
-const selectedDateBookings = computed(() => {
+const selectedDateBookings = computed<BookingWithDisplayStatus[]>(() => {
   if (!selectedDate.value) return []
 
   return bookings.value
@@ -781,62 +781,69 @@ onMounted(() => {
 
 /* Filters */
 .filters-section {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #e7edf6;
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: 0 10px 30px rgba(26, 47, 86, 0.08);
   margin-bottom: 2rem;
 }
 
 .filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.85rem;
   align-items: flex-end;
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  min-width: 150px;
+  gap: 0.45rem;
+  min-width: 220px;
   flex: 1;
 }
 
 .filter-group label {
-  font-weight: 500;
-  color: #4a5568;
-  font-size: 0.9rem;
+  font-weight: 700;
+  color: #334155;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .filter-group input,
 .filter-group select {
-  padding: 0.625rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  padding: 0.78rem 0.85rem;
+  border: 1px solid #d7e1ee;
+  border-radius: 10px;
   font-size: 0.9rem;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
+  background: #fff;
 }
 
 .filter-group input:focus,
 .filter-group select:focus {
   outline: none;
-  border-color: #3182ce;
+  border-color: #5b7cfa;
+  box-shadow: 0 0 0 3px rgba(91, 124, 250, 0.14);
 }
 
 .btn-reset {
-  padding: 0.625rem 1.25rem;
-  background: #f7fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  padding: 0.78rem 1.25rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+  border: 1px solid #d7e1ee;
+  border-radius: 10px;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 700;
+  color: #334155;
   transition: all 0.2s;
 }
 
 .btn-reset:hover {
-  background: #edf2f7;
-  border-color: #cbd5e0;
+  border-color: #5b7cfa;
+  color: #2b4bdb;
+  transform: translateY(-1px);
 }
 
 /* Loading State */

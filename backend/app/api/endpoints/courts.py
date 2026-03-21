@@ -60,10 +60,68 @@ async def create_court(
 async def list_courts(
     skip: int = 0,
     limit: int = 100,
+    booking_date: Optional[str] = Query(None, description="Booking date in YYYY-MM-DD"),
+    start_time: Optional[str] = Query(None, description="Start time in HH:MM"),
+    end_time: Optional[str] = Query(None, description="End time in HH:MM"),
     db: Session = Depends(get_db),
 ):
     """List all courts"""
     courts = court_crud.get_courts(db, skip=skip, limit=limit)
+
+    # Optional availability filter by date and time range.
+    has_availability_filter = booking_date or start_time or end_time
+    if has_availability_filter:
+        if not (booking_date and start_time and end_time):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="booking_date, start_time, and end_time are required together",
+            )
+
+        try:
+            parsed_booking_date = datetime.strptime(booking_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid booking_date format. Use YYYY-MM-DD",
+            )
+
+        try:
+            parsed_start_time = datetime.strptime(start_time, "%H:%M").time()
+            parsed_end_time = datetime.strptime(end_time, "%H:%M").time()
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid time format. Use HH:MM",
+            )
+
+        if parsed_start_time >= parsed_end_time:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="start_time must be earlier than end_time",
+            )
+
+        filtered_courts = []
+        for court in courts:
+            if not court.is_active:
+                continue
+
+            # Requested range must be inside venue operating hours.
+            if start_time < court.opening_time or end_time > court.closing_time:
+                continue
+
+            available_courts = court_crud.find_available_courts(
+                db=db,
+                court_id=court.id,
+                booking_date=parsed_booking_date,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+            if available_courts:
+                filtered_courts.append(court)
+
+        return filtered_courts
+
     return courts
 
 
