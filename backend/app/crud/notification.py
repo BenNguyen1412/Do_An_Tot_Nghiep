@@ -26,7 +26,7 @@ def get_unread_count(db: Session, user_id: int) -> int:
     """Get count of unread notifications for a user"""
     return db.query(Notification).filter(
         Notification.user_id == user_id,
-        Notification.is_read == False
+        Notification.is_read.is_(False)
     ).count()
 
 
@@ -44,7 +44,7 @@ def mark_all_as_read(db: Session, user_id: int):
     """Mark all notifications as read for a user"""
     db.query(Notification).filter(
         Notification.user_id == user_id,
-        Notification.is_read == False
+        Notification.is_read.is_(False)
     ).update({"is_read": True})
     db.commit()
 

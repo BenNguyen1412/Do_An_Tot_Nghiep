@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import or_, func
 from typing import Optional, List
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from app.models.court import Court, IndividualCourt, Booking
-from app.schemas.court import CourtCreate, CourtUpdate, IndividualCourtCreate, IndividualCourtUpdate, BookingCreate, BookingUpdate
+from app.schemas.court import CourtCreate, CourtUpdate, IndividualCourtUpdate, BookingCreate, BookingUpdate
 
 
 try:
@@ -224,7 +224,6 @@ def get_bookings_by_individual_court(db: Session, individual_court_id: int) -> L
 
 def check_booking_overlap(db: Session, individual_court_id: int, booking_date, start_time: str, end_time: str, exclude_booking_id: int = None) -> bool:
     """Check if a booking overlaps with existing bookings"""
-    from datetime import datetime
     
     # Get the date only (without time)
     booking_date_only = normalize_booking_date(booking_date)
@@ -257,7 +256,6 @@ def check_booking_overlap(db: Session, individual_court_id: int, booking_date, s
 
 def find_available_courts(db: Session, court_id: int, booking_date, start_time: str, end_time: str, exclude_court_id: int = None) -> List[IndividualCourt]:
     """Find all individual courts in the same venue that are available for the given time slot"""
-    from datetime import datetime
     
     # Get the date only (without time)
     booking_date_only = normalize_booking_date(booking_date)
@@ -482,7 +480,6 @@ def get_owner_bookings_summary(db: Session, owner_id: int) -> dict:
     """
     Get summary statistics of bookings for an owner
     """
-    from datetime import date
     
     today = datetime.now().date()
     thirty_days_ago = today - timedelta(days=30)
@@ -521,7 +518,7 @@ async def auto_verify_booking_payment(db: Session, booking_id: int) -> Optional[
         Updated booking if payment verified, None otherwise
     """
     from app.core.bank_verification_service import get_bank_verification_service
-    from app.models.court import PaymentStatus, BookingStatus
+    from app.models.court import PaymentStatus
     from app.crud.user import get_user_by_id
     
     booking = get_booking(db, booking_id)
@@ -574,7 +571,6 @@ def manual_verify_booking_payment(
     Returns:
         Updated booking
     """
-    from app.core.bank_verification_service import get_bank_verification_service
     from datetime import datetime as dt
     from app.models.court import PaymentStatus, BookingStatus
     
@@ -606,9 +602,8 @@ def get_payment_info(db: Session, booking_id: int) -> Optional[dict]:
     Returns:
         Dict with payment information including QR code
     """
-    from datetime import datetime as dt, timedelta
+    from datetime import timedelta
     from app.crud.user import get_user_by_id
-    from app.schemas.court import PaymentInfo
     
     booking = get_booking(db, booking_id)
     if not booking:

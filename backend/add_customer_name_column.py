@@ -6,7 +6,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from app.core.database import engine
 
 def add_customer_name_column():

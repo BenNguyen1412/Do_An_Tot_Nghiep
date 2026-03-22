@@ -8,7 +8,7 @@ from typing import List, Optional
 from datetime import datetime
 
 from app.core.database import get_db
-from app.core.security import get_current_user, get_current_owner, get_current_admin
+from app.core.security import get_current_user, get_current_owner
 from app.models.user import User
 from app.models.court import PaymentMethod
 from app.schemas.court import (

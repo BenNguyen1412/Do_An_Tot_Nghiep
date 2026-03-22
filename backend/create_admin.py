@@ -41,7 +41,7 @@ def create_admin_accounts():
             
             if existing_user:
                 print(f"⚠️  Email {admin_data['email']} đã tồn tại!")
-                print(f"   Bỏ qua tạo tài khoản này.\n")
+                print("   Bỏ qua tạo tài khoản này.\n")
                 continue
             
             # Tạo user mới

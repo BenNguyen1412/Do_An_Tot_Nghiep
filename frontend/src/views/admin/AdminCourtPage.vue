@@ -300,7 +300,8 @@
           </div>
           <div class="modal-body">
             <p>
-              Are you sure you want to delete court <strong>{{ courtToDelete?.name }}</strong>?
+              Are you sure you want to delete court <strong>{{ courtToDelete?.name }}</strong
+              >?
             </p>
             <p class="warning-text">This action cannot be undone.</p>
           </div>
@@ -321,6 +322,12 @@ import { ref, onMounted, computed } from 'vue'
 import AdminDashboardLayout from '@/layouts/AdminDashboardLayout.vue'
 import axiosInstance from '@/utils/axios'
 
+interface TimeSlot {
+  start_time: string
+  end_time: string
+  price: number
+}
+
 interface Court {
   id: number
   name: string
@@ -335,16 +342,11 @@ interface Court {
   is_active: boolean
   owner_id: number
   facilities?: string[]
+  time_slots?: TimeSlot[]
   contact_phone: string
   contact_email?: string
   created_at: string
   updated_at?: string
-}
-
-interface TimeSlot {
-  start_time: string
-  end_time: string
-  price: number
 }
 
 const courts = ref<Court[]>([])

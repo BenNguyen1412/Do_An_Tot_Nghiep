@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.models.user import User
-from app.core.security import verify_password
 
 def check_all_users():
     """Kiểm tra toàn bộ tài khoản trong hệ thống"""

@@ -3,7 +3,7 @@ Script to check notifications in database
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.core.config import settings, get_database_url
+from app.core.config import get_database_url
 from app.models.notification import Notification
 from app.models.user import User
 

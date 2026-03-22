@@ -1,7 +1,6 @@
 """
 Script to delete all courts from the database and their images
 """
-import os
 from pathlib import Path
 from app.core.database import SessionLocal
 from app.models.court import Court, IndividualCourt, Booking

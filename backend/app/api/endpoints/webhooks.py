@@ -4,8 +4,6 @@ Webhook endpoints for bank transaction notifications
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy.orm import Session
 from typing import Optional
-import hmac
-import hashlib
 import json
 
 from app.core.database import get_db
@@ -32,8 +30,6 @@ async def handle_bank_transaction_webhook(
     It automatically verifies and confirms the booking payment.
     """
     try:
-        # Get raw body
-        body = await request.body()
         payload = await request.json()
         
         # TODO: Verify webhook signature (specific to payment service)
@@ -52,7 +48,6 @@ async def handle_bank_transaction_webhook(
         transaction_id = payload.get("id") or payload.get("transaction_id")
         amount = float(payload.get("amount", 0))
         description = str(payload.get("description", "")).upper().strip()
-        account_number = payload.get("account_number", "")
         
         # Parse booking ID from description (format: "BOOKING123")
         booking_id = None

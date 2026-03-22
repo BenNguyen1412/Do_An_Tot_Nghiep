@@ -3,8 +3,6 @@ Bank Transaction Verification Service
 Supports multiple Vietnamese banks for automatic payment verification
 """
 import httpx
-import hashlib
-import hmac
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
