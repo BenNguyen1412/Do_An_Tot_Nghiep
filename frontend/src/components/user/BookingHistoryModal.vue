@@ -224,11 +224,7 @@ const getStatusInfo = (status: string) => {
                 <div class="booking-header">
                   <div class="booking-court">
                     <span class="court-icon" aria-hidden="true">
-                      <img
-                        src="/logo-pickleball-4-1749506059.webp"
-                        alt="Pickleball"
-                        class="pickleball-icon"
-                      />
+                      <img src="/logo-pickball.webp" alt="Pickleball" class="pickleball-icon" />
                     </span>
                     <div class="court-info">
                       <h3 class="court-name">{{ booking.court_name }}</h3>

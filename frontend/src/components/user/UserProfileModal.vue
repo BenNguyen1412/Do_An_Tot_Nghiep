@@ -264,24 +264,6 @@ const getRoleName = (role: string | undefined) => {
                 </div>
               </div>
             </div>
-
-            <!-- Stats Section -->
-            <div class="stats-section">
-              <div class="stat-card">
-                <div class="stat-icon">🏟️</div>
-                <div class="stat-content">
-                  <div class="stat-number">0</div>
-                  <div class="stat-label">Bookings</div>
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-icon">⭐</div>
-                <div class="stat-content">
-                  <div class="stat-number">0</div>
-                  <div class="stat-label">Reward points</div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <!-- Footer -->
@@ -546,45 +528,6 @@ const getRoleName = (role: string | undefined) => {
   font-style: italic;
 }
 
-/* Stats Section */
-.stats-section {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-.stat-card {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border: 2px solid #86efac;
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.stat-icon {
-  font-size: 2rem;
-}
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-number {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: #2d5016;
-  line-height: 1;
-  margin-bottom: 4px;
-}
-
-.stat-label {
-  font-size: 0.85rem;
-  color: #4a7c2c;
-  font-weight: 600;
-}
-
 /* Footer */
 .modal-footer {
   padding: 20px 28px;
@@ -723,10 +666,6 @@ const getRoleName = (role: string | undefined) => {
 
   .modal-body {
     padding: 20px;
-  }
-
-  .stats-section {
-    grid-template-columns: 1fr;
   }
 
   .btn-edit {

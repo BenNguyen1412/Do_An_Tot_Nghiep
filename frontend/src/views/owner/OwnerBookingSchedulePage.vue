@@ -109,7 +109,7 @@
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal-container">
         <div class="modal-header">
-          <h3 class="modal-title">📅 Booking Schedule - {{ formatDateHeader(selectedDate!) }}</h3>
+          <h3 class="modal-title">Booking Schedule - {{ formatDateHeader(selectedDate!) }}</h3>
           <button class="modal-close" @click="closeModal">✕</button>
         </div>
 
@@ -122,8 +122,13 @@
               :class="'status-' + booking.displayStatus"
             >
               <div class="booking-header">
-                <span class="booking-time">
-                  ⏰ {{ booking.start_time }} - {{ booking.end_time }}
+                <span class="booking-time icon-text">
+                  <img
+                    src="/alarm-clock-icon-illustration-design-free-vector.jpg"
+                    alt="Clock"
+                    class="inline-icon clock"
+                  />
+                  <span>{{ booking.start_time }} - {{ booking.end_time }}</span>
                 </span>
                 <span class="booking-status" :class="'badge-' + booking.displayStatus">
                   {{ getStatusText(booking.displayStatus) }}
@@ -133,7 +138,10 @@
               <div class="booking-body">
                 <div class="booking-info">
                   <p class="court-name">
-                    <strong>🏟️ {{ booking.court_name }}</strong>
+                    <strong class="icon-text">
+                      <img src="/logo-pickball.webp" alt="Court" class="inline-icon court" />
+                      <span>{{ booking.court_name }}</span>
+                    </strong>
                   </p>
                   <p class="individual-court">
                     {{ booking.individual_court.name }}
@@ -142,17 +150,31 @@
 
                 <div class="booking-customer">
                   <p class="customer-name">
-                    <strong>👤 {{ booking.customer_name || booking.user.full_name }}</strong>
+                    <strong class="icon-text">
+                      <img src="/user-icon.avif" alt="User" class="inline-icon user" />
+                      <span>{{ booking.customer_name || booking.user.full_name }}</span>
+                    </strong>
                   </p>
                   <p class="customer-contact" v-if="!booking.customer_name && booking.user.email">
                     📧 {{ booking.user.email }}
                   </p>
-                  <p class="customer-phone">📱 {{ booking.phone_number }}</p>
+                  <p class="customer-phone icon-text">
+                    <img src="/pngtree-phone.jpg" alt="Phone" class="inline-icon phone" />
+                    <span>{{ booking.phone_number }}</span>
+                  </p>
                   <p class="booking-price" v-if="booking.total_price">
-                    <strong>💰 {{ booking.total_price.toLocaleString('vi-VN') }} VND</strong>
+                    <strong class="icon-text">
+                      <img src="/money.webp" alt="Money" class="inline-icon money" />
+                      <span>{{ booking.total_price.toLocaleString('vi-VN') }} VND</span>
+                    </strong>
                   </p>
                   <p class="payment-method" v-if="booking.payment_method">
-                    💳 {{ booking.payment_method === 'vietqr' ? 'VietQR' : booking.payment_method }}
+                    <span class="icon-text">
+                      <img src="/3__2821_29.jpg" alt="Payment method" class="inline-icon payment" />
+                      <span>{{
+                        booking.payment_method === 'vietqr' ? 'VietQR' : booking.payment_method
+                      }}</span>
+                    </span>
                   </p>
                 </div>
 
@@ -1359,6 +1381,34 @@ onMounted(() => {
   margin: 0 0 0.25rem 0;
   color: #1a202c;
   font-size: 1rem;
+}
+
+.icon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.inline-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.inline-icon.court {
+  width: 18px;
+  height: 18px;
+}
+
+.inline-icon.user,
+.inline-icon.phone,
+.inline-icon.money,
+.inline-icon.clock,
+.inline-icon.payment {
+  border-radius: 4px;
 }
 
 .booking-info .individual-court,
