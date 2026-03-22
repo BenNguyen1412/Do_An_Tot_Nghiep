@@ -72,7 +72,7 @@
               <td>
                 <div class="request-name">
                   <div class="request-icon-wrapper Court">
-                    <span class="request-icon">🏟️</span>
+                    <img src="/logo-pickball.webp" alt="Court" class="request-icon-image" />
                   </div>
                   <div class="request-details">
                     <div class="name">{{ request.name }}</div>
@@ -212,7 +212,10 @@
               <div class="info-grid">
                 <div class="info-item">
                   <label>Phone Number</label>
-                  <p>{{ selectedRequest.contact_phone }}</p>
+                  <p class="contact-phone-value">
+                    <img src="/pngtree-phone.jpg" alt="Phone" class="contact-phone-icon" />
+                    <span>{{ selectedRequest.contact_phone }}</span>
+                  </p>
                 </div>
                 <div class="info-item">
                   <label>Email</label>
@@ -309,7 +312,8 @@
           </div>
           <div class="modal-body">
             <p>
-              Are you sure you want to delete request <strong>{{ requestToDelete?.name }}</strong>?
+              Are you sure you want to delete request <strong>{{ requestToDelete?.name }}</strong
+              >?
             </p>
             <p class="warning-text">This action cannot be undone.</p>
           </div>
@@ -746,6 +750,13 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+.request-icon-image {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
+}
+
 .request-icon-wrapper.Court {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
@@ -765,6 +776,20 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.contact-phone-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.contact-phone-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .request-details .name {

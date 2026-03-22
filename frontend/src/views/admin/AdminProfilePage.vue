@@ -99,7 +99,9 @@
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon purple">🏟️</div>
+          <div class="stat-icon purple">
+            <img src="/logo-pickball.webp" alt="Court" class="stat-icon-image" />
+          </div>
           <div class="stat-content">
             <div class="stat-value">0</div>
             <div class="stat-label">Total Courts</div>
@@ -145,7 +147,11 @@
 
               <div class="info-card">
                 <div class="info-header">
-                  <span class="info-icon">✉️</span>
+                  <img
+                    src="/pngtree-email-icon-design-png-image_2413695.jpg"
+                    alt="Email"
+                    class="info-icon-image"
+                  />
                   <span class="info-title">Email Address</span>
                 </div>
                 <div class="info-value">{{ authStore.user?.email || 'N/A' }}</div>
@@ -156,7 +162,7 @@
 
               <div class="info-card">
                 <div class="info-header">
-                  <span class="info-icon">📱</span>
+                  <img src="/pngtree-phone.jpg" alt="Phone" class="info-icon-image" />
                   <span class="info-title">Phone Number</span>
                 </div>
                 <div class="info-value">{{ authStore.user?.phone_number || 'Not set' }}</div>
@@ -170,7 +176,11 @@
 
               <div class="info-card">
                 <div class="info-header">
-                  <span class="info-icon">🔒</span>
+                  <img
+                    src="/pngtree-vector-lock-icon-png-image_515444.jpg"
+                    alt="Password"
+                    class="info-icon-image"
+                  />
                   <span class="info-title">Password</span>
                 </div>
                 <div class="info-value">••••••••••</div>
@@ -222,7 +232,9 @@
             </div>
           </div>
           <div class="activity-item">
-            <div class="activity-icon green">🏟️</div>
+            <div class="activity-icon green">
+              <img src="/logo-pickball.webp" alt="Court" class="activity-icon-image" />
+            </div>
             <div class="activity-content">
               <div class="activity-title">Court B was approved</div>
               <div class="activity-time">1 hour ago</div>
@@ -460,6 +472,13 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+.stat-icon-image {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  display: block;
+}
+
 .stat-icon.blue {
   background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
 }
@@ -639,6 +658,14 @@ onMounted(() => {
   font-size: 20px;
 }
 
+.info-icon-image {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
 .info-title {
   font-size: 13px;
   font-weight: 600;
@@ -758,6 +785,13 @@ onMounted(() => {
   justify-content: center;
   font-size: 20px;
   flex-shrink: 0;
+}
+
+.activity-icon-image {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
 }
 
 .activity-icon.blue {

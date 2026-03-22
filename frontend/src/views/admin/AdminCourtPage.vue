@@ -6,7 +6,9 @@
       <!-- Stats Row -->
       <div class="stats-row">
         <div class="stat-item">
-          <div class="stat-icon green">🏟️</div>
+          <div class="stat-icon green">
+            <img src="/logo-pickball.webp" alt="Court" class="court-public-icon stat" />
+          </div>
           <div class="stat-info">
             <div class="stat-value">{{ totalCourts }}</div>
             <div class="stat-label">Total Courts</div>
@@ -37,7 +39,10 @@
 
       <div class="court-table-card">
         <div class="card-header">
-          <h2 class="card-title">🏟️ All Courts</h2>
+          <h2 class="card-title">
+            <img src="/logo-pickball.webp" alt="Court" class="court-public-icon title" />
+            <span>All Courts</span>
+          </h2>
           <div class="card-actions">
             <button class="filter-btn">
               <span>🔍</span>
@@ -69,7 +74,7 @@
               <td>
                 <div class="court-name">
                   <div class="court-icon-wrapper">
-                    <span class="court-icon">🏟️</span>
+                    <img src="/logo-pickball.webp" alt="Court" class="court-public-icon table" />
                   </div>
                   <div class="court-details">
                     <div class="name">{{ court.name }}</div>
@@ -79,13 +84,13 @@
               </td>
               <td>
                 <div class="location-text">
-                  <span class="location-icon">📍</span>
+                  <img src="/images.png" alt="Location" class="location-icon-image" />
                   <span>{{ getLocation(court) }}</span>
                 </div>
               </td>
               <td>
                 <div class="phone-text">
-                  <span class="phone-icon">📞</span>
+                  <img src="/pngtree-phone.jpg" alt="Phone" class="phone-icon-image" />
                   <span>{{ court.contact_phone }}</span>
                 </div>
               </td>
@@ -611,10 +616,33 @@ onMounted(() => {
 }
 
 .card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 22px;
   font-weight: 700;
   color: #1f2937;
   margin: 0;
+}
+
+.court-public-icon {
+  object-fit: contain;
+  display: block;
+}
+
+.court-public-icon.stat {
+  width: 26px;
+  height: 26px;
+}
+
+.court-public-icon.title {
+  width: 24px;
+  height: 24px;
+}
+
+.court-public-icon.table {
+  width: 22px;
+  height: 22px;
 }
 
 .card-actions {
@@ -749,6 +777,24 @@ onMounted(() => {
 .location-icon,
 .phone-icon {
   font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.location-icon-image {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.phone-icon-image {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 4px;
   flex-shrink: 0;
   margin-top: 2px;
 }

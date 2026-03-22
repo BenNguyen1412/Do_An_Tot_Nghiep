@@ -29,7 +29,13 @@
         :class="{ active: currentRoute === item.path }"
       >
         <div class="nav-icon-wrapper">
-          <span class="nav-icon">{{ item.icon }}</span>
+          <img
+            v-if="item.iconImage"
+            :src="item.iconImage"
+            :alt="item.label"
+            class="nav-icon-image"
+          />
+          <span v-else class="nav-icon">{{ item.icon }}</span>
         </div>
         <span class="nav-label">{{ item.label }}</span>
         <span class="nav-arrow" v-if="currentRoute === item.path">›</span>
@@ -62,7 +68,7 @@ const currentRoute = computed(() => route.path)
 const menuItems = [
   { path: '/admin/profile', label: 'Profile', icon: '👤' },
   { path: '/admin/users', label: 'Users', icon: '👥' },
-  { path: '/admin/courts', label: 'Court', icon: '🏟️' },
+  { path: '/admin/courts', label: 'Court', iconImage: '/logo-pickball.webp' },
   { path: '/admin/requests', label: 'Request', icon: '📋' },
 ]
 
@@ -219,6 +225,13 @@ const handleLogout = () => {
 
 .nav-icon {
   font-size: 20px;
+}
+
+.nav-icon-image {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  display: block;
 }
 
 .nav-label {
