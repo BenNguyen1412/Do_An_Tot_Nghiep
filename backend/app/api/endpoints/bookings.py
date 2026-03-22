@@ -17,7 +17,8 @@ from app.schemas.court import (
     BookingWithPayment,
     PaymentInfo,
     PaymentPreviewRequest,
-    BookingUpdate
+    BookingUpdate,
+    UserBookingHistoryItem,
 )
 from app.crud import court as court_crud
 from app.crud.user import get_user_by_id
@@ -32,6 +33,50 @@ from app.core.booking_qr_service import (
 from app.core.email_service import send_booking_qr_email
 
 router = APIRouter()
+
+
+def _normalize_status_value(raw_status: object) -> str:
+    """Normalize enum/string status values to plain lowercase text."""
+    if raw_status is None:
+        return ""
+
+    if hasattr(raw_status, "value"):
+        raw_status = getattr(raw_status, "value")
+
+    status_text = str(raw_status).strip().lower()
+    if "." in status_text:
+        status_text = status_text.split(".")[-1]
+    return status_text
+
+
+def _get_effective_history_status(booking) -> str:
+    """Return effective status for history cards based on booking lifecycle and end time."""
+    primary_status = _normalize_status_value(booking.booking_status)
+    legacy_status = _normalize_status_value(booking.status)
+
+    # Prioritize terminal states when either field already has them.
+    if "cancelled" in {primary_status, legacy_status}:
+        return "cancelled"
+    if "completed" in {primary_status, legacy_status}:
+        return "completed"
+
+    status_value = primary_status or legacy_status or "pending"
+
+    if status_value in {"cancelled", "completed", "pending"}:
+        return status_value
+
+    if status_value in {"active", "confirmed"}:
+        try:
+            booking_end_time = datetime.strptime(booking.end_time, "%H:%M").time()
+            booking_end_datetime = datetime.combine(booking.booking_date.date(), booking_end_time)
+            if booking_end_datetime <= datetime.now():
+                return "completed"
+        except Exception:
+            pass
+
+        return "confirmed"
+
+    return "pending"
 
 
 def calculate_multi_tier_price(start_time: str, end_time: str, time_slots: list) -> float:
@@ -506,6 +551,59 @@ async def get_my_bookings(
     """
     bookings = court_crud.get_bookings_by_user(db, current_user.id)
     return bookings
+
+
+@router.get("/user/my-bookings/history", response_model=List[UserBookingHistoryItem])
+async def get_my_bookings_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get enriched booking history for current user (court/location/status)."""
+    bookings = court_crud.get_bookings_by_user(db, current_user.id)
+    result: List[UserBookingHistoryItem] = []
+    has_status_updates = False
+
+    for booking in bookings:
+        individual_court = court_crud.get_individual_court(db, booking.individual_court_id)
+        parent_court = court_crud.get_court(db, individual_court.court_id) if individual_court else None
+
+        if parent_court:
+            location = f"{parent_court.address}, {parent_court.district}, {parent_court.city}"
+            court_name = f"{parent_court.name} - {individual_court.name}" if individual_court else parent_court.name
+        else:
+            location = "N/A"
+            court_name = "N/A"
+
+        status_value = _get_effective_history_status(booking)
+
+        # Keep stored values in sync for terminal states.
+        if status_value in {"completed", "cancelled"}:
+            current_booking_status = _normalize_status_value(booking.booking_status)
+            current_legacy_status = _normalize_status_value(booking.status)
+            if current_booking_status != status_value or current_legacy_status != status_value:
+                booking.booking_status = status_value
+                booking.status = status_value
+                has_status_updates = True
+
+        result.append(
+            UserBookingHistoryItem(
+                id=booking.id,
+                court_name=court_name,
+                location=location,
+                booking_date=booking.booking_date,
+                start_time=booking.start_time,
+                end_time=booking.end_time,
+                total_hours=float(booking.total_hours) if booking.total_hours is not None else None,
+                total_price=float(booking.total_price) if booking.total_price is not None else None,
+                status=status_value,
+            )
+        )
+
+    if has_status_updates:
+        db.commit()
+
+    result.sort(key=lambda item: (item.booking_date, item.start_time), reverse=True)
+    return result
 
 
 @router.put("/{booking_id}", response_model=Booking)

@@ -405,6 +405,20 @@ def update_booking(db: Session, booking_id: int, booking_update: BookingUpdate) 
         
         if check_booking_overlap(db, db_booking.individual_court_id, check_date, check_start, check_end, exclude_booking_id=booking_id):
             raise ValueError("Sân đã được đặt trong khung giờ này. Vui lòng chọn khung giờ khác.")
+
+    # Keep legacy status and booking_status aligned to avoid inconsistent UI state.
+    if 'status' in update_data and 'booking_status' not in update_data:
+        normalized_status = str(update_data['status']).strip().lower()
+        if normalized_status in {'pending', 'confirmed', 'active', 'completed', 'cancelled'}:
+            update_data['booking_status'] = normalized_status
+
+    if 'booking_status' in update_data and 'status' not in update_data:
+        booking_status_value = update_data['booking_status']
+        if hasattr(booking_status_value, 'value'):
+            booking_status_value = booking_status_value.value
+        normalized_booking_status = str(booking_status_value).strip().lower()
+        if normalized_booking_status in {'pending', 'confirmed', 'active', 'completed', 'cancelled'}:
+            update_data['status'] = normalized_booking_status
     
     for field, value in update_data.items():
         setattr(db_booking, field, value)

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
+import axiosInstance from '@/utils/axios'
+import { useToast } from 'vue-toastification'
 
-defineProps<{
+const props = defineProps<{
   isOpen: boolean
 }>()
 
@@ -13,66 +15,79 @@ interface Booking {
   id: number
   court_name: string
   date: string
-  time: string
-  duration: string
-  status: 'confirmed' | 'pending' | 'cancelled' | 'completed'
+  start_time: string
+  end_time: string
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed' | 'active'
   total_price: number
   location: string
 }
 
-const bookings = ref<Booking[]>([
-  // Mock data - sẽ được thay thế bằng API call
-  {
-    id: 1,
-    court_name: 'Pickleball Court VIP A1',
-    date: '2025-11-28',
-    time: '18:00',
-    duration: '2 hours',
-    status: 'confirmed',
-    total_price: 300000,
-    location: 'District 1, Ho Chi Minh City',
-  },
-  {
-    id: 2,
-    court_name: 'Pickleball Court Premium B2',
-    date: '2025-11-25',
-    time: '15:00',
-    duration: '1 hour',
-    status: 'completed',
-    total_price: 150000,
-    location: 'District 3, Ho Chi Minh City',
-  },
-  {
-    id: 3,
-    court_name: 'Pickleball Court Standard C3',
-    date: '2025-11-20',
-    time: '09:00',
-    duration: '1.5 hours',
-    status: 'cancelled',
-    total_price: 200000,
-    location: 'District 7, Ho Chi Minh City',
-  },
-])
+interface BookingHistoryApiItem {
+  id: number
+  court_name: string
+  location: string
+  booking_date: string
+  start_time: string
+  end_time: string
+  total_hours?: number | null
+  total_price?: number | null
+  status: string
+}
+
+const toast = useToast()
+const bookings = ref<Booking[]>([])
+const isLoading = ref(false)
 
 const activeTab = ref<'all' | 'confirmed' | 'completed' | 'cancelled'>('all')
 
-const filteredBookings = ref<Booking[]>([])
+const normalizeStatus = (status: string): Booking['status'] => {
+  if (status === 'completed') return 'completed'
+  if (status === 'cancelled') return 'cancelled'
+  if (status === 'pending') return 'pending'
+  if (status === 'active' || status === 'confirmed') return 'confirmed'
+  return 'pending'
+}
 
-const filterBookings = () => {
-  if (activeTab.value === 'all') {
-    filteredBookings.value = bookings.value
-  } else {
-    filteredBookings.value = bookings.value.filter((b) => b.status === activeTab.value)
+const fetchBookingHistory = async () => {
+  isLoading.value = true
+  try {
+    const response = await axiosInstance.get<BookingHistoryApiItem[]>(
+      '/bookings/user/my-bookings/history',
+    )
+    bookings.value = response.data.map((item) => ({
+      id: item.id,
+      court_name: item.court_name,
+      date: item.booking_date,
+      start_time: item.start_time,
+      end_time: item.end_time,
+      status: normalizeStatus(item.status),
+      total_price: item.total_price || 0,
+      location: item.location,
+    }))
+  } catch (error) {
+    console.error('Error fetching booking history:', error)
+    toast.error('Cannot load booking history')
+  } finally {
+    isLoading.value = false
   }
 }
 
-onMounted(() => {
-  filterBookings()
+const filteredBookings = computed(() => {
+  if (activeTab.value === 'all') return bookings.value
+  return bookings.value.filter((b) => b.status === activeTab.value)
 })
+
+watch(
+  () => props.isOpen,
+  (open) => {
+    if (open) {
+      fetchBookingHistory()
+    }
+  },
+)
 
 const setActiveTab = (tab: typeof activeTab.value) => {
   activeTab.value = tab
-  filterBookings()
 }
 
 const closeModal = () => {
@@ -101,27 +116,16 @@ const getStatusInfo = (status: string) => {
     pending: { label: 'Pending confirmation', color: '#f59e0b', bg: '#fef3c7' },
     cancelled: { label: 'Cancelled', color: '#ef4444', bg: '#fee2e2' },
     completed: { label: 'Completed', color: '#10b981', bg: '#d1fae5' },
+    active: { label: 'Confirmed', color: '#3b82f6', bg: '#dbeafe' },
   }
   return statusMap[status as keyof typeof statusMap] || statusMap.pending
-}
-
-const viewDetails = (booking: Booking) => {
-  console.log('View booking details:', booking)
-  // TODO: Show booking details modal
-}
-
-const cancelBooking = (booking: Booking) => {
-  if (confirm('Are you sure you want to cancel this booking?')) {
-    console.log('Cancel booking:', booking)
-    // TODO: Call API to cancel booking
-  }
 }
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
+      <div v-if="props.isOpen" class="modal-overlay" @click.self="closeModal">
         <div class="modal-container">
           <!-- Header -->
           <div class="modal-header">
@@ -204,17 +208,28 @@ const cancelBooking = (booking: Booking) => {
 
           <!-- Body -->
           <div class="modal-body">
-            <div v-if="filteredBookings.length === 0" class="empty-state">
+            <div v-if="isLoading" class="empty-state">
+              <div class="empty-icon">⏳</div>
+              <h3 class="empty-title">Loading bookings...</h3>
+            </div>
+
+            <div v-else-if="filteredBookings.length === 0" class="empty-state">
               <div class="empty-icon">📋</div>
               <h3 class="empty-title">No bookings yet</h3>
               <p class="empty-description">You do not have any bookings in this category</p>
             </div>
 
-            <div v-else class="bookings-list">
+            <div v-else-if="!isLoading" class="bookings-list">
               <div v-for="booking in filteredBookings" :key="booking.id" class="booking-card">
                 <div class="booking-header">
                   <div class="booking-court">
-                    <span class="court-icon">🏟️</span>
+                    <span class="court-icon" aria-hidden="true">
+                      <img
+                        src="/logo-pickleball-4-1749506059.webp"
+                        alt="Pickleball"
+                        class="pickleball-icon"
+                      />
+                    </span>
                     <div class="court-info">
                       <h3 class="court-name">{{ booking.court_name }}</h3>
                       <p class="court-location">📍 {{ booking.location }}</p>
@@ -262,7 +277,7 @@ const cancelBooking = (booking: Booking) => {
                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    <span>{{ booking.time }} - {{ booking.duration }}</span>
+                    <span>{{ booking.start_time }} - {{ booking.end_time }}</span>
                   </div>
                   <div class="detail-item price">
                     <svg
@@ -280,51 +295,6 @@ const cancelBooking = (booking: Booking) => {
                     </svg>
                     <span>{{ formatPrice(booking.total_price) }}</span>
                   </div>
-                </div>
-
-                <div class="booking-actions">
-                  <button class="action-btn view" @click="viewDetails(booking)">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                      />
-                    </svg>
-                    Details
-                  </button>
-                  <button
-                    v-if="booking.status === 'confirmed'"
-                    class="action-btn cancel"
-                    @click="cancelBooking(booking)"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                    Cancel booking
-                  </button>
                 </div>
               </div>
             </div>
@@ -549,10 +519,20 @@ const cancelBooking = (booking: Booking) => {
   display: flex;
   gap: 12px;
   flex: 1;
+  align-items: center;
 }
 
 .court-icon {
-  font-size: 2rem;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #ecfccb, #fef3c7);
+  box-shadow: 0 8px 18px rgba(45, 80, 22, 0.18);
+  overflow: hidden;
 }
 
 .court-info {
@@ -560,10 +540,18 @@ const cancelBooking = (booking: Booking) => {
 }
 
 .court-name {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: #1f2937;
   margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.pickleball-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
 }
 
 .court-location {

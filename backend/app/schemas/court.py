@@ -225,3 +225,15 @@ class OwnerBookingsSummary(BaseModel):
     completed_bookings: int
     cancelled_bookings: int
     period_days: int
+
+
+class UserBookingHistoryItem(BaseModel):
+    id: int
+    court_name: str
+    location: str
+    booking_date: datetime
+    start_time: str
+    end_time: str
+    total_hours: Optional[float] = None
+    total_price: Optional[float] = None
+    status: str
