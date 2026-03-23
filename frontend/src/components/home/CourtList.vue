@@ -136,10 +136,7 @@ const getCurrentPrice = (court: Court) => {
 }
 
 const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(price)
+  return new Intl.NumberFormat('vi-VN').format(price)
 }
 
 // Navigate to court details
@@ -212,7 +209,7 @@ onMounted(() => {
 
             <div class="court-footer">
               <div class="court-meta">
-                <span class="price">{{ formatPrice(getCurrentPrice(court)) }}/hour</span>
+                <span class="price">{{ formatPrice(getCurrentPrice(court)) }} VND/h</span>
               </div>
 
               <button class="book-btn" @click.stop="viewCourtDetails(court.id)">Book Now</button>

@@ -91,20 +91,6 @@ const applyAvailabilitySearch = async () => {
   await fetchCourts()
 }
 
-const clearAvailabilitySearch = async () => {
-  selectedBookingDate.value = ''
-  selectedStartTime.value = ''
-  selectedEndTime.value = ''
-  isAvailabilityFiltered.value = false
-  await fetchCourts()
-}
-
-const clearAllFilters = async () => {
-  searchQuery.value = ''
-  selectedDistrict.value = ''
-  await clearAvailabilitySearch()
-}
-
 // Filter courts based on search and district
 const filteredCourts = computed(() => {
   let filtered = courts.value
@@ -263,14 +249,6 @@ onMounted(() => {
                 </option>
               </select>
             </div>
-
-            <button
-              v-if="searchQuery || selectedDistrict || isAvailabilityFiltered"
-              class="clear-all-btn"
-              @click="clearAllFilters"
-            >
-              Clear All
-            </button>
           </div>
 
           <div class="availability-row">
@@ -303,13 +281,6 @@ onMounted(() => {
               </div>
               <button class="availability-btn" @click="applyAvailabilitySearch">
                 Search Availability
-              </button>
-              <button
-                v-if="isAvailabilityFiltered"
-                class="clear-availability-btn"
-                @click="clearAvailabilitySearch"
-              >
-                Clear Availability
               </button>
             </div>
           </div>
