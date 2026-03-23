@@ -1054,13 +1054,14 @@ onMounted(() => {
                 </svg>
               </div>
               <div class="status-content">
+                <span class="status-badge" v-if="paymentVerified">Verified</span>
                 <h3 class="status-title">
-                  {{ paymentVerified ? 'Payment Confirmed!' : 'Pending Payment' }}
+                  {{ paymentVerified ? 'Payment Confirmed' : 'Pending Payment' }}
                 </h3>
                 <p class="status-subtitle">
                   {{
                     paymentVerified
-                      ? 'The court owner will verify and confirm your booking'
+                      ? 'Your transfer has been recorded. Booking is waiting for owner approval.'
                       : 'Please scan the QR code and complete payment'
                   }}
                 </p>
@@ -1298,24 +1299,55 @@ onMounted(() => {
                   />
                 </svg>
               </div>
-              <h2>🎉 Booking Successful!</h2>
-              <p class="success-main-text">✅ Your payment information has been recorded!</p>
+              <h2>Booking Submitted Successfully</h2>
+              <p class="success-main-text">Your payment information has been recorded.</p>
               <div class="success-info-box">
-                <div class="info-icon">📧</div>
-                <p class="success-description">
-                  Please check your <strong>email</strong> to receive the confirmation after the
-                  owner verifies your payment.
-                </p>
+                <div class="info-icon-wrap email" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 6h16v12H4z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 8l8 6 8-6"
+                    />
+                  </svg>
+                </div>
+                <div class="success-copy">
+                  <h4>Email Confirmation</h4>
+                  <p class="success-description">
+                    Please check your <strong>email</strong> to receive final confirmation after the
+                    owner verifies your transfer.
+                  </p>
+                </div>
               </div>
               <div class="success-info-box secondary">
-                <div class="info-icon">⏳</div>
-                <p class="success-description">
-                  Your booking is currently <strong>"Pending confirmation"</strong>. The owner
-                  will confirm it as soon as possible.
-                </p>
+                <div class="info-icon-wrap status" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="9" stroke-width="2" />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 7v5l3 2"
+                    />
+                  </svg>
+                </div>
+                <div class="success-copy">
+                  <h4>Booking Status</h4>
+                  <p class="success-description">
+                    Current booking state is <strong>Pending confirmation</strong>. Approval is
+                    usually completed shortly.
+                  </p>
+                </div>
               </div>
               <div class="booking-id-display" v-if="bookingId">
-                <span class="label">Booking ID:</span>
+                <span class="label">Booking reference</span>
                 <span class="value">#{{ bookingId }}</span>
               </div>
             </div>
@@ -2172,7 +2204,7 @@ onMounted(() => {
 }
 
 .payment-status-banner.verified {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #059669 0%, #0f766e 100%);
 }
 
 .payment-status-banner.verified::before {
@@ -2205,6 +2237,21 @@ onMounted(() => {
   flex: 1;
   position: relative;
   z-index: 1;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ecfeff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .status-title {
@@ -2507,6 +2554,9 @@ onMounted(() => {
   align-items: center;
   gap: 24px;
   animation: fadeIn 0.6s ease-out;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(6, 182, 212, 0.08), transparent 28%),
+    radial-gradient(circle at 92% 86%, rgba(14, 165, 233, 0.09), transparent 32%), #f8fafc;
 }
 
 @keyframes fadeIn {
@@ -2521,8 +2571,8 @@ onMounted(() => {
 }
 
 .success-icon {
-  width: 100px;
-  height: 100px;
+  width: 104px;
+  height: 104px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border-radius: 50%;
   display: flex;
@@ -2549,37 +2599,39 @@ onMounted(() => {
 }
 
 .payment-success h2 {
-  font-size: 2rem;
+  font-size: 1.95rem;
   font-weight: 800;
-  color: #10b981;
+  color: #0f766e;
   margin: 0;
 }
 
 .success-main-text {
-  font-size: 1.25rem;
-  color: #10b981;
-  font-weight: 600;
+  font-size: 1.12rem;
+  color: #0f766e;
+  font-weight: 700;
   margin: 0;
 }
 
 .success-info-box {
   display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  padding: 20px;
-  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  gap: 14px;
+  align-items: center;
+  padding: 18px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #eff6ff 100%);
   border-radius: 12px;
-  border-left: 4px solid #3b82f6;
-  max-width: 500px;
+  border: 1px solid #bfdbfe;
+  max-width: 540px;
   width: 100%;
   text-align: left;
-  animation: slideIn 0.6s ease-out 0.3s both;
+  animation: slideIn 0.6s ease-out 0.25s both;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.1);
 }
 
 .success-info-box.secondary {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border-left-color: #f59e0b;
-  animation-delay: 0.5s;
+  background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+  border-color: #fde68a;
+  animation-delay: 0.4s;
+  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.12);
 }
 
 @keyframes slideIn {
@@ -2593,17 +2645,47 @@ onMounted(() => {
   }
 }
 
-.success-info-box .info-icon {
-  font-size: 2rem;
+.info-icon-wrap {
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #2563eb;
+  color: #ffffff;
   flex-shrink: 0;
-  line-height: 1;
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+}
+
+.info-icon-wrap svg {
+  width: 22px;
+  height: 22px;
+}
+
+.success-info-box.secondary .info-icon-wrap {
+  background: #d97706;
+  box-shadow: 0 8px 16px rgba(217, 119, 6, 0.2);
+}
+
+.success-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.success-copy h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1e293b;
 }
 
 .success-description {
   font-size: 0.95rem;
   color: #374151;
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .success-description strong {
@@ -2613,26 +2695,29 @@ onMounted(() => {
 
 .booking-id-display {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
-  padding: 16px 24px;
-  background: #f8fafc;
+  padding: 14px 22px;
+  background: #ffffff;
   border-radius: 10px;
-  border: 2px dashed #cbd5e0;
+  border: 1px dashed #93c5fd;
   margin-top: 8px;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
 }
 
 .booking-id-display .label {
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 500;
+  font-size: 0.78rem;
+  color: #475569;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .booking-id-display .value {
   font-size: 1.25rem;
-  font-weight: 700;
-  color: #667eea;
-  font-family: 'Courier New', monospace;
+  font-weight: 800;
+  color: #2563eb;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
 }
 
 /* Responsive */
@@ -2703,6 +2788,10 @@ onMounted(() => {
     grid-template-columns: 1fr;
     padding: 24px;
     gap: 32px;
+  }
+
+  .success-info-box {
+    align-items: flex-start;
   }
 
   .bank-info-grid {
