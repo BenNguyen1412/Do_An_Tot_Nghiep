@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import json
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -23,6 +24,11 @@ from app.schemas.court import (
 from app.crud import court as court_crud
 
 router = APIRouter()
+
+try:
+    LOCAL_TIMEZONE = ZoneInfo("Asia/Ho_Chi_Minh")
+except ZoneInfoNotFoundError:
+    LOCAL_TIMEZONE = ZoneInfo("UTC")
 
 # Court endpoints
 @router.post("/courts", response_model=Court, status_code=status.HTTP_201_CREATED)
@@ -98,6 +104,21 @@ async def list_courts(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="start_time must be earlier than end_time",
+            )
+
+        now_local = datetime.now(LOCAL_TIMEZONE)
+        now_time = now_local.time().replace(second=0, microsecond=0)
+
+        if parsed_booking_date < now_local.date():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="booking_date cannot be in the past",
+            )
+
+        if parsed_booking_date == now_local.date() and parsed_start_time <= now_time:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="start_time must be later than current time for today",
             )
 
         filtered_courts = []

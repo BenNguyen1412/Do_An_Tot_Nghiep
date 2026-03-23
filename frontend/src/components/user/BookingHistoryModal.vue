@@ -228,7 +228,10 @@ const getStatusInfo = (status: string) => {
                     </span>
                     <div class="court-info">
                       <h3 class="court-name">{{ booking.court_name }}</h3>
-                      <p class="court-location">📍 {{ booking.location }}</p>
+                      <p class="court-location">
+                        <img src="/images.png" alt="Location" class="location-inline-icon" />
+                        <span>{{ booking.location }}</span>
+                      </p>
                     </div>
                   </div>
                   <div
@@ -554,6 +557,17 @@ const getStatusInfo = (status: string) => {
   font-size: 0.85rem;
   color: #6b7280;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.location-inline-icon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .booking-status {

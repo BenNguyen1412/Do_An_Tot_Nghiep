@@ -39,7 +39,8 @@ const selectedBookingDate = ref('')
 const selectedStartTime = ref('')
 const selectedEndTime = ref('')
 const isAvailabilityFiltered = ref(false)
-const todayDate = new Date().toISOString().split('T')[0]
+const today = new Date()
+const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
 // Check if user is owner or enterprise for header props
 const showManagement = computed(() => authStore.user?.role === 'owner')
@@ -76,6 +77,14 @@ const applyAvailabilitySearch = async () => {
   if (selectedStartTime.value >= selectedEndTime.value) {
     toast.error('Start time must be earlier than end time.')
     return
+  }
+
+  if (selectedBookingDate.value === todayDate) {
+    const currentTime = getCurrentTime()
+    if (selectedStartTime.value <= currentTime) {
+      toast.error('For today, start time must be later than current time.')
+      return
+    }
   }
 
   isAvailabilityFiltered.value = true
