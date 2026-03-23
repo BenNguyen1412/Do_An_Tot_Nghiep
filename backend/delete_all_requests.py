@@ -1,39 +1,45 @@
-"""
-Script to delete all court requests from the database
-"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# Ensure imports work even if the script is run from outside backend/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from app.core.database import SessionLocal
 from app.models import CourtRequest
 
-def delete_all_requests():
-    """Xóa toàn bộ court requests"""
+
+def delete_all_requests() -> int:
+    """Delete all rows in court_requests table and return deleted count."""
     db = SessionLocal()
     try:
-        # Get count before deletion
-        total_requests = db.query(CourtRequest).count()
-        
-        if total_requests == 0:
-            print("✓ Không có yêu cầu nào để xóa")
-            return
-        
-        # Delete all court requests
+        total = db.query(CourtRequest).count()
+        if total == 0:
+            print("No requests to delete.")
+            return 0
+
         db.query(CourtRequest).delete()
         db.commit()
-        
-        print(f"✅ Đã xóa thành công {total_requests} yêu cầu tạo sân!")
-        
-    except Exception as e:
+
+        print(f"Deleted {total} request(s).")
+        return total
+    except Exception as exc:
         db.rollback()
-        print(f"❌ Lỗi khi xóa dữ liệu: {e}")
+        print(f"Delete failed: {exc}")
+        raise
     finally:
         db.close()
 
+
+def _confirm() -> bool:
+    answer = input("Delete ALL court requests? Type 'yes' to continue: ").strip().lower()
+    return answer == "yes"
+
+
 if __name__ == "__main__":
-    print("🗑️  Đang xóa toàn bộ yêu cầu tạo sân...\n")
-    
-    # Confirm before deletion
-    confirm = input("⚠️  Bạn có chắc chắn muốn xóa TOÀN BỘ yêu cầu? (yes/no): ")
-    
-    if confirm.lower() in ['yes', 'y']:
-        delete_all_requests()
-    else:
-        print("❌ Đã hủy thao tác xóa")
+    if not _confirm():
+        print("Cancelled.")
+        raise SystemExit(0)
+
+    delete_all_requests()

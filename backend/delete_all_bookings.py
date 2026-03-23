@@ -1,39 +1,45 @@
-"""
-Script to delete all bookings from the database
-"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# Ensure imports work even if the script is run from outside backend/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from app.core.database import SessionLocal
 from app.models.court import Booking
 
-def delete_all_bookings():
-    """Xóa toàn bộ bookings"""
+
+def delete_all_bookings() -> int:
+    """Delete all rows in bookings table and return deleted count."""
     db = SessionLocal()
     try:
-        # Get count before deletion
-        total_bookings = db.query(Booking).count()
-        
-        if total_bookings == 0:
-            print("✓ Không có booking nào để xóa")
-            return
-        
-        # Delete all bookings
+        total = db.query(Booking).count()
+        if total == 0:
+            print("No bookings to delete.")
+            return 0
+
         db.query(Booking).delete()
         db.commit()
-        
-        print(f"✅ Đã xóa thành công {total_bookings} booking!")
-        
-    except Exception as e:
+
+        print(f"Deleted {total} booking(s).")
+        return total
+    except Exception as exc:
         db.rollback()
-        print(f"❌ Lỗi khi xóa dữ liệu: {e}")
+        print(f"Delete failed: {exc}")
+        raise
     finally:
         db.close()
 
+
+def _confirm() -> bool:
+    answer = input("Delete ALL bookings? Type 'yes' to continue: ").strip().lower()
+    return answer == "yes"
+
+
 if __name__ == "__main__":
-    print("🗑️  Đang xóa toàn bộ bookings...\n")
-    
-    # Confirm before deletion
-    confirm = input("⚠️  Bạn có chắc chắn muốn xóa TOÀN BỘ bookings? (yes/no): ")
-    
-    if confirm.lower() in ['yes', 'y']:
-        delete_all_bookings()
-    else:
-        print("❌ Đã hủy thao tác xóa")
+    if not _confirm():
+        print("Cancelled.")
+        raise SystemExit(0)
+
+    delete_all_bookings()
