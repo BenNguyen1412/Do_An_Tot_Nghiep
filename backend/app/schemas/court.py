@@ -87,11 +87,16 @@ class IndividualCourt(IndividualCourtBase):
     
     @classmethod
     def from_orm(cls, obj):
-        # Check if court has any active bookings
+        bookings = list(getattr(obj, 'bookings', []) or [])
+
+        # Keep availability computed from effective active status (legacy + new enum field).
         has_active_bookings = any(
-            booking.status == 'active' 
-            for booking in obj.bookings
-        ) if hasattr(obj, 'bookings') else False
+            (
+                str(getattr(booking, 'status', '') or '').strip().lower() == 'active'
+                or str(getattr(getattr(booking, 'booking_status', ''), 'value', getattr(booking, 'booking_status', '')) or '').strip().lower() == 'active'
+            )
+            for booking in bookings
+        )
         
         data = {
             'id': obj.id,
@@ -102,6 +107,11 @@ class IndividualCourt(IndividualCourtBase):
             'created_at': obj.created_at,
             'updated_at': obj.updated_at,
         }
+
+        # IndividualCourtWithBookings extends this schema and needs nested bookings.
+        if hasattr(cls, 'model_fields') and 'bookings' in getattr(cls, 'model_fields', {}):
+            data['bookings'] = bookings
+
         return cls(**data)
 
 

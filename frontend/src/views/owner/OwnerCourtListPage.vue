@@ -24,6 +24,7 @@ interface Booking {
   end_time: string
   phone_number: string
   status: string
+  booking_status?: string
 }
 
 interface IndividualCourt {
@@ -60,6 +61,17 @@ interface SuggestedCourt {
   id: number
   name: string
   court_name: string
+}
+
+const getNormalizedBookingStatus = (booking: Booking): string => {
+  const status = (booking.status || '').toString().trim().toLowerCase()
+  const bookingStatus = (booking.booking_status || '').toString().trim().toLowerCase()
+  return bookingStatus || status
+}
+
+const isActiveBooking = (booking: Booking): boolean => {
+  const status = getNormalizedBookingStatus(booking)
+  return status === 'active'
 }
 
 // Real data from API
@@ -138,7 +150,7 @@ const checkAndUpdateExpiredBookings = (courtData: IndividualCourt[]) => {
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
   courtData.forEach((ic) => {
-    const activeBooking = ic.bookings?.find((b) => b.status === 'active')
+    const activeBooking = ic.bookings?.find((b) => isActiveBooking(b))
     if (activeBooking) {
       const bookingDate = activeBooking.booking_date.split('T')[0]
 
@@ -222,7 +234,7 @@ const fetchMyCourts = async () => {
         const updatedCourts = checkAndUpdateExpiredBookings(detailResponse.data)
 
         courts.value = updatedCourts.map((ic) => {
-          const activeBooking = ic.bookings?.find((b) => b.status === 'active')
+          const activeBooking = ic.bookings?.find((b) => isActiveBooking(b))
 
           // Use is_available from checkAndUpdateExpiredBookings
           // Only show as booked if court is NOT available (currently in use)
