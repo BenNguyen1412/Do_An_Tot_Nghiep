@@ -1,5 +1,8 @@
+import json
+from typing import Any, Optional
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
-from typing import Optional
 
 class Settings(BaseSettings):
     # Database Settings
@@ -18,7 +21,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # CORS
-    BACKEND_CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     # Public URL used in QR links
     BACKEND_PUBLIC_BASE_URL: str = "http://localhost:8000"
@@ -31,6 +34,30 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: Optional[str] = None
     SMTP_FROM_NAME: str = "Pickleball NP SPORTCLUB"
     SMTP_USE_TLS: bool = True
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: Any) -> list[str]:
+        if isinstance(value, list):
+            return value
+
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                return []
+
+            # Accept JSON array string or comma-separated value.
+            if cleaned.startswith("["):
+                try:
+                    parsed = json.loads(cleaned)
+                    if isinstance(parsed, list):
+                        return [str(origin).strip() for origin in parsed if str(origin).strip()]
+                except json.JSONDecodeError:
+                    return []
+
+            return [origin.strip() for origin in cleaned.split(",") if origin.strip()]
+
+        return []
     
     class Config:
         env_file = ".env"
