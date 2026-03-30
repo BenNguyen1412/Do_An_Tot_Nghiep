@@ -1,37 +1,316 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import axios from '@/utils/axios'
+import { useToast } from 'vue-toastification'
 
 // Filter states
 const timeFilter = ref<'day' | 'month' | 'year'>('month')
 const selectedDate = ref(new Date().toISOString().split('T')[0])
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const selectedYear = ref(new Date().getFullYear().toString())
+const isLoading = ref(false)
+const loadError = ref('')
+const toast = useToast()
 
-// Mock data - will be replaced by API call
-const revenueData = ref({
-  total: 45800000,
-  bookings: 156,
-  averagePerBooking: 293589,
-  growth: 12.5,
+interface BookingItem {
+  id: number
+  booking_date: string
+  start_time: string
+  end_time: string
+  total_price?: number | null
+  court_name?: string | null
+  status?: string | null
+  booking_status?: string | null
+  payment_status?: string | null
+  payment_method?: string | null
+}
+
+interface RevenueStats {
+  total: number
+  bookings: number
+  averagePerBooking: number
+  growth: number
+  bookingsGrowth: number
+  completedBookings: number
+  cancelledBookings: number
+}
+
+interface ChartPoint {
+  label: string
+  value: number
+}
+
+interface OwnerCourt {
+  id: number
+  opening_time?: string | null
+  closing_time?: string | null
+}
+
+interface TimeRange {
+  open: number
+  close: number
+}
+
+interface DateRange {
+  startDate: string
+  endDate: string
+}
+
+const revenueData = ref<RevenueStats>({
+  total: 0,
+  bookings: 0,
+  averagePerBooking: 0,
+  growth: 0,
+  bookingsGrowth: 0,
+  completedBookings: 0,
+  cancelledBookings: 0,
 })
 
-const chartData = ref([
-  { label: '00:00', value: 0 },
-  { label: '06:00', value: 1200000 },
-  { label: '09:00', value: 2500000 },
-  { label: '12:00', value: 3800000 },
-  { label: '15:00', value: 5200000 },
-  { label: '18:00', value: 8900000 },
-  { label: '21:00', value: 6500000 },
-  { label: '23:59', value: 4200000 },
-])
+const chartData = ref<ChartPoint[]>([])
+const ownerOpenRanges = ref<TimeRange[]>([])
+const hasLoadedOwnerHours = ref(false)
 
-const topCourts = ref([
-  { name: 'VIP Court A1', revenue: 12500000, bookings: 42, growth: 15.2 },
-  { name: 'Premium Court B2', revenue: 9800000, bookings: 38, growth: 8.7 },
-  { name: 'Standard Court C3', revenue: 7600000, bookings: 35, growth: -2.3 },
-  { name: 'VIP Court A2', revenue: 6900000, bookings: 28, growth: 22.1 },
-])
+const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getSelectedDateRange = (): DateRange => {
+  if (timeFilter.value === 'day') {
+    const selected = selectedDate.value || toLocalDateString(new Date())
+    return { startDate: selected, endDate: selected }
+  }
+
+  if (timeFilter.value === 'month') {
+    const [yearStr, monthStr] = (selectedMonth.value || new Date().toISOString().slice(0, 7)).split(
+      '-',
+    )
+    const year = Number(yearStr)
+    const month = Number(monthStr)
+
+    if (!Number.isFinite(year) || !Number.isFinite(month)) {
+      const now = new Date()
+      const start = new Date(now.getFullYear(), now.getMonth(), 1)
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      return { startDate: toLocalDateString(start), endDate: toLocalDateString(end) }
+    }
+
+    const start = new Date(year, month - 1, 1)
+    const end = new Date(year, month, 0)
+    return { startDate: toLocalDateString(start), endDate: toLocalDateString(end) }
+  }
+
+  const year = Number(selectedYear.value) || new Date().getFullYear()
+  const start = new Date(year, 0, 1)
+  const end = new Date(year, 11, 31)
+  return { startDate: toLocalDateString(start), endDate: toLocalDateString(end) }
+}
+
+const getPreviousDateRange = ({ startDate, endDate }: DateRange): DateRange => {
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const dayCount = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
+
+  const prevEnd = new Date(start)
+  prevEnd.setDate(prevEnd.getDate() - 1)
+
+  const prevStart = new Date(prevEnd)
+  prevStart.setDate(prevStart.getDate() - dayCount + 1)
+
+  return {
+    startDate: toLocalDateString(prevStart),
+    endDate: toLocalDateString(prevEnd),
+  }
+}
+
+const normalizeStatus = (value: string | null | undefined): string => {
+  if (!value) return ''
+  const normalized = value.toLowerCase().trim()
+  return normalized.includes('.') ? normalized.split('.').pop() || '' : normalized
+}
+
+const toMinutes = (timeText: string): number => {
+  const [hours, minutes] = timeText.split(':').map(Number)
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 0
+  return hours * 60 + minutes
+}
+
+const loadOwnerOpenRanges = async () => {
+  if (hasLoadedOwnerHours.value) return
+
+  try {
+    const response = await axios.get('/courts/my')
+    const courts: OwnerCourt[] = response.data || []
+
+    ownerOpenRanges.value = courts
+      .map((court) => {
+        const open = toMinutes(court.opening_time || '')
+        const close = toMinutes(court.closing_time || '')
+        return { open, close }
+      })
+      .filter((range) => range.close > range.open)
+  } catch (error) {
+    console.error('Error loading owner courts for opening hours:', error)
+    ownerOpenRanges.value = []
+  } finally {
+    hasLoadedOwnerHours.value = true
+  }
+}
+
+const isWithinOwnerOpeningHours = (startTime: string, endTime: string): boolean => {
+  // Fallback: if opening-hours info cannot be loaded, do not block chart rendering.
+  if (!ownerOpenRanges.value.length) return true
+
+  const startMinutes = toMinutes(startTime)
+  const endMinutes = toMinutes(endTime)
+
+  return ownerOpenRanges.value.some(
+    (range) => startMinutes >= range.open && endMinutes <= range.close,
+  )
+}
+
+const isRevenueBooking = (booking: BookingItem): boolean => {
+  const total = Number(booking.total_price || 0)
+  if (total <= 0) return false
+
+  const status = normalizeStatus(booking.booking_status || booking.status)
+  const paymentStatus = normalizeStatus(booking.payment_status)
+  const paymentMethod = normalizeStatus(booking.payment_method)
+
+  if (status === 'cancelled' || paymentStatus === 'failed' || paymentStatus === 'refunded') {
+    return false
+  }
+
+  if (paymentStatus === 'paid' || paymentMethod === 'cash') {
+    return true
+  }
+
+  return ['confirmed', 'active', 'completed'].includes(status)
+}
+
+const computeGrowth = (current: number, previous: number): number => {
+  if (previous <= 0) return current > 0 ? 100 : 0
+  return ((current - previous) / previous) * 100
+}
+
+const buildChartData = (bookings: BookingItem[]) => {
+  const grouped = new Map<string, number>()
+
+  bookings.forEach((booking) => {
+    if (!isRevenueBooking(booking)) return
+    if (!isWithinOwnerOpeningHours(booking.start_time, booking.end_time)) return
+
+    const total = Number(booking.total_price || 0)
+    const slotLabel = `${booking.start_time}-${booking.end_time}`
+    grouped.set(slotLabel, (grouped.get(slotLabel) || 0) + total)
+  })
+
+  chartData.value = Array.from(grouped.entries())
+    .sort((a, b) => toMinutes(a[0].split('-')[0]) - toMinutes(b[0].split('-')[0]))
+    .map(([label, value]) => ({ label, value }))
+}
+
+const getBookingsByRange = async ({ startDate, endDate }: DateRange): Promise<BookingItem[]> => {
+  const response = await axios.get('/owner/bookings', {
+    params: {
+      start_date: startDate,
+      end_date: endDate,
+    },
+  })
+
+  return response.data || []
+}
+
+const fetchRevenueData = async () => {
+  isLoading.value = true
+  loadError.value = ''
+
+  try {
+    await loadOwnerOpenRanges()
+
+    const currentRange = getSelectedDateRange()
+    const previousRange = getPreviousDateRange(currentRange)
+
+    const [currentBookings, previousBookings] = await Promise.all([
+      getBookingsByRange(currentRange),
+      getBookingsByRange(previousRange),
+    ])
+
+    const currentRevenueBookings = currentBookings.filter(isRevenueBooking)
+    const previousRevenueBookings = previousBookings.filter(isRevenueBooking)
+
+    const totalRevenue = currentRevenueBookings.reduce(
+      (sum, b) => sum + Number(b.total_price || 0),
+      0,
+    )
+    const previousTotalRevenue = previousRevenueBookings.reduce(
+      (sum, b) => sum + Number(b.total_price || 0),
+      0,
+    )
+
+    const completedBookings = currentBookings.filter((b) => {
+      const status = normalizeStatus(b.booking_status || b.status)
+      return status === 'completed'
+    }).length
+
+    const cancelledBookings = currentBookings.filter((b) => {
+      const status = normalizeStatus(b.booking_status || b.status)
+      return status === 'cancelled'
+    }).length
+
+    revenueData.value = {
+      total: totalRevenue,
+      bookings: currentRevenueBookings.length,
+      averagePerBooking: currentRevenueBookings.length
+        ? totalRevenue / currentRevenueBookings.length
+        : 0,
+      growth: computeGrowth(totalRevenue, previousTotalRevenue),
+      bookingsGrowth: computeGrowth(currentRevenueBookings.length, previousRevenueBookings.length),
+      completedBookings,
+      cancelledBookings,
+    }
+
+    buildChartData(currentBookings)
+  } catch (error) {
+    console.error('Error loading owner revenue data:', error)
+    loadError.value = 'Unable to load revenue statistics. Please try again.'
+    toast.error(loadError.value)
+    revenueData.value = {
+      total: 0,
+      bookings: 0,
+      averagePerBooking: 0,
+      growth: 0,
+      bookingsGrowth: 0,
+      completedBookings: 0,
+      cancelledBookings: 0,
+    }
+    chartData.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const exportReport = () => {
+  const currentRange = getSelectedDateRange()
+  const lines = [
+    `Period,${currentRange.startDate} to ${currentRange.endDate}`,
+    `Total Revenue,${revenueData.value.total}`,
+    `Revenue Bookings,${revenueData.value.bookings}`,
+    `Average Per Booking,${revenueData.value.averagePerBooking}`,
+    `Completed Bookings,${revenueData.value.completedBookings}`,
+    `Cancelled Bookings,${revenueData.value.cancelledBookings}`,
+  ]
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `owner-revenue-${timeFilter.value}-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('vi-VN', {
@@ -40,13 +319,13 @@ const formatCurrency = (value: number) => {
   }).format(value)
 }
 
-const formatPercent = (value: number) => {
-  return value > 0 ? `+${value.toFixed(1)}%` : `${value.toFixed(1)}%`
-}
-
 const maxChartValue = computed(() => {
-  return Math.max(...chartData.value.map((d) => d.value))
+  const max = Math.max(...chartData.value.map((d) => d.value))
+  return max > 0 ? max : 1
 })
+
+watch([timeFilter, selectedDate, selectedMonth, selectedYear], fetchRevenueData)
+onMounted(fetchRevenueData)
 </script>
 
 <template>
@@ -61,21 +340,28 @@ const maxChartValue = computed(() => {
             :class="{ active: timeFilter === 'day' }"
             @click="timeFilter = 'day'"
           >
-            📅 Day
+            <img
+              src="/alarm-clock-icon-illustration-design-free-vector.jpg"
+              alt="Day"
+              class="btn-icon"
+            />
+            Day
           </button>
           <button
             class="filter-btn"
             :class="{ active: timeFilter === 'month' }"
             @click="timeFilter = 'month'"
           >
-            📆 Month
+            <img src="/month.png" alt="Month" class="btn-icon" />
+            Month
           </button>
           <button
             class="filter-btn"
             :class="{ active: timeFilter === 'year' }"
             @click="timeFilter = 'year'"
           >
-            📊 Year
+            <img src="/year.png" alt="Year" class="btn-icon" />
+            Year
           </button>
         </div>
       </div>
@@ -99,28 +385,35 @@ const maxChartValue = computed(() => {
       </div>
     </div>
 
+    <div class="data-state" v-if="isLoading">Loading revenue data...</div>
+    <div class="data-state error" v-else-if="loadError">{{ loadError }}</div>
+
     <!-- Stats Cards -->
     <div class="stats-grid">
       <div class="stat-card primary">
-        <div class="stat-icon">💰</div>
+        <div class="stat-icon">
+          <img src="/total%20revenue.png" alt="Total Revenue" class="stat-icon-img" />
+        </div>
         <div class="stat-content">
           <span class="stat-label">Total Revenue</span>
           <span class="stat-value">{{ formatCurrency(revenueData.total) }}</span>
-          <span class="stat-change positive">{{ formatPercent(revenueData.growth) }}</span>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon">🎯</div>
+        <div class="stat-icon">
+          <img src="/booking.png" alt="Bookings" class="stat-icon-img" />
+        </div>
         <div class="stat-content">
-          <span class="stat-label">Bookings</span>
+          <span class="stat-label">Revenue Bookings</span>
           <span class="stat-value">{{ revenueData.bookings }}</span>
-          <span class="stat-change positive">+18 bookings</span>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon">📈</div>
+        <div class="stat-icon">
+          <img src="/revenue.png" alt="Average revenue" class="stat-icon-img" />
+        </div>
         <div class="stat-content">
           <span class="stat-label">Average/Booking</span>
           <span class="stat-value">{{ formatCurrency(revenueData.averagePerBooking) }}</span>
@@ -129,11 +422,13 @@ const maxChartValue = computed(() => {
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon">⭐</div>
+        <div class="stat-icon">
+          <img src="/logo-pickball.webp" alt="Completed" class="stat-icon-img" />
+        </div>
         <div class="stat-content">
-          <span class="stat-label">Avg Rating</span>
-          <span class="stat-value">4.8 / 5.0</span>
-          <span class="stat-change positive">+0.2 points</span>
+          <span class="stat-label">Completed Bookings</span>
+          <span class="stat-value">{{ revenueData.completedBookings }}</span>
+          <span class="stat-change">Cancelled: {{ revenueData.cancelledBookings }}</span>
         </div>
       </div>
     </div>
@@ -141,8 +436,15 @@ const maxChartValue = computed(() => {
     <!-- Chart Section -->
     <div class="chart-section">
       <div class="section-header">
-        <h2 class="section-title">📊 Revenue by Hour</h2>
-        <button class="export-btn">
+        <h2 class="section-title">
+          <img
+            src="/revenue%20by%20time%20slot.png"
+            alt="Revenue by Time Slot"
+            class="section-title-icon"
+          />
+          Revenue by Time Slot
+        </h2>
+        <button class="export-btn" @click="exportReport">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -160,7 +462,7 @@ const maxChartValue = computed(() => {
         </button>
       </div>
 
-      <div class="chart-container">
+      <div class="chart-container" v-if="chartData.length">
         <div class="chart-wrapper">
           <div
             v-for="(item, index) in chartData"
@@ -177,38 +479,8 @@ const maxChartValue = computed(() => {
           }}</span>
         </div>
       </div>
-    </div>
-
-    <!-- Top Courts Section -->
-    <div class="top-courts-section">
-      <div class="section-header">
-        <h2 class="section-title">🏆 Top Revenue Courts</h2>
-      </div>
-
-      <div class="courts-table">
-        <div class="table-header">
-          <div class="table-cell">Rank</div>
-          <div class="table-cell">Court Name</div>
-          <div class="table-cell">Revenue</div>
-          <div class="table-cell">Bookings</div>
-          <div class="table-cell">Growth</div>
-        </div>
-        <div v-for="(court, index) in topCourts" :key="index" class="table-row">
-          <div class="table-cell rank">
-            <span class="rank-badge" :class="'rank-' + (index + 1)">{{ index + 1 }}</span>
-          </div>
-          <div class="table-cell court-name">
-            <span class="court-icon">🏟️</span>
-            {{ court.name }}
-          </div>
-          <div class="table-cell revenue">{{ formatCurrency(court.revenue) }}</div>
-          <div class="table-cell bookings">{{ court.bookings }} bookings</div>
-          <div class="table-cell growth">
-            <span class="growth-badge" :class="court.growth > 0 ? 'positive' : 'negative'">
-              {{ formatPercent(court.growth) }}
-            </span>
-          </div>
-        </div>
+      <div v-else class="chart-empty">
+        No bookings found in the selected period within court opening hours.
       </div>
     </div>
   </div>
@@ -219,6 +491,21 @@ const maxChartValue = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.data-state {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #f0f9ff;
+  color: #1d4ed8;
+  font-weight: 600;
+  border: 1px solid #bfdbfe;
+}
+
+.data-state.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 
 /* Filters */
@@ -260,6 +547,15 @@ const maxChartValue = computed(() => {
   color: #6b7280;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .filter-btn:hover {
@@ -322,8 +618,13 @@ const maxChartValue = computed(() => {
 }
 
 .stat-icon {
-  font-size: 2.5rem;
   flex-shrink: 0;
+}
+
+.stat-icon-img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
 }
 
 .stat-content {
@@ -366,8 +667,7 @@ const maxChartValue = computed(() => {
 }
 
 /* Chart Section */
-.chart-section,
-.top-courts-section {
+.chart-section {
   background: white;
   padding: 28px;
   border-radius: 16px;
@@ -386,6 +686,15 @@ const maxChartValue = computed(() => {
   font-weight: 700;
   color: #1f2937;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-title-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
 }
 
 .export-btn {
@@ -475,112 +784,13 @@ const maxChartValue = computed(() => {
   font-weight: 600;
 }
 
-/* Top Courts Table */
-.courts-table {
+.chart-empty {
+  padding: 24px;
+  border: 1px dashed #d1d5db;
   border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid #e5e7eb;
-}
-
-.table-header,
-.table-row {
-  display: grid;
-  grid-template-columns: 80px 1fr 200px 150px 150px;
-  gap: 16px;
-  padding: 16px 20px;
-}
-
-.table-header {
-  background: #f9fafb;
-  border-bottom: 2px solid #e5e7eb;
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.table-row {
-  border-bottom: 1px solid #e5e7eb;
-  transition: all 0.3s ease;
-}
-
-.table-row:hover {
-  background: #f9fafb;
-}
-
-.table-row:last-child {
-  border-bottom: none;
-}
-
-.table-cell {
-  display: flex;
-  align-items: center;
-}
-
-.rank-badge {
-  width: 32px;
-  height: 32px;
-  background: #e5e7eb;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 0.9rem;
-  color: #6b7280;
-}
-
-.rank-badge.rank-1 {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  color: white;
-}
-
-.rank-badge.rank-2 {
-  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
-  color: white;
-}
-
-.rank-badge.rank-3 {
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  color: white;
-}
-
-.court-name {
-  font-weight: 600;
-  color: #1f2937;
-  gap: 8px;
-}
-
-.court-icon {
-  font-size: 1.2rem;
-}
-
-.revenue {
-  font-weight: 700;
-  color: #2d5016;
-}
-
-.bookings {
+  text-align: center;
   color: #6b7280;
   font-weight: 600;
-}
-
-.growth-badge {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-weight: 700;
-  font-size: 0.85rem;
-}
-
-.growth-badge.positive {
-  background: #d1fae5;
-  color: #10b981;
-}
-
-.growth-badge.negative {
-  background: #fee2e2;
-  color: #ef4444;
 }
 
 /* Responsive */
@@ -592,13 +802,6 @@ const maxChartValue = computed(() => {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
-  }
-
-  .table-header,
-  .table-row {
-    grid-template-columns: 60px 1fr 150px 120px 120px;
-    gap: 12px;
-    padding: 12px 16px;
   }
 }
 
@@ -667,34 +870,6 @@ const maxChartValue = computed(() => {
 
   .chart-wrapper {
     height: 200px;
-  }
-
-  .table-header,
-  .table-row {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
-  .table-header {
-    display: none;
-  }
-
-  .table-cell {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid #f3f4f6;
-  }
-
-  .table-cell::before {
-    content: attr(data-label);
-    font-weight: 600;
-    color: #6b7280;
-  }
-
-  .table-row {
-    padding: 12px;
-    border-bottom: 1px solid #e5e7eb;
   }
 }
 

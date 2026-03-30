@@ -8,7 +8,9 @@
     <!-- Statistics Cards -->
     <div class="stats-grid" v-if="bookingSummary">
       <div class="stat-card">
-        <div class="stat-icon total">📊</div>
+        <div class="stat-icon total">
+          <img src="/logo-pickball.webp" alt="Total bookings" class="stat-icon-img" />
+        </div>
         <div class="stat-content">
           <h3>{{ bookingSummary.total_bookings }}</h3>
           <p>Total bookings</p>
@@ -321,7 +323,9 @@ const bookingSummary = computed(() => {
   })
 
   const total = viewedMonthBookings.length
-  const completed = viewedMonthBookings.filter((b) => b.status === 'completed').length
+  const completed = viewedMonthBookings.filter(
+    (b) => getBookingDisplayStatus(b) === 'completed',
+  ).length
   const cancelled = viewedMonthBookings.filter((b) => b.status === 'cancelled').length
 
   return {
@@ -773,6 +777,12 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
+}
+
+.stat-icon-img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
 }
 
 .stat-icon.total {
