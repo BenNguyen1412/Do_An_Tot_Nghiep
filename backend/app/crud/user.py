@@ -72,7 +72,7 @@ def delete_user(db: Session, user_id: int) -> bool:
     """
     Xóa user và các dữ liệu liên quan
     """
-    from app.models import Notification, CourtRequest
+    from app.models import Notification, CourtRequest, AdvertisementRequest
     from app.models.court import Court, IndividualCourt, Booking
     
     db_user = get_user_by_id(db, user_id)
@@ -84,6 +84,9 @@ def delete_user(db: Session, user_id: int) -> bool:
     
     # Delete related court requests
     db.query(CourtRequest).filter(CourtRequest.owner_id == user_id).delete()
+
+    # Delete related advertisement requests (enterprise)
+    db.query(AdvertisementRequest).filter(AdvertisementRequest.enterprise_id == user_id).delete()
     
     # Delete related bookings made by this user
     db.query(Booking).filter(Booking.user_id == user_id).delete()

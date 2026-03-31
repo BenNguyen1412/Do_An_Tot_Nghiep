@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from '@/utils/axios'
 
 const router = useRouter()
 
@@ -9,8 +10,20 @@ const currentAdIndex = ref(0)
 const isAutoPlaying = ref(true)
 let autoPlayInterval: number | null = null
 
+interface HomeAdvertisement {
+  id: number
+  title: string
+  description: string
+  company: string
+  badge: string
+  discount: string
+  image: string
+  link: string
+  click_count?: number
+}
+
 // Mock data - sẽ được thay thế bằng API call trong tương lai
-const advertisements = ref([
+const advertisements = ref<HomeAdvertisement[]>([
   {
     id: 1,
     title: 'Premium Sports Equipment Sale',
@@ -53,11 +66,60 @@ const advertisements = ref([
   },
 ])
 
+const backendBaseUrl = String(axios.defaults.baseURL || '').replace(/\/api\/?$/, '')
+
+const resolveImageUrl = (imageUrl: string) => {
+  if (!imageUrl) return ''
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl
+  return `${backendBaseUrl}${imageUrl}`
+}
+
+const fetchApprovedAdvertisements = async () => {
+  try {
+    const response = await axios.get('/advertisements/public')
+    const items = response.data?.data || response.data || []
+    if (!Array.isArray(items) || items.length === 0) return
+
+    advertisements.value = items.map((item: any) => ({
+      id: item.id,
+      title: item.name,
+      description: item.description,
+      company: item.owner?.full_name || 'Verified Partner',
+      badge: 'HOT DEAL',
+      discount: 'Limited Time',
+      image: resolveImageUrl(item.image_url),
+      link: item.detail_url,
+      click_count: item.click_count || 0,
+    }))
+    currentAdIndex.value = 0
+  } catch (error) {
+    console.error('Failed to load approved advertisements:', error)
+  }
+}
+
+const handleAdClick = async (ad: HomeAdvertisement) => {
+  if (!ad.link) return
+
+  try {
+    await axios.post(`/advertisements/${ad.id}/click`)
+    const current = advertisements.value[currentAdIndex.value]
+    if (current && current.id === ad.id) {
+      current.click_count = (current.click_count || 0) + 1
+    }
+  } catch (error) {
+    console.error('Failed to track ad click:', error)
+  }
+
+  window.open(ad.link, '_blank', 'noopener,noreferrer')
+}
+
 const nextAd = () => {
+  if (!advertisements.value.length) return
   currentAdIndex.value = (currentAdIndex.value + 1) % advertisements.value.length
 }
 
 const prevAd = () => {
+  if (!advertisements.value.length) return
   currentAdIndex.value =
     currentAdIndex.value === 0 ? advertisements.value.length - 1 : currentAdIndex.value - 1
 }
@@ -93,6 +155,7 @@ const toggleAutoPlay = () => {
 }
 
 onMounted(() => {
+  fetchApprovedAdvertisements()
   startAutoPlay()
 })
 
@@ -221,7 +284,11 @@ const goToEnterpriseSignup = () => {
                   <p class="ad-description">{{ advertisements[currentAdIndex].description }}</p>
 
                   <div class="ad-actions">
-                    <a :href="advertisements[currentAdIndex].link" class="ad-cta-btn">
+                    <a
+                      :href="advertisements[currentAdIndex].link"
+                      class="ad-cta-btn"
+                      @click.prevent="handleAdClick(advertisements[currentAdIndex])"
+                    >
                       <span>Get Detail</span>
                       <span class="btn-arrow">→</span>
                     </a>

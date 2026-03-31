@@ -89,6 +89,25 @@ const router = createRouter({
       component: () => import('@/views/enterprise/EnterpriseHomePage.vue'),
       meta: { requiresAuth: true, role: 'enterprise' },
     },
+    // Enterprise Advertisement Management routes
+    {
+      path: '/enterprise/advertisements',
+      component: () => import('@/layouts/EnterpriseAdvertisementLayout.vue'),
+      meta: { requiresAuth: true, role: 'enterprise' },
+      redirect: '/enterprise/advertisements/list',
+      children: [
+        {
+          path: 'upload',
+          name: 'enterprise-advertisement-upload',
+          component: () => import('@/views/enterprise/EnterpriseAdvertisementUploadPage.vue'),
+        },
+        {
+          path: 'list',
+          name: 'enterprise-advertisement-list',
+          component: () => import('@/views/enterprise/EnterpriseAdvertisementListPage.vue'),
+        },
+      ],
+    },
     // Admin routes
     {
       path: '/admin/profile',

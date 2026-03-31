@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
@@ -10,6 +10,9 @@ from app.schemas.notification import (
     CourtRequest,
     CourtRequestCreate,
     CourtRequestUpdate,
+    AdvertisementRequest,
+    AdvertisementRequestCreate,
+    AdvertisementRequestUpdate,
 )
 from app.crud import notification as notification_crud
 from app.crud import court as court_crud
@@ -19,6 +22,222 @@ import uuid
 from pathlib import Path
 
 router = APIRouter()
+
+
+def _attach_click_counts(db: Session, requests: List[AdvertisementRequest]):
+    request_ids = [item.id for item in requests]
+    click_map = notification_crud.get_click_counts_by_request_ids(db, request_ids)
+    for item in requests:
+        setattr(item, "click_count", click_map.get(item.id, 0))
+    return requests
+
+
+@router.get("/advertisements/public", response_model=List[AdvertisementRequest])
+async def list_public_approved_advertisements(
+    db: Session = Depends(get_db),
+):
+    """Public endpoint for approved advertisements shown on home page."""
+    requests = notification_crud.get_all_advertisement_requests(db, status="approved")
+    return _attach_click_counts(db, requests)
+
+
+@router.post("/advertisements/{request_id}/click")
+async def track_public_advertisement_click(
+    request_id: int,
+    http_request: Request,
+    db: Session = Depends(get_db),
+):
+    """Track user click on approved advertisement from home page."""
+    ad_request = notification_crud.get_advertisement_request(db, request_id)
+    if not ad_request or ad_request.status != "approved":
+        raise HTTPException(status_code=404, detail="Advertisement not found")
+
+    ip_address = http_request.client.host if http_request.client else None
+    user_agent = http_request.headers.get("user-agent")
+
+    notification_crud.create_advertisement_click(
+        db,
+        request_id=request_id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+    return {"message": "Click tracked"}
+
+
+@router.post("/enterprise/advertisements", response_model=AdvertisementRequest, status_code=status.HTTP_201_CREATED)
+async def create_advertisement_request(
+    name: str = Form(...),
+    description: str = Form(...),
+    detail_url: str = Form(...),
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Enterprise uploads an advertisement request. Admin must approve before publishing."""
+    if current_user.role != "enterprise":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only enterprise users can upload advertisements",
+        )
+
+    if not image.content_type or not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Image file is required")
+
+    upload_dir = Path("uploads/advertisements")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    file_ext = os.path.splitext(image.filename or "")[1] or ".jpg"
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = upload_dir / unique_filename
+
+    with open(file_path, "wb") as f:
+        content = await image.read()
+        f.write(content)
+
+    image_url = f"/uploads/advertisements/{unique_filename}"
+
+    request_data = AdvertisementRequestCreate(
+        name=name,
+        description=description,
+        detail_url=detail_url,
+        image_url=image_url,
+    )
+    db_request = notification_crud.create_advertisement_request(db, request_data, current_user.id)
+
+    from app.crud.user import get_users_by_role
+
+    admins = get_users_by_role(db, "admin")
+    for admin in admins:
+        notification = NotificationCreate(
+            user_id=admin.id,
+            title="Yeu cau dang quang cao moi",
+            message=f"{current_user.full_name} da gui yeu cau dang quang cao '{name}'",
+            type="advertisement_request_created",
+            related_id=db_request.id,
+        )
+        notification_crud.create_notification(db, notification)
+
+    return db_request
+
+
+@router.get("/enterprise/advertisements", response_model=List[AdvertisementRequest])
+async def list_enterprise_approved_advertisements(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get approved advertisements for current enterprise."""
+    if current_user.role != "enterprise":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    requests = notification_crud.get_enterprise_advertisement_requests(
+        db, current_user.id, status="approved"
+    )
+    return _attach_click_counts(db, requests)
+
+
+@router.get("/enterprise/advertisement-requests", response_model=List[AdvertisementRequest])
+async def list_my_advertisement_requests(
+    status_filter: str = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all advertisement requests for current enterprise (pending/approved/rejected)."""
+    if current_user.role != "enterprise":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    requests = notification_crud.get_enterprise_advertisement_requests(db, current_user.id, status_filter)
+    return _attach_click_counts(db, requests)
+
+
+@router.delete("/enterprise/advertisements/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_advertisement(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete own advertisement request/record."""
+    request = notification_crud.get_advertisement_request(db, request_id)
+    if not request:
+        raise HTTPException(status_code=404, detail="Advertisement not found")
+
+    if current_user.role != "enterprise" or request.enterprise_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    notification_crud.delete_advertisement_request(db, request_id)
+
+
+@router.get("/admin/advertisement-requests", response_model=List[AdvertisementRequest])
+async def list_advertisement_requests_for_admin(
+    status_filter: str = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin list advertisement requests."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can view advertisement requests")
+
+    requests = notification_crud.get_all_advertisement_requests(db, status_filter)
+    return _attach_click_counts(db, requests)
+
+
+@router.put("/admin/advertisement-requests/{request_id}", response_model=AdvertisementRequest)
+async def update_advertisement_request(
+    request_id: int,
+    update: AdvertisementRequestUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin approves or rejects advertisement requests."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can review advertisement requests")
+
+    request = notification_crud.get_advertisement_request(db, request_id)
+    if not request:
+        raise HTTPException(status_code=404, detail="Advertisement request not found")
+
+    if request.status != "pending":
+        raise HTTPException(status_code=400, detail="Request already reviewed")
+
+    updated_request = notification_crud.update_advertisement_request_status(
+        db, request_id, update, current_user.id
+    )
+
+    if update.status == "approved":
+        notification = NotificationCreate(
+            user_id=request.enterprise_id,
+            title="Yeu cau quang cao duoc duyet",
+            message=f"Quang cao '{request.name}' cua ban da duoc phe duyet.",
+            type="advertisement_request_approved",
+            related_id=request_id,
+        )
+    else:
+        notification = NotificationCreate(
+            user_id=request.enterprise_id,
+            title="Yeu cau quang cao bi tu choi",
+            message=f"Quang cao '{request.name}' bi tu choi. Ly do: {update.rejection_reason or 'Khong ro'}",
+            type="advertisement_request_rejected",
+            related_id=request_id,
+        )
+
+    notification_crud.create_notification(db, notification)
+    return updated_request
+
+
+@router.delete("/admin/advertisement-requests/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_advertisement_request_by_admin(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin deletes any advertisement request."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete advertisement requests")
+
+    request = notification_crud.get_advertisement_request(db, request_id)
+    if not request:
+        raise HTTPException(status_code=404, detail="Advertisement request not found")
+
+    notification_crud.delete_advertisement_request(db, request_id)
 
 
 # Image upload endpoint

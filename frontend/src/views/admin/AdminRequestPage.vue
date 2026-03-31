@@ -71,12 +71,25 @@
             <tr v-else v-for="request in paginatedRequests" :key="request.id" class="table-row">
               <td>
                 <div class="request-name">
-                  <div class="request-icon-wrapper Court">
-                    <img src="/logo-pickball.webp" alt="Court" class="request-icon-image" />
+                  <div
+                    class="request-icon-wrapper"
+                    :class="request.request_type === 'court' ? 'Court' : 'Advertisement'"
+                  >
+                    <img
+                      v-if="request.request_type === 'court'"
+                      src="/logo-pickball.webp"
+                      alt="Court"
+                      class="request-icon-image"
+                    />
+                    <span v-else style="font-size: 18px">📢</span>
                   </div>
                   <div class="request-details">
                     <div class="name">{{ request.name }}</div>
-                    <div class="request-type-tag">Court Request</div>
+                    <div class="request-type-tag">
+                      {{
+                        request.request_type === 'court' ? 'Court Request' : 'Advertisement Request'
+                      }}
+                    </div>
                   </div>
                 </div>
               </td>
@@ -111,7 +124,7 @@
                     v-if="request.status === 'pending'"
                     class="action-btn approve-btn"
                     title="Approve"
-                    @click="approveRequest(request.id)"
+                    @click="approveRequest(request)"
                   >
                     ✓
                   </button>
@@ -119,7 +132,7 @@
                     v-if="request.status === 'pending'"
                     class="action-btn reject-btn"
                     title="Reject"
-                    @click="rejectRequest(request.id)"
+                    @click="rejectRequest(request)"
                   >
                     ✕
                   </button>
@@ -165,13 +178,19 @@
       <div v-if="showModal" class="modal-overlay" @click="closeModal">
         <div class="modal-container" @click.stop>
           <div class="modal-header">
-            <h2>Court Submission Request Details</h2>
+            <h2>
+              {{
+                selectedRequest?.request_type === 'court'
+                  ? 'Court Submission Request Details'
+                  : 'Advertisement Request Details'
+              }}
+            </h2>
             <button class="modal-close-btn" @click="closeModal">✕</button>
           </div>
 
           <div v-if="selectedRequest" class="modal-body">
-            <!-- Basic Info -->
-            <div class="info-section">
+            <!-- Court request details -->
+            <div v-if="selectedRequest.request_type === 'court'" class="info-section">
               <h3 class="section-title">Basic Information</h3>
               <div class="info-grid">
                 <div class="info-item">
@@ -207,7 +226,7 @@
             </div>
 
             <!-- Contact Info -->
-            <div class="info-section">
+            <div v-if="selectedRequest.request_type === 'court'" class="info-section">
               <h3 class="section-title">Contact Information</h3>
               <div class="info-grid">
                 <div class="info-item">
@@ -229,7 +248,14 @@
             </div>
 
             <!-- Facilities -->
-            <div class="info-section" v-if="parsedFacilities && parsedFacilities.length > 0">
+            <div
+              class="info-section"
+              v-if="
+                selectedRequest.request_type === 'court' &&
+                parsedFacilities &&
+                parsedFacilities.length > 0
+              "
+            >
               <h3 class="section-title">Amenities</h3>
               <div class="facilities-list">
                 <span v-for="facility in parsedFacilities" :key="facility" class="facility-badge">
@@ -239,7 +265,14 @@
             </div>
 
             <!-- Time Slots -->
-            <div class="info-section" v-if="parsedTimeSlots && parsedTimeSlots.length > 0">
+            <div
+              class="info-section"
+              v-if="
+                selectedRequest.request_type === 'court' &&
+                parsedTimeSlots &&
+                parsedTimeSlots.length > 0
+              "
+            >
               <h3 class="section-title">Time Slots & Pricing</h3>
               <div class="time-slots-list">
                 <div v-for="(slot, index) in parsedTimeSlots" :key="index" class="time-slot-item">
@@ -250,7 +283,12 @@
             </div>
 
             <!-- Images -->
-            <div class="info-section" v-if="parsedImages && parsedImages.length > 0">
+            <div
+              class="info-section"
+              v-if="
+                selectedRequest.request_type === 'court' && parsedImages && parsedImages.length > 0
+              "
+            >
               <h3 class="section-title">Images</h3>
               <div class="images-grid">
                 <img
@@ -260,6 +298,41 @@
                   :alt="`Court image ${Number(index) + 1}`"
                   class="court-image"
                 />
+              </div>
+            </div>
+
+            <!-- Advertisement details -->
+            <div v-if="selectedRequest.request_type === 'advertisement'" class="info-section">
+              <h3 class="section-title">Advertisement Information</h3>
+              <div class="info-grid">
+                <div class="info-item">
+                  <label>Name</label>
+                  <p>{{ selectedRequest.name }}</p>
+                </div>
+                <div class="info-item">
+                  <label>Enterprise</label>
+                  <p>{{ selectedRequest.owner?.full_name || 'N/A' }}</p>
+                </div>
+                <div class="info-item full-width">
+                  <label>Description</label>
+                  <p>{{ selectedRequest.description }}</p>
+                </div>
+                <div class="info-item full-width">
+                  <label>Detail URL</label>
+                  <p>
+                    <a :href="selectedRequest.detail_url" target="_blank" rel="noopener noreferrer">
+                      {{ selectedRequest.detail_url }}
+                    </a>
+                  </p>
+                </div>
+                <div class="info-item full-width">
+                  <label>Image</label>
+                  <img
+                    :src="`http://localhost:8000${selectedRequest.image_url}`"
+                    alt="Advertisement"
+                    class="court-image"
+                  />
+                </div>
               </div>
             </div>
 
@@ -285,14 +358,14 @@
             <button
               v-if="selectedRequest?.status === 'pending'"
               class="btn-approve"
-              @click="approveRequest(selectedRequest.id)"
+              @click="approveRequest(selectedRequest)"
             >
               ✓ Approve
             </button>
             <button
               v-if="selectedRequest?.status === 'pending'"
               class="btn-reject"
-              @click="rejectRequest(selectedRequest.id)"
+              @click="rejectRequest(selectedRequest)"
             >
               ✕ Reject
             </button>
@@ -338,6 +411,7 @@ import { useToast } from 'vue-toastification'
 const toast = useToast()
 
 interface CourtRequest {
+  request_type: 'court'
   id: number
   name: string
   address: string
@@ -366,14 +440,37 @@ interface CourtRequest {
   }
 }
 
-const requests = ref<CourtRequest[]>([])
+interface AdvertisementRequest {
+  request_type: 'advertisement'
+  id: number
+  name: string
+  description: string
+  detail_url: string
+  image_url: string
+  enterprise_id: number
+  status: string
+  rejection_reason: string | null
+  reviewed_by: number | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at: string | null
+  owner?: {
+    id: number
+    full_name: string
+    email: string
+  }
+}
+
+type AdminRequest = CourtRequest | AdvertisementRequest
+
+const requests = ref<AdminRequest[]>([])
 const isLoading = ref(false)
 const showModal = ref(false)
-const selectedRequest = ref<CourtRequest | null>(null)
+const selectedRequest = ref<AdminRequest | null>(null)
 
 // Delete modal state
 const showDeleteModal = ref(false)
-const requestToDelete = ref<CourtRequest | null>(null)
+const requestToDelete = ref<AdminRequest | null>(null)
 const isDeleting = ref(false)
 
 // Pagination
@@ -398,7 +495,12 @@ const paginatedRequests = computed(() => {
 })
 
 const parsedFacilities = computed(() => {
-  if (!selectedRequest.value?.facilities) return []
+  if (
+    !selectedRequest.value ||
+    !isCourtRequest(selectedRequest.value) ||
+    !selectedRequest.value.facilities
+  )
+    return []
   try {
     return JSON.parse(selectedRequest.value.facilities)
   } catch {
@@ -407,7 +509,12 @@ const parsedFacilities = computed(() => {
 })
 
 const parsedTimeSlots = computed(() => {
-  if (!selectedRequest.value?.time_slots) return []
+  if (
+    !selectedRequest.value ||
+    !isCourtRequest(selectedRequest.value) ||
+    !selectedRequest.value.time_slots
+  )
+    return []
   try {
     return JSON.parse(selectedRequest.value.time_slots)
   } catch {
@@ -416,7 +523,12 @@ const parsedTimeSlots = computed(() => {
 })
 
 const parsedImages = computed(() => {
-  if (!selectedRequest.value?.images) return []
+  if (
+    !selectedRequest.value ||
+    !isCourtRequest(selectedRequest.value) ||
+    !selectedRequest.value.images
+  )
+    return []
   try {
     return JSON.parse(selectedRequest.value.images)
   } catch {
@@ -424,11 +536,34 @@ const parsedImages = computed(() => {
   }
 })
 
+const isCourtRequest = (request: AdminRequest): request is CourtRequest => {
+  return request.request_type === 'court'
+}
+
 const fetchRequests = async () => {
   isLoading.value = true
   try {
-    const response = await axiosInstance.get('/court-requests')
-    requests.value = response.data
+    const [courtResponse, adResponse] = await Promise.all([
+      axiosInstance.get('/court-requests'),
+      axiosInstance.get('/admin/advertisement-requests'),
+    ])
+
+    const courtRequests: CourtRequest[] = (courtResponse.data || []).map(
+      (item: Omit<CourtRequest, 'request_type'>) => ({
+        ...item,
+        request_type: 'court',
+      }),
+    )
+    const adRequests: AdvertisementRequest[] = (adResponse.data || []).map(
+      (item: Omit<AdvertisementRequest, 'request_type'>) => ({
+        ...item,
+        request_type: 'advertisement',
+      }),
+    )
+
+    requests.value = [...courtRequests, ...adRequests].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    )
   } catch (error) {
     console.error('Error fetching requests:', error)
     toast.error('Unable to load request list')
@@ -453,7 +588,7 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const viewRequestDetails = (request: CourtRequest) => {
+const viewRequestDetails = (request: AdminRequest) => {
   selectedRequest.value = request
   showModal.value = true
 }
@@ -498,11 +633,17 @@ const nextPage = () => {
   }
 }
 
-const approveRequest = async (requestId: number) => {
+const approveRequest = async (request: AdminRequest) => {
   try {
-    await axiosInstance.put(`/court-requests/${requestId}`, {
-      status: 'approved',
-    })
+    if (isCourtRequest(request)) {
+      await axiosInstance.put(`/court-requests/${request.id}`, {
+        status: 'approved',
+      })
+    } else {
+      await axiosInstance.put(`/admin/advertisement-requests/${request.id}`, {
+        status: 'approved',
+      })
+    }
     toast.success('Request approved')
     closeModal()
     await fetchRequests()
@@ -512,13 +653,20 @@ const approveRequest = async (requestId: number) => {
   }
 }
 
-const rejectRequest = async (requestId: number) => {
+const rejectRequest = async (request: AdminRequest) => {
   const reason = prompt('Enter rejection reason (optional):')
   try {
-    await axiosInstance.put(`/court-requests/${requestId}`, {
-      status: 'rejected',
-      rejection_reason: reason || undefined,
-    })
+    if (isCourtRequest(request)) {
+      await axiosInstance.put(`/court-requests/${request.id}`, {
+        status: 'rejected',
+        rejection_reason: reason || undefined,
+      })
+    } else {
+      await axiosInstance.put(`/admin/advertisement-requests/${request.id}`, {
+        status: 'rejected',
+        rejection_reason: reason || undefined,
+      })
+    }
     toast.success('Request rejected')
     closeModal()
     await fetchRequests()
@@ -528,7 +676,7 @@ const rejectRequest = async (requestId: number) => {
   }
 }
 
-const confirmDelete = (request: CourtRequest) => {
+const confirmDelete = (request: AdminRequest) => {
   requestToDelete.value = request
   showDeleteModal.value = true
 }
@@ -544,7 +692,11 @@ const deleteRequest = async () => {
   isDeleting.value = true
 
   try {
-    await axiosInstance.delete(`/court-requests/${requestToDelete.value.id}`)
+    if (isCourtRequest(requestToDelete.value)) {
+      await axiosInstance.delete(`/court-requests/${requestToDelete.value.id}`)
+    } else {
+      await axiosInstance.delete(`/admin/advertisement-requests/${requestToDelete.value.id}`)
+    }
     toast.success('Request deleted successfully')
     closeDeleteModal()
     await fetchRequests()

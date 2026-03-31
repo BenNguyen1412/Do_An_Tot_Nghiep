@@ -73,3 +73,36 @@ class CourtRequest(CourtRequestBase):
 
     class Config:
         from_attributes = True
+
+
+# Advertisement Request Schemas
+class AdvertisementRequestBase(BaseModel):
+    name: str
+    description: str
+    detail_url: str
+    image_url: str
+
+
+class AdvertisementRequestCreate(AdvertisementRequestBase):
+    pass
+
+
+class AdvertisementRequestUpdate(BaseModel):
+    status: str  # approved, rejected
+    rejection_reason: Optional[str] = None
+
+
+class AdvertisementRequest(AdvertisementRequestBase):
+    id: int
+    enterprise_id: int
+    status: str
+    rejection_reason: Optional[str] = None
+    reviewed_by: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    click_count: int = 0
+    owner: Optional[OwnerInfo] = None
+
+    class Config:
+        from_attributes = True

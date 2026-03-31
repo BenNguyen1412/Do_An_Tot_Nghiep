@@ -123,7 +123,12 @@ onUnmounted(() => {
         </router-link>
 
         <!-- Advertisement link for Enterprise -->
-        <router-link v-if="props.showAdvertisement" to="/enterprise/advertisement" class="nav-link">
+        <router-link
+          v-if="props.showAdvertisement"
+          to="/enterprise/advertisements/list"
+          class="nav-link"
+          :class="{ 'router-link-active': route.path.startsWith('/enterprise/advertisements') }"
+        >
           ADVERTISEMENT
         </router-link>
       </nav>
