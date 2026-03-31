@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import axios from '@/utils/axios'
 import { useToast } from 'vue-toastification'
+import jsPDF from 'jspdf'
 
 // Filter states
 const timeFilter = ref<'day' | 'month' | 'year'>('month')
@@ -10,6 +11,7 @@ const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const selectedYear = ref(new Date().getFullYear().toString())
 const isLoading = ref(false)
 const loadError = ref('')
+const isExportingPdf = ref(false)
 const toast = useToast()
 
 interface BookingItem {
@@ -68,7 +70,6 @@ const revenueData = ref<RevenueStats>({
 
 const chartData = ref<ChartPoint[]>([])
 const ownerOpenRanges = ref<TimeRange[]>([])
-const hasLoadedOwnerHours = ref(false)
 
 const toLocalDateString = (date: Date): string => {
   const year = date.getFullYear()
@@ -138,56 +139,81 @@ const toMinutes = (timeText: string): number => {
 }
 
 const loadOwnerOpenRanges = async () => {
-  if (hasLoadedOwnerHours.value) return
-
   try {
     const response = await axios.get('/courts/my')
     const courts: OwnerCourt[] = response.data || []
 
     ownerOpenRanges.value = courts
       .map((court) => {
-        const open = toMinutes(court.opening_time || '')
-        const close = toMinutes(court.closing_time || '')
+        const open = court.opening_time ? toMinutes(court.opening_time) : null
+        const close = court.closing_time ? toMinutes(court.closing_time) : null
+
+        if (open === null || close === null || close <= open) {
+          return null
+        }
+
         return { open, close }
       })
-      .filter((range) => range.close > range.open)
+      .filter((range): range is TimeRange => Boolean(range))
   } catch (error) {
-    console.error('Error loading owner courts for opening hours:', error)
+    console.error('Error loading owner courts opening hours:', error)
     ownerOpenRanges.value = []
-  } finally {
-    hasLoadedOwnerHours.value = true
   }
 }
 
 const isWithinOwnerOpeningHours = (startTime: string, endTime: string): boolean => {
-  // Fallback: if opening-hours info cannot be loaded, do not block chart rendering.
-  if (!ownerOpenRanges.value.length) return true
+  if (ownerOpenRanges.value.length === 0) {
+    return true
+  }
 
-  const startMinutes = toMinutes(startTime)
-  const endMinutes = toMinutes(endTime)
+  const start = toMinutes(startTime)
+  const end = toMinutes(endTime)
 
-  return ownerOpenRanges.value.some(
-    (range) => startMinutes >= range.open && endMinutes <= range.close,
-  )
+  return ownerOpenRanges.value.some((range) => start >= range.open && end <= range.close)
 }
 
 const isRevenueBooking = (booking: BookingItem): boolean => {
-  const total = Number(booking.total_price || 0)
-  if (total <= 0) return false
-
   const status = normalizeStatus(booking.booking_status || booking.status)
   const paymentStatus = normalizeStatus(booking.payment_status)
-  const paymentMethod = normalizeStatus(booking.payment_method)
 
-  if (status === 'cancelled' || paymentStatus === 'failed' || paymentStatus === 'refunded') {
+  if (status === 'cancelled' || paymentStatus === 'failed') {
     return false
   }
 
-  if (paymentStatus === 'paid' || paymentMethod === 'cash') {
+  if (paymentStatus === 'paid' || paymentStatus === 'completed') {
     return true
   }
 
   return ['confirmed', 'active', 'completed'].includes(status)
+}
+
+const getBookingDisplayStatus = (booking: BookingItem): string => {
+  const status = normalizeStatus(booking.booking_status || booking.status)
+  if (status !== 'active') {
+    return status || 'pending'
+  }
+
+  const bookingDate = booking.booking_date.split('T')[0]
+  const today = toLocalDateString(new Date())
+
+  if (bookingDate < today) {
+    return 'completed'
+  }
+
+  if (bookingDate === today) {
+    const now = new Date()
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+    if (currentTime >= booking.end_time) {
+      return 'completed'
+    }
+
+    if (currentTime >= booking.start_time && currentTime < booking.end_time) {
+      return 'in_progress'
+    }
+  }
+
+  return 'active'
 }
 
 const computeGrowth = (current: number, previous: number): number => {
@@ -250,15 +276,13 @@ const fetchRevenueData = async () => {
       0,
     )
 
-    const completedBookings = currentBookings.filter((b) => {
-      const status = normalizeStatus(b.booking_status || b.status)
-      return status === 'completed'
-    }).length
+    const completedBookings = currentBookings.filter(
+      (booking) => getBookingDisplayStatus(booking) === 'completed',
+    ).length
 
-    const cancelledBookings = currentBookings.filter((b) => {
-      const status = normalizeStatus(b.booking_status || b.status)
-      return status === 'cancelled'
-    }).length
+    const cancelledBookings = currentBookings.filter(
+      (booking) => getBookingDisplayStatus(booking) === 'cancelled',
+    ).length
 
     revenueData.value = {
       total: totalRevenue,
@@ -292,24 +316,306 @@ const fetchRevenueData = async () => {
   }
 }
 
-const exportReport = () => {
-  const currentRange = getSelectedDateRange()
-  const lines = [
-    `Period,${currentRange.startDate} to ${currentRange.endDate}`,
-    `Total Revenue,${revenueData.value.total}`,
-    `Revenue Bookings,${revenueData.value.bookings}`,
-    `Average Per Booking,${revenueData.value.averagePerBooking}`,
-    `Completed Bookings,${revenueData.value.completedBookings}`,
-    `Cancelled Bookings,${revenueData.value.cancelledBookings}`,
-  ]
+const loadLogoAsBase64 = async (): Promise<string | null> => {
+  try {
+    const response = await fetch('/Logo.png')
+    const blob = await response.blob()
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.readAsDataURL(blob)
+    })
+  } catch (error) {
+    console.error('Error loading logo:', error)
+    return null
+  }
+}
 
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `owner-revenue-${timeFilter.value}-${new Date().toISOString().slice(0, 10)}.csv`
-  link.click()
-  URL.revokeObjectURL(url)
+const exportReport = async () => {
+  if (isExportingPdf.value) {
+    return
+  }
+
+  isExportingPdf.value = true
+
+  try {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    })
+
+    const currentRange = getSelectedDateRange()
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 14
+    const contentWidth = pageWidth - margin * 2
+    let cursorY = 12
+
+    const ensureSpace = (requiredHeight: number) => {
+      if (cursorY + requiredHeight > pageHeight - margin) {
+        pdf.addPage()
+        cursorY = 16
+      }
+    }
+
+    const addText = (
+      text: string,
+      x: number,
+      y: number,
+      options?: {
+        size?: number
+        color?: [number, number, number]
+        bold?: boolean
+        align?: 'left' | 'center' | 'right'
+      },
+    ) => {
+      pdf.setFont('helvetica', options?.bold ? 'bold' : 'normal')
+      pdf.setFontSize(options?.size || 11)
+      const color = options?.color || [31, 41, 55]
+      pdf.setTextColor(color[0], color[1], color[2])
+      pdf.text(text, x, y, { align: options?.align || 'left' })
+    }
+
+    // Header background - White with green accents
+    pdf.setFillColor(255, 255, 255)
+    pdf.rect(margin - 2, cursorY - 2, contentWidth + 4, 50, 'F')
+
+    // Add logo if available - Professional size
+    const logoData = await loadLogoAsBase64()
+    if (logoData) {
+      pdf.addImage(logoData, 'PNG', margin + 3, cursorY + 2, 32, 32)
+    }
+
+    // Title and details on the right
+    const titleX = margin + 42
+
+    addText('OWNER REVENUE REPORT', titleX, cursorY + 8, {
+      size: 20,
+      bold: true,
+      color: [34, 197, 94],
+    })
+
+    addText(`${currentRange.startDate} to ${currentRange.endDate}`, titleX, cursorY + 16, {
+      size: 10,
+      color: [71, 85, 105],
+    })
+
+    addText(`Generated: ${new Date().toLocaleString('vi-VN')}`, titleX, cursorY + 22, {
+      size: 9,
+      color: [107, 114, 128],
+    })
+
+    // Green accent line at bottom
+    pdf.setDrawColor(34, 197, 94)
+    pdf.setLineWidth(1)
+    pdf.line(margin, cursorY + 48, pageWidth - margin, cursorY + 48)
+
+    cursorY += 54
+
+    ensureSpace(50)
+    addText('1) KPI Summary', margin, cursorY, {
+      size: 13,
+      bold: true,
+      color: [34, 197, 94],
+    })
+    cursorY += 8
+
+    const kpis = [
+      ['Total Revenue', formatCurrencyForPDF(revenueData.value.total)],
+      ['Revenue Bookings', `${revenueData.value.bookings} bookings`],
+      ['Average Per Booking', formatCurrencyForPDF(revenueData.value.averagePerBooking)],
+      ['Completed', `${revenueData.value.completedBookings}`],
+      ['Cancelled', `${revenueData.value.cancelledBookings}`],
+    ]
+
+    // KPI Table
+    const tableX = margin + 2
+    const tableW = contentWidth - 4
+    const tableRowH = 7.5
+
+    // Table header
+    pdf.setFillColor(34, 197, 94)
+    pdf.rect(tableX, cursorY, tableW, tableRowH, 'F')
+    addText('Metric', tableX + 2, cursorY + 5, { size: 9, bold: true, color: [255, 255, 255] })
+    addText('Value', tableX + tableW * 0.6, cursorY + 5, {
+      size: 9,
+      bold: true,
+      color: [255, 255, 255],
+    })
+    cursorY += tableRowH
+
+    // Table rows
+    kpis.forEach((row, index) => {
+      if (index % 2 === 0) {
+        pdf.setFillColor(240, 253, 244)
+      } else {
+        pdf.setFillColor(255, 255, 255)
+      }
+      pdf.rect(tableX, cursorY, tableW, tableRowH, 'F')
+
+      pdf.setDrawColor(187, 247, 208)
+      pdf.setLineWidth(0.3)
+      pdf.rect(tableX, cursorY, tableW, tableRowH)
+
+      addText(row[0], tableX + 2, cursorY + 5, { size: 9, color: [31, 41, 55] })
+      addText(row[1], tableX + tableW * 0.6, cursorY + 5, {
+        size: 9,
+        bold: true,
+        color: [34, 197, 94],
+      })
+      cursorY += tableRowH
+    })
+
+    cursorY += 12
+
+    ensureSpace(95)
+    addText('2) Revenue by Time Slot', margin, cursorY, {
+      size: 13,
+      bold: true,
+      color: [34, 197, 94],
+    })
+    cursorY += 7
+
+    const chartX = margin + 2
+    const chartY = cursorY + 4
+    const chartW = contentWidth - 4
+    const chartH = 58
+
+    pdf.setDrawColor(209, 213, 219)
+    pdf.rect(chartX, chartY, chartW, chartH)
+
+    if (chartData.value.length === 0) {
+      addText('No data for selected period.', chartX + 4, chartY + 8, {
+        size: 10,
+        color: [107, 114, 128],
+      })
+    } else {
+      const maxValue = Math.max(...chartData.value.map((item) => item.value), 1)
+      const axisLeft = chartX + 12
+      const axisBottom = chartY + chartH - 8
+      const axisTop = chartY + 4
+      const axisW = chartW - 16
+      const axisH = axisBottom - axisTop
+
+      pdf.setDrawColor(34, 197, 94)
+      pdf.setLineWidth(0.5)
+      pdf.line(axisLeft, axisTop, axisLeft, axisBottom)
+      pdf.line(axisLeft, axisBottom, axisLeft + axisW, axisBottom)
+
+      const count = chartData.value.length
+      const gap = count > 12 ? 1.2 : 2.5
+      const barW = Math.max(2.4, (axisW - gap * (count + 1)) / count)
+      const labelStep = count > 10 ? Math.ceil(count / 10) : 1
+
+      chartData.value.forEach((point, index) => {
+        const normalized = point.value / maxValue
+        const barHeight = Math.max(1.2, normalized * (axisH - 4))
+        const x = axisLeft + gap + index * (barW + gap)
+        const y = axisBottom - barHeight
+
+        pdf.setFillColor(34, 197, 94)
+        pdf.rect(x, y, barW, barHeight, 'F')
+
+        if (index % labelStep === 0) {
+          addText(point.label, x + barW / 2, axisBottom + 3.5, {
+            size: 7,
+            color: [71, 85, 105],
+            align: 'center',
+          })
+        }
+      })
+
+      addText(`${formatCurrencyForPDF(maxValue)}`, axisLeft - 2.5, axisTop - 2, {
+        size: 8,
+        color: [34, 197, 94],
+        bold: true,
+      })
+    }
+
+    cursorY = chartY + chartH + 12
+
+    ensureSpace(20)
+    addText('3) Detail by Time Slot', margin, cursorY, {
+      size: 13,
+      bold: true,
+      color: [34, 197, 94],
+    })
+    cursorY += 7
+
+    const col1X = margin + 2
+    const col2X = margin + contentWidth * 0.6
+    const rowH = 7.5
+
+    // Table header
+    pdf.setFillColor(34, 197, 94)
+    pdf.rect(col1X, cursorY, contentWidth - 4, rowH, 'F')
+    addText('Time Slot', col1X + 2.5, cursorY + 4.8, {
+      size: 9,
+      bold: true,
+      color: [255, 255, 255],
+    })
+    addText('Revenue', col2X + 2.5, cursorY + 4.8, {
+      size: 9,
+      bold: true,
+      color: [255, 255, 255],
+    })
+    cursorY += rowH
+
+    if (chartData.value.length === 0) {
+      ensureSpace(10)
+      pdf.setDrawColor(187, 247, 208)
+      pdf.rect(col1X, cursorY, contentWidth - 4, rowH)
+      addText('No rows available.', col1X + 2.5, cursorY + 4.8, {
+        size: 9,
+        color: [107, 114, 128],
+      })
+      cursorY += rowH
+    } else {
+      chartData.value.forEach((item, index) => {
+        ensureSpace(rowH + 2)
+
+        if (index % 2 === 0) {
+          pdf.setFillColor(240, 253, 244)
+        } else {
+          pdf.setFillColor(255, 255, 255)
+        }
+        pdf.rect(col1X, cursorY, contentWidth - 4, rowH, 'F')
+
+        pdf.setDrawColor(187, 247, 208)
+        pdf.setLineWidth(0.3)
+        pdf.rect(col1X, cursorY, contentWidth - 4, rowH)
+
+        addText(item.label, col1X + 2.5, cursorY + 4.8, { size: 9, color: [31, 41, 55] })
+        addText(formatCurrencyForPDF(item.value), col2X + 2.5, cursorY + 4.8, {
+          size: 9,
+          color: [34, 197, 94],
+          bold: true,
+        })
+        cursorY += rowH
+      })
+    }
+
+    cursorY += 5
+    pdf.setDrawColor(34, 197, 94)
+    pdf.setLineWidth(0.5)
+    pdf.line(margin, cursorY, pageWidth - margin, cursorY)
+    cursorY += 5
+
+    addText('End of Report • Confidential', pageWidth / 2, cursorY, {
+      size: 8,
+      color: [34, 197, 94],
+      align: 'center',
+    })
+
+    pdf.save(`owner-revenue-report-${new Date().toISOString().slice(0, 10)}.pdf`)
+    toast.success('PDF report exported successfully.')
+  } catch (error) {
+    console.error('Error exporting PDF report:', error)
+    toast.error('Unable to export PDF report. Please try again.')
+  } finally {
+    isExportingPdf.value = false
+  }
 }
 
 const formatCurrency = (value: number) => {
@@ -317,6 +623,11 @@ const formatCurrency = (value: number) => {
     style: 'currency',
     currency: 'VND',
   }).format(value)
+}
+
+const formatCurrencyForPDF = (value: number): string => {
+  const formatted = Math.floor(value).toLocaleString('vi-VN')
+  return `${formatted} VND`
 }
 
 const maxChartValue = computed(() => {
@@ -444,7 +755,7 @@ onMounted(fetchRevenueData)
           />
           Revenue by Time Slot
         </h2>
-        <button class="export-btn" @click="exportReport">
+        <button class="export-btn" @click="exportReport" :disabled="isExportingPdf">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -458,7 +769,7 @@ onMounted(fetchRevenueData)
               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
             />
           </svg>
-          Export Report
+          {{ isExportingPdf ? 'Exporting PDF...' : 'Export PDF' }}
         </button>
       </div>
 
@@ -714,6 +1025,13 @@ onMounted(fetchRevenueData)
 .export-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(45, 80, 22, 0.3);
+}
+
+.export-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .export-btn svg {
