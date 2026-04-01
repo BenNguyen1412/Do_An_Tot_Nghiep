@@ -87,7 +87,11 @@
                     <div class="name">{{ request.name }}</div>
                     <div class="request-type-tag">
                       {{
-                        request.request_type === 'court' ? 'Court Request' : 'Advertisement Request'
+                        request.request_type === 'court'
+                          ? request.submission_type === 'update'
+                            ? 'Court Update Request'
+                            : 'New Court Request'
+                          : 'Advertisement Request'
                       }}
                     </div>
                   </div>
@@ -181,7 +185,9 @@
             <h2>
               {{
                 selectedRequest?.request_type === 'court'
-                  ? 'Court Submission Request Details'
+                  ? selectedRequest?.submission_type === 'update'
+                    ? 'Court Update Request Details'
+                    : 'Court Submission Request Details'
                   : 'Advertisement Request Details'
               }}
             </h2>
@@ -222,6 +228,39 @@
               <div class="info-item full-width">
                 <label>Description</label>
                 <p>{{ selectedRequest.description || 'No description' }}</p>
+              </div>
+            </div>
+
+            <div
+              v-if="
+                selectedRequest.request_type === 'court' &&
+                selectedRequest.submission_type === 'update' &&
+                selectedRequest.changed_details &&
+                selectedRequest.changed_details.length > 0
+              "
+              class="info-section"
+            >
+              <h3 class="section-title">Changed Information</h3>
+              <div class="changed-table-wrapper">
+                <table class="changed-table">
+                  <thead>
+                    <tr>
+                      <th>Field</th>
+                      <th>Old Value</th>
+                      <th>New Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="detail in selectedRequest.changed_details"
+                      :key="`${detail.field}-${detail.old_value}-${detail.new_value}`"
+                    >
+                      <td>{{ detail.field }}</td>
+                      <td>{{ detail.old_value || '(empty)' }}</td>
+                      <td>{{ detail.new_value || '(empty)' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -412,6 +451,13 @@ const toast = useToast()
 
 interface CourtRequest {
   request_type: 'court'
+  submission_type?: 'create' | 'update'
+  changed_fields?: string[]
+  changed_details?: Array<{
+    field: string
+    old_value?: string
+    new_value?: string
+  }>
   id: number
   name: string
   address: string
@@ -747,6 +793,43 @@ onMounted(() => {
 .stat-icon {
   width: 50px;
   height: 50px;
+
+  .changed-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .changed-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .changed-table thead {
+    background: #f8fafc;
+  }
+
+  .changed-table th,
+  .changed-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 13px;
+    vertical-align: top;
+  }
+
+  .changed-table th {
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+  }
+
+  .changed-table td {
+    color: #1f2937;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -1527,16 +1610,44 @@ onMounted(() => {
   }
 }
 
+.changed-table-wrapper {
+  overflow-x: auto;
+}
+
+.changed-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.changed-table thead {
+  background: #f8fafc;
+}
+
+.changed-table th,
+.changed-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px;
+  vertical-align: top;
+}
+
+.changed-table th {
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.changed-table td {
+  color: #1f2937;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 @media (max-width: 1024px) {
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
-
-  .card-header h2 {
-    font-size: 1.35rem;
-  }
-
   .request-table {
     font-size: 14px;
   }

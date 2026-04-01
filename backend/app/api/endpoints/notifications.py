@@ -24,6 +24,129 @@ from pathlib import Path
 router = APIRouter()
 
 
+def _json_load(value, fallback):
+    if not value:
+        return fallback
+    try:
+        return json.loads(value)
+    except Exception:
+        return fallback
+
+
+def _attach_court_request_metadata(db: Session, request: CourtRequest):
+    owner_requests = notification_crud.get_owner_court_requests(db, request.owner_id)
+    owner_requests_sorted = sorted(
+        owner_requests,
+        key=lambda item: ((item.created_at or 0), item.id),
+    )
+    first_request_id = owner_requests_sorted[0].id if owner_requests_sorted else request.id
+
+    # Stable classification: first request of owner is create, subsequent requests are update.
+    submission_type = "create" if request.id == first_request_id else "update"
+    setattr(request, "submission_type", submission_type)
+
+    if submission_type == "create":
+        setattr(request, "changed_fields", [])
+        setattr(request, "changed_details", [])
+        return request
+
+    owner_courts = court_crud.get_courts_by_owner(db, request.owner_id)
+    if not owner_courts:
+        setattr(request, "changed_fields", [])
+        setattr(request, "changed_details", [])
+        return request
+
+    court = owner_courts[0]
+    changed_fields = []
+    changed_details = []
+
+    def _to_text(value):
+        if value is None:
+            return ""
+        if isinstance(value, (list, dict)):
+            try:
+                return json.dumps(value, ensure_ascii=False)
+            except Exception:
+                return str(value)
+        return str(value)
+
+    def _normalize_slot(slot):
+        if not isinstance(slot, dict):
+            return {"start_time": "", "end_time": "", "price": 0.0}
+
+        start_time = slot.get("start_time") or slot.get("startTime") or ""
+        end_time = slot.get("end_time") or slot.get("endTime") or ""
+
+        raw_price = slot.get("price", 0)
+        try:
+            price = float(raw_price)
+        except Exception:
+            price = 0.0
+
+        return {
+            "start_time": str(start_time),
+            "end_time": str(end_time),
+            "price": round(price, 2),
+        }
+
+    def _normalize_slots(slots):
+        normalized = [_normalize_slot(item) for item in (slots or [])]
+        return sorted(normalized, key=lambda item: (item["start_time"], item["end_time"], item["price"]))
+
+    def _append_change(label: str, old_value, new_value):
+        old_text = _to_text(old_value).strip()
+        new_text = _to_text(new_value).strip()
+        if old_text != new_text:
+            changed_fields.append(label)
+            changed_details.append(
+                {
+                    "field": label,
+                    "old_value": old_text or "(empty)",
+                    "new_value": new_text or "(empty)",
+                }
+            )
+
+    _append_change("Court Name", court.name, request.name)
+    _append_change("Address", court.address, request.address)
+    _append_change("District", court.district, request.district)
+    _append_change("City", court.city, request.city)
+    _append_change("Description", court.description, request.description)
+    _append_change("Court Quantity", court.court_quantity, request.court_quantity)
+    _append_change("Opening Time", court.opening_time, request.opening_time)
+    _append_change("Closing Time", court.closing_time, request.closing_time)
+    _append_change("Contact Phone", court.contact_phone, request.contact_phone)
+    _append_change("Contact Email", court.contact_email, request.contact_email)
+
+    req_facilities = _json_load(request.facilities, [])
+    cur_facilities = court.facilities or []
+    req_facilities_sorted = sorted(req_facilities)
+    cur_facilities_sorted = sorted(cur_facilities)
+    if req_facilities_sorted != cur_facilities_sorted:
+        _append_change("Facilities", cur_facilities_sorted, req_facilities_sorted)
+
+    req_images = _json_load(request.images, [])
+    cur_images = court.images or []
+    if req_images != cur_images:
+        _append_change("Images", cur_images, req_images)
+
+    req_slots = _json_load(request.time_slots, [])
+    cur_slots = court.time_slots or []
+    req_slots_normalized = _normalize_slots(req_slots)
+    cur_slots_normalized = _normalize_slots(cur_slots)
+    if req_slots_normalized != cur_slots_normalized:
+        _append_change("Time Slots & Pricing", cur_slots_normalized, req_slots_normalized)
+
+    setattr(request, "changed_fields", changed_fields)
+    setattr(request, "changed_details", changed_details)
+    return request
+
+
+def _attach_court_request_metadata_list(db: Session, requests: List[CourtRequest]):
+    for request in requests:
+        _attach_court_request_metadata(db, request)
+    return requests
+
+
 def _attach_click_counts(db: Session, requests: List[AdvertisementRequest]):
     request_ids = [item.id for item in requests]
     click_map = notification_crud.get_click_counts_by_request_ids(db, request_ids)
@@ -340,18 +463,28 @@ async def create_court_request(
             detail="Only owners can submit court requests",
         )
     
+    owner_courts = court_crud.get_courts_by_owner(db, current_user.id)
+    is_update_request = len(owner_courts) > 0
+
     # Create court request
     db_request = notification_crud.create_court_request(db, request, current_user.id)
+    _attach_court_request_metadata(db, db_request)
     
     # Create notification for all admins
     from app.crud.user import get_users_by_role
     admins = get_users_by_role(db, "admin")
     
     for admin in admins:
+        admin_title = "Yêu cầu cập nhật thông tin sân" if is_update_request else "Yêu cầu đăng sân mới"
+        admin_message = (
+            f"{current_user.full_name} đã gửi yêu cầu cập nhật thông tin sân '{request.name}'"
+            if is_update_request
+            else f"{current_user.full_name} đã gửi yêu cầu đăng sân '{request.name}'"
+        )
         notification = NotificationCreate(
             user_id=admin.id,
-            title="Yêu cầu đăng sân mới",
-            message=f"{current_user.full_name} đã gửi yêu cầu đăng sân '{request.name}'",
+            title=admin_title,
+            message=admin_message,
             type="request_created",
             related_id=db_request.id,
         )
@@ -368,9 +501,11 @@ async def list_court_requests(
 ):
     """List court requests (admin sees all, owner sees only their own)"""
     if current_user.role == "admin":
-        return notification_crud.get_all_court_requests(db, status_filter)
+        requests = notification_crud.get_all_court_requests(db, status_filter)
+        return _attach_court_request_metadata_list(db, requests)
     elif current_user.role == "owner":
-        return notification_crud.get_owner_court_requests(db, current_user.id)
+        requests = notification_crud.get_owner_court_requests(db, current_user.id)
+        return _attach_court_request_metadata_list(db, requests)
     else:
         raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -390,7 +525,7 @@ async def get_court_request(
     if current_user.role != "admin" and request.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    return request
+    return _attach_court_request_metadata(db, request)
 
 
 @router.put("/court-requests/{request_id}", response_model=CourtRequest)
@@ -416,9 +551,9 @@ async def update_court_request_status(
         db, request_id, update, current_user.id
     )
     
-    # If approved, create the actual court
+    # If approved, create a new court OR update existing owner court
     if update.status == "approved":
-        from app.schemas.court import CourtCreate, TimeSlot
+        from app.schemas.court import CourtCreate, CourtUpdate, TimeSlot
         
         # Parse JSON fields
         facilities = json.loads(request.facilities) if request.facilities else []
@@ -426,45 +561,80 @@ async def update_court_request_status(
         time_slots_data = json.loads(request.time_slots) if request.time_slots else []
         time_slots = [TimeSlot(**slot) for slot in time_slots_data]
         
-        # Create court
-        court_data = CourtCreate(
-            name=request.name,
-            address=request.address,
-            district=request.district,
-            city=request.city,
-            description=request.description,
-            court_quantity=request.court_quantity,
-            opening_time=request.opening_time,
-            closing_time=request.closing_time,
-            facilities=facilities,
-            contact_phone=request.contact_phone,
-            contact_email=request.contact_email,
-            time_slots=time_slots,
-        )
-        
-        court = court_crud.create_court(db, court_data, request.owner_id, images)
-        
-        # Create notification for owner
-        notification = NotificationCreate(
-            user_id=request.owner_id,
-            title="Yêu cầu đăng sân được duyệt",
-            message=f"Yêu cầu đăng sân '{request.name}' của bạn đã được phê duyệt!",
-            type="request_approved",
-            related_id=court.id,
-        )
+        owner_courts = court_crud.get_courts_by_owner(db, request.owner_id)
+
+        if owner_courts:
+            # Update existing approved court after admin approval.
+            target_court = owner_courts[0]
+            update_data = CourtUpdate(
+                name=request.name,
+                address=request.address,
+                district=request.district,
+                city=request.city,
+                description=request.description,
+                court_quantity=request.court_quantity,
+                opening_time=request.opening_time,
+                closing_time=request.closing_time,
+                facilities=facilities,
+                contact_phone=request.contact_phone,
+                contact_email=request.contact_email,
+                time_slots=time_slots,
+                images=images,
+            )
+            court = court_crud.update_court(db, target_court.id, update_data)
+
+            notification = NotificationCreate(
+                user_id=request.owner_id,
+                title="Yêu cầu cập nhật sân được duyệt",
+                message=f"Yêu cầu cập nhật sân '{request.name}' của bạn đã được phê duyệt!",
+                type="request_approved",
+                related_id=court.id,
+            )
+        else:
+            court_data = CourtCreate(
+                name=request.name,
+                address=request.address,
+                district=request.district,
+                city=request.city,
+                description=request.description,
+                court_quantity=request.court_quantity,
+                opening_time=request.opening_time,
+                closing_time=request.closing_time,
+                facilities=facilities,
+                contact_phone=request.contact_phone,
+                contact_email=request.contact_email,
+                time_slots=time_slots,
+            )
+
+            court = court_crud.create_court(db, court_data, request.owner_id, images)
+
+            notification = NotificationCreate(
+                user_id=request.owner_id,
+                title="Yêu cầu đăng sân được duyệt",
+                message=f"Yêu cầu đăng sân '{request.name}' của bạn đã được phê duyệt!",
+                type="request_approved",
+                related_id=court.id,
+            )
     else:
+        is_update_request = len(court_crud.get_courts_by_owner(db, request.owner_id)) > 0
+        reject_title = "Yêu cầu cập nhật sân bị từ chối" if is_update_request else "Yêu cầu đăng sân bị từ chối"
+        reject_message = (
+            f"Yêu cầu cập nhật sân '{request.name}' bị từ chối. Lý do: {update.rejection_reason or 'Không rõ'}"
+            if is_update_request
+            else f"Yêu cầu đăng sân '{request.name}' bị từ chối. Lý do: {update.rejection_reason or 'Không rõ'}"
+        )
         # Create rejection notification for owner
         notification = NotificationCreate(
             user_id=request.owner_id,
-            title="Yêu cầu đăng sân bị từ chối",
-            message=f"Yêu cầu đăng sân '{request.name}' bị từ chối. Lý do: {update.rejection_reason or 'Không rõ'}",
+            title=reject_title,
+            message=reject_message,
             type="request_rejected",
             related_id=request_id,
         )
     
     notification_crud.create_notification(db, notification)
     
-    return updated_request
+    return _attach_court_request_metadata(db, updated_request)
 
 
 @router.delete("/court-requests/{request_id}", status_code=status.HTTP_204_NO_CONTENT)

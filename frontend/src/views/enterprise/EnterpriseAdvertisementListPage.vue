@@ -154,60 +154,76 @@ onMounted(() => {
       </router-link>
     </div>
 
-    <!-- Advertisements Grid -->
-    <div v-else class="advertisements-grid">
-      <div v-for="ad in advertisements" :key="ad.id" class="ad-card">
-        <div class="ad-image">
-          <img :src="resolveImageUrl(ad.image_url)" :alt="ad.name" />
-        </div>
-        <div class="ad-content">
-          <h3>{{ ad.name }}</h3>
-          <p class="description">{{ ad.description }}</p>
-          <p class="clicks">Visits: {{ ad.click_count || 0 }}</p>
-          <p class="date">{{ formatDate(ad.created_at) }}</p>
-        </div>
-        <div class="ad-actions">
-          <button class="btn-details" @click="openDetailUrl(ad.detail_url)">Details</button>
-          <button class="btn-delete" @click="openDeleteConfirm(ad.id)">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
-          </button>
-        </div>
-
-        <!-- Delete Confirmation Modal -->
-        <teleport to="body">
-          <div v-if="deleteConfirmId === ad.id" class="modal-overlay" @click="closeDeleteConfirm">
-            <div class="modal-content" @click.stop>
-              <h3>Delete Advertisement</h3>
-              <p>Are you sure you want to delete "{{ ad.name }}"? This action cannot be undone.</p>
-              <div class="modal-actions">
-                <button
-                  class="btn btn-secondary"
-                  @click="closeDeleteConfirm"
-                  :disabled="isDeleting"
-                >
-                  Cancel
-                </button>
-                <button class="btn btn-danger" @click="handleDelete(ad.id)" :disabled="isDeleting">
-                  <span v-if="isDeleting" class="spinner"></span>
-                  {{ isDeleting ? 'Deleting...' : 'Delete' }}
+    <!-- Advertisements Table -->
+    <div v-else class="table-wrap">
+      <table class="ads-table">
+        <thead>
+          <tr>
+            <th>Image</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Visits</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="ad in advertisements" :key="ad.id">
+            <td>
+              <img :src="resolveImageUrl(ad.image_url)" :alt="ad.name" class="table-thumb" />
+            </td>
+            <td class="ad-name">{{ ad.name }}</td>
+            <td class="ad-description">{{ ad.description }}</td>
+            <td>
+              <span class="clicks">{{ ad.click_count || 0 }}</span>
+            </td>
+            <td>{{ formatDate(ad.created_at) }}</td>
+            <td>
+              <div class="ad-actions">
+                <button class="btn-details" @click="openDetailUrl(ad.detail_url)">Details</button>
+                <button class="btn-delete" @click="openDeleteConfirm(ad.id)">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
                 </button>
               </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Delete Confirmation Modal -->
+      <teleport to="body">
+        <div v-if="deleteConfirmId !== null" class="modal-overlay" @click="closeDeleteConfirm">
+          <div class="modal-content" @click.stop>
+            <h3>Delete Advertisement</h3>
+            <p>This action cannot be undone.</p>
+            <div class="modal-actions">
+              <button class="btn btn-secondary" @click="closeDeleteConfirm" :disabled="isDeleting">
+                Cancel
+              </button>
+              <button
+                class="btn btn-danger"
+                @click="deleteConfirmId !== null && handleDelete(deleteConfirmId)"
+                :disabled="isDeleting"
+              >
+                <span v-if="isDeleting" class="spinner"></span>
+                {{ isDeleting ? 'Deleting...' : 'Delete' }}
+              </button>
             </div>
           </div>
-        </teleport>
-      </div>
+        </div>
+      </teleport>
     </div>
   </div>
 </template>
@@ -316,80 +332,56 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 
-.advertisements-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 24px;
-}
-
-.ad-card {
+.table-wrap {
   background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: auto;
 }
 
-.ad-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
-}
-
-.ad-image {
+.ads-table {
   width: 100%;
-  height: 200px;
-  overflow: hidden;
-  background: #f1f5f9;
+  border-collapse: collapse;
+  min-width: 900px;
 }
 
-.ad-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
+.ads-table thead th {
+  text-align: left;
+  padding: 14px;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.4px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.ad-card:hover .ad-image img {
-  transform: scale(1.05);
-}
-
-.ad-content {
-  padding: 20px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.ad-content h3 {
-  font-size: 16px;
-  font-weight: 700;
+.ads-table tbody td {
+  padding: 14px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  font-size: 14px;
   color: #1e293b;
-  margin: 0 0 8px 0;
-  line-height: 1.4;
+}
+
+.table-thumb {
+  width: 84px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.ad-name {
+  font-weight: 700;
+}
+
+.ad-description {
+  color: #64748b;
+  max-width: 360px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.description {
-  font-size: 14px;
-  color: #64748b;
-  margin: 0 0 12px 0;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.date {
-  font-size: 12px;
-  color: #94a3b8;
-  margin: 0;
-  margin-top: auto;
 }
 
 .clicks {
@@ -398,18 +390,16 @@ onMounted(() => {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 4px 12px;
   width: fit-content;
-  margin: 0 0 10px 0;
+  margin: 0;
   font-weight: 600;
 }
 
 .ad-actions {
   display: flex;
   gap: 8px;
-  padding: 12px 20px;
-  border-top: 1px solid #e2e8f0;
-  justify-content: space-between;
+  align-items: center;
 }
 
 .btn-details {
@@ -546,8 +536,8 @@ onMounted(() => {
 }
 
 @media (max-width: 1024px) {
-  .advertisements-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  .table-wrap {
+    border-radius: 10px;
   }
 }
 
@@ -560,10 +550,6 @@ onMounted(() => {
   .btn {
     width: 100%;
     justify-content: center;
-  }
-
-  .advertisements-grid {
-    grid-template-columns: 1fr;
   }
 
   .modal-content {

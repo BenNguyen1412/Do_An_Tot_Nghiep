@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 
 # Notification Schemas
@@ -60,9 +60,18 @@ class OwnerInfo(BaseModel):
         from_attributes = True
 
 
+class CourtRequestChangeDetail(BaseModel):
+    field: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+
+
 class CourtRequest(CourtRequestBase):
     id: int
     owner_id: int
+    submission_type: str = "create"  # create, update
+    changed_fields: List[str] = []
+    changed_details: List[CourtRequestChangeDetail] = []
     status: str
     rejection_reason: Optional[str] = None
     reviewed_by: Optional[int] = None

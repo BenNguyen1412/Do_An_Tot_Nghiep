@@ -45,6 +45,7 @@ class CourtUpdate(BaseModel):
     contact_phone: Optional[str] = None
     contact_email: Optional[str] = None
     time_slots: Optional[List[TimeSlot]] = None
+    images: Optional[List[str]] = None
     is_active: Optional[bool] = None
 
 

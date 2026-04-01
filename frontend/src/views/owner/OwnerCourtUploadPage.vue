@@ -468,67 +468,43 @@ const handleSubmit = async () => {
 
     const allImages = [...existingImages, ...imageUrls]
 
-    if (isEditMode.value && currentCourtId.value) {
-      // Update existing court
-      const courtUpdateData = {
-        name: courtForm.value.name,
-        address: courtForm.value.address,
-        district: courtForm.value.district,
-        city: courtForm.value.city,
-        description: courtForm.value.description,
-        court_quantity: courtForm.value.court_quantity,
-        opening_time: courtForm.value.opening_time,
-        closing_time: courtForm.value.closing_time,
-        facilities: courtForm.value.facilities,
-        contact_phone: courtForm.value.contact_phone,
-        contact_email: courtForm.value.contact_email,
-        time_slots: timeSlots.value.map((slot) => ({
+    // Create court request for both new submission and edits.
+    // If owner already has a court, admin approval will update existing data.
+    const courtRequestData = {
+      name: courtForm.value.name,
+      address: courtForm.value.address,
+      district: courtForm.value.district,
+      city: courtForm.value.city,
+      description: courtForm.value.description,
+      court_quantity: courtForm.value.court_quantity,
+      opening_time: courtForm.value.opening_time,
+      closing_time: courtForm.value.closing_time,
+      facilities: JSON.stringify(courtForm.value.facilities),
+      contact_phone: courtForm.value.contact_phone,
+      contact_email: courtForm.value.contact_email,
+      time_slots: JSON.stringify(
+        timeSlots.value.map((slot) => ({
           start_time: slot.startTime,
           end_time: slot.endTime,
           price: parseFloat(slot.price),
         })),
-        images: allImages,
-      }
-
-      await axiosInstance.put(`/courts/${currentCourtId.value}`, courtUpdateData)
-
-      toast.success('Court information updated successfully!')
-
-      // Reload court data
-      await fetchApprovedCourt()
-    } else {
-      // Create new court request
-      const courtRequestData = {
-        name: courtForm.value.name,
-        address: courtForm.value.address,
-        district: courtForm.value.district,
-        city: courtForm.value.city,
-        description: courtForm.value.description,
-        court_quantity: courtForm.value.court_quantity,
-        opening_time: courtForm.value.opening_time,
-        closing_time: courtForm.value.closing_time,
-        facilities: JSON.stringify(courtForm.value.facilities),
-        contact_phone: courtForm.value.contact_phone,
-        contact_email: courtForm.value.contact_email,
-        time_slots: JSON.stringify(
-          timeSlots.value.map((slot) => ({
-            start_time: slot.startTime,
-            end_time: slot.endTime,
-            price: parseFloat(slot.price),
-          })),
-        ),
-        images: allImages.length > 0 ? JSON.stringify(allImages) : null,
-      }
-
-      await axiosInstance.post('/court-requests', courtRequestData)
-
-      // Clear form and images
-      resetForm()
-
-      toast.success(
-        'Court submission sent! Admin will review and approve it as soon as possible.',
-      )
+      ),
+      images: allImages.length > 0 ? JSON.stringify(allImages) : null,
     }
+
+    await axiosInstance.post('/court-requests', courtRequestData)
+
+    if (!isEditMode.value) {
+      resetForm()
+    } else {
+      await fetchApprovedCourt()
+    }
+
+    toast.success(
+      isEditMode.value
+        ? 'Court update request submitted. It will be applied after admin approval.'
+        : 'Court submission sent! Admin will review and approve it as soon as possible.',
+    )
 
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -611,6 +587,25 @@ const formatTimeWithPeriod = (time: string) => {
         </svg>
         Preview
       </button>
+    </div>
+
+    <div class="request-workflow-card">
+      <div class="workflow-title-row">
+        <span class="workflow-badge">Approval Workflow</span>
+        <strong>{{ isEditMode ? 'Update Mode' : 'Create Mode' }}</strong>
+      </div>
+      <p class="workflow-text">
+        {{
+          isEditMode
+            ? 'Changes are submitted as an update request and will only be applied after admin approval.'
+            : 'Your court data is submitted as a request and will appear after admin approval.'
+        }}
+      </p>
+      <div class="workflow-steps">
+        <span>1. Submit request</span>
+        <span>2. Admin reviews</span>
+        <span>3. Data is published</span>
+      </div>
     </div>
 
     <form @submit.prevent="handleSubmit" class="court-form">
@@ -1202,9 +1197,7 @@ const formatTimeWithPeriod = (time: string) => {
             </svg>
             Bank Account
           </h2>
-          <p class="section-description">
-            Account information for receiving customer payments
-          </p>
+          <p class="section-description">Account information for receiving customer payments</p>
         </div>
 
         <div class="form-grid">
@@ -1320,11 +1313,9 @@ const formatTimeWithPeriod = (time: string) => {
           </svg>
           {{
             isSaving
-              ? isEditMode
-                ? 'Updating...'
-                : 'Submitting request...'
+              ? 'Submitting request...'
               : isEditMode
-                ? 'Update Court Information'
+                ? 'Submit Update Request'
                 : 'Submit Court Request'
           }}
         </button>
@@ -1385,6 +1376,45 @@ const formatTimeWithPeriod = (time: string) => {
 .preview-btn svg {
   width: 18px;
   height: 18px;
+}
+
+.request-workflow-card {
+  background: linear-gradient(135deg, #eff6ff 0%, #ecfeff 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+
+.workflow-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.workflow-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.workflow-text {
+  margin: 0;
+  color: #1e3a8a;
+  font-size: 0.9rem;
+}
+
+.workflow-steps {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 /* Form */
