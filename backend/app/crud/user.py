@@ -72,7 +72,7 @@ def delete_user(db: Session, user_id: int) -> bool:
     """
     Xóa user và các dữ liệu liên quan
     """
-    from app.models import Notification, CourtRequest, AdvertisementRequest
+    from app.models import Notification, CourtRequest, AdvertisementRequest, FriendRequest, Friendship
     from app.models.court import Court, IndividualCourt, Booking
     
     db_user = get_user_by_id(db, user_id)
@@ -81,6 +81,14 @@ def delete_user(db: Session, user_id: int) -> bool:
     
     # Delete related notifications first
     db.query(Notification).filter(Notification.user_id == user_id).delete()
+
+    # Delete friend requests and friendships
+    db.query(FriendRequest).filter(
+        (FriendRequest.sender_id == user_id) | (FriendRequest.receiver_id == user_id)
+    ).delete(synchronize_session=False)
+    db.query(Friendship).filter(
+        (Friendship.user_low_id == user_id) | (Friendship.user_high_id == user_id)
+    ).delete(synchronize_session=False)
     
     # Delete related court requests
     db.query(CourtRequest).filter(CourtRequest.owner_id == user_id).delete()

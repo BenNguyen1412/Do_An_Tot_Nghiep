@@ -50,6 +50,24 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'user' },
     },
     {
+      path: '/user/streaks',
+      component: () => import('@/layouts/UserStreaksLayout.vue'),
+      meta: { requiresAuth: true, role: 'user' },
+      redirect: '/user/streaks/friends',
+      children: [
+        {
+          path: 'friends',
+          name: 'user-streaks-friends',
+          component: () => import('@/views/user/UserStreaksFriendsPage.vue'),
+        },
+        {
+          path: 'overview',
+          name: 'user-streaks-overview',
+          component: () => import('@/views/user/UserStreaksOverviewPage.vue'),
+        },
+      ],
+    },
+    {
       path: '/owner/home',
       name: 'owner-home',
       component: () => import('@/views/owner/OwnerHomePage.vue'),

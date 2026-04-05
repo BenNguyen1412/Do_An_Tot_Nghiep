@@ -40,3 +40,19 @@ class User(Base):
         foreign_keys="AdvertisementRequest.enterprise_id",
         back_populates="enterprise",
     )
+    sent_friend_requests = relationship(
+        "FriendRequest",
+        foreign_keys="FriendRequest.sender_id",
+    )
+    received_friend_requests = relationship(
+        "FriendRequest",
+        foreign_keys="FriendRequest.receiver_id",
+    )
+    friendships_as_low = relationship(
+        "Friendship",
+        foreign_keys="Friendship.user_low_id",
+    )
+    friendships_as_high = relationship(
+        "Friendship",
+        foreign_keys="Friendship.user_high_id",
+    )

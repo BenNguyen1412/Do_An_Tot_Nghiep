@@ -233,8 +233,8 @@ async def create_advertisement_request(
     for admin in admins:
         notification = NotificationCreate(
             user_id=admin.id,
-            title="Yeu cau dang quang cao moi",
-            message=f"{current_user.full_name} da gui yeu cau dang quang cao '{name}'",
+            title="New Advertisement Request",
+            message=f"{current_user.full_name} submitted an advertisement request for '{name}'",
             type="advertisement_request_created",
             related_id=db_request.id,
         )
@@ -328,16 +328,16 @@ async def update_advertisement_request(
     if update.status == "approved":
         notification = NotificationCreate(
             user_id=request.enterprise_id,
-            title="Yeu cau quang cao duoc duyet",
-            message=f"Quang cao '{request.name}' cua ban da duoc phe duyet.",
+            title="Advertisement Approved",
+            message=f"Your advertisement '{request.name}' has been approved.",
             type="advertisement_request_approved",
             related_id=request_id,
         )
     else:
         notification = NotificationCreate(
             user_id=request.enterprise_id,
-            title="Yeu cau quang cao bi tu choi",
-            message=f"Quang cao '{request.name}' bi tu choi. Ly do: {update.rejection_reason or 'Khong ro'}",
+            title="Advertisement Rejected",
+            message=f"Your advertisement '{request.name}' was rejected. Reason: {update.rejection_reason or 'Unknown'}",
             type="advertisement_request_rejected",
             related_id=request_id,
         )
@@ -475,11 +475,11 @@ async def create_court_request(
     admins = get_users_by_role(db, "admin")
     
     for admin in admins:
-        admin_title = "Yêu cầu cập nhật thông tin sân" if is_update_request else "Yêu cầu đăng sân mới"
+        admin_title = "Court update request" if is_update_request else "New court listing request"
         admin_message = (
-            f"{current_user.full_name} đã gửi yêu cầu cập nhật thông tin sân '{request.name}'"
+            f"{current_user.full_name} submitted a court update request for '{request.name}'"
             if is_update_request
-            else f"{current_user.full_name} đã gửi yêu cầu đăng sân '{request.name}'"
+            else f"{current_user.full_name} submitted a new court listing request for '{request.name}'"
         )
         notification = NotificationCreate(
             user_id=admin.id,
@@ -585,8 +585,8 @@ async def update_court_request_status(
 
             notification = NotificationCreate(
                 user_id=request.owner_id,
-                title="Yêu cầu cập nhật sân được duyệt",
-                message=f"Yêu cầu cập nhật sân '{request.name}' của bạn đã được phê duyệt!",
+                title="Court update request approved",
+                message=f"Your court update request for '{request.name}' has been approved.",
                 type="request_approved",
                 related_id=court.id,
             )
@@ -610,18 +610,18 @@ async def update_court_request_status(
 
             notification = NotificationCreate(
                 user_id=request.owner_id,
-                title="Yêu cầu đăng sân được duyệt",
-                message=f"Yêu cầu đăng sân '{request.name}' của bạn đã được phê duyệt!",
+                title="Court listing request approved",
+                message=f"Your court listing request for '{request.name}' has been approved.",
                 type="request_approved",
                 related_id=court.id,
             )
     else:
         is_update_request = len(court_crud.get_courts_by_owner(db, request.owner_id)) > 0
-        reject_title = "Yêu cầu cập nhật sân bị từ chối" if is_update_request else "Yêu cầu đăng sân bị từ chối"
+        reject_title = "Court update request rejected" if is_update_request else "Court listing request rejected"
         reject_message = (
-            f"Yêu cầu cập nhật sân '{request.name}' bị từ chối. Lý do: {update.rejection_reason or 'Không rõ'}"
+            f"Your court update request for '{request.name}' was rejected. Reason: {update.rejection_reason or 'Unknown'}"
             if is_update_request
-            else f"Yêu cầu đăng sân '{request.name}' bị từ chối. Lý do: {update.rejection_reason or 'Không rõ'}"
+            else f"Your court listing request for '{request.name}' was rejected. Reason: {update.rejection_reason or 'Unknown'}"
         )
         # Create rejection notification for owner
         notification = NotificationCreate(

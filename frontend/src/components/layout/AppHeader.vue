@@ -27,6 +27,7 @@ let timeInterval: number | null = null
 
 // Check authentication
 const isAuthenticated = computed(() => !!authStore.user)
+const isUser = computed(() => authStore.user?.role === 'user')
 
 // Compute home link based on user role
 const homeLink = computed(() => {
@@ -111,6 +112,14 @@ onUnmounted(() => {
       <nav class="main-nav">
         <router-link :to="homeLink" class="nav-link">HOME</router-link>
         <router-link to="/court" class="nav-link">COURT</router-link>
+        <router-link
+          v-if="isUser"
+          to="/user/streaks/friends"
+          class="nav-link"
+          :class="{ 'router-link-active': route.path.startsWith('/user/streaks') }"
+        >
+          STREAKS
+        </router-link>
 
         <!-- Management link for Owner -->
         <router-link
