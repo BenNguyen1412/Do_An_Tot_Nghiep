@@ -248,3 +248,80 @@ class UserBookingHistoryItem(BaseModel):
     total_hours: Optional[float] = None
     total_price: Optional[float] = None
     status: str
+
+
+class BookingInviteCodeCreateResponse(BaseModel):
+    booking_id: int
+    code: str
+    status: str
+    created_at: datetime
+
+
+class BookingInviteCodePreviewRequest(BaseModel):
+    code: str
+
+
+class BookingInviteCodePreviewResponse(BaseModel):
+    booking_id: int
+    code: str
+    court_name: str
+    booking_date: datetime
+    start_time: str
+    end_time: str
+    inviter_name: str
+    status: str
+
+
+class BookingInviteCodeActionRequest(BaseModel):
+    code: str
+    action: str  # accept or reject
+
+
+class BookingInviteCodeActionResponse(BaseModel):
+    booking_id: int
+    code: str
+    status: str
+    message: str
+    responded_at: Optional[datetime] = None
+
+
+class BookingInviteSendRequest(BaseModel):
+    code: str
+    friend_user_id: int
+
+
+class BookingInviteSendResponse(BaseModel):
+    invite_id: int
+    booking_id: int
+    code: str
+    invitee_user_id: int
+    status: str
+    message: str
+
+
+class BookingInviteNotificationActionRequest(BaseModel):
+    action: str  # accept or reject
+
+
+class BookingInviteNotificationActionResponse(BaseModel):
+    invite_id: int
+    booking_id: int
+    code: str
+    status: str
+    message: str
+    responded_at: Optional[datetime] = None
+
+
+class BookingInviteDetailResponse(BaseModel):
+    invite_id: int
+    booking_id: int
+    code: str
+    status: str
+    court_name: str
+    location: str
+    booking_date: datetime
+    start_time: str
+    end_time: str
+    total_price: Optional[float] = None
+    inviter_name: str
+    invitee_name: Optional[str] = None

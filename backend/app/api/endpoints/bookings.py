@@ -1,6 +1,7 @@
 """
 Booking endpoints with VietQR payment integration
 """
+import secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
@@ -10,7 +11,8 @@ from datetime import datetime
 from app.core.database import get_db
 from app.core.security import get_current_user, get_current_owner
 from app.models.user import User
-from app.models.court import PaymentMethod
+from app.models.court import PaymentMethod, BookingInvite
+from app.models.friend import Friendship
 from app.schemas.court import (
     BookingCreate,
     Booking,
@@ -19,9 +21,20 @@ from app.schemas.court import (
     PaymentPreviewRequest,
     BookingUpdate,
     UserBookingHistoryItem,
+    BookingInviteCodeCreateResponse,
+    BookingInviteCodePreviewRequest,
+    BookingInviteCodePreviewResponse,
+    BookingInviteCodeActionRequest,
+    BookingInviteCodeActionResponse,
+    BookingInviteSendRequest,
+    BookingInviteSendResponse,
+    BookingInviteNotificationActionRequest,
+    BookingInviteNotificationActionResponse,
+    BookingInviteDetailResponse,
 )
 from app.crud import court as court_crud
 from app.crud.user import get_user_by_id
+from app.crud.notification import create_notification
 from app.core.vietqr_service import VietQRService
 from app.core.booking_qr_service import (
     generate_booking_access_token,
@@ -31,6 +44,7 @@ from app.core.booking_qr_service import (
     build_booking_info_html,
 )
 from app.core.email_service import send_booking_qr_email
+from app.schemas.notification import NotificationCreate
 
 router = APIRouter()
 
@@ -77,6 +91,88 @@ def _get_effective_history_status(booking) -> str:
         return "confirmed"
 
     return "pending"
+
+
+def _is_invitable_booking(booking) -> bool:
+    booking_status = _normalize_status_value(getattr(booking, "booking_status", None))
+    legacy_status = _normalize_status_value(getattr(booking, "status", None))
+    return booking_status in {"confirmed", "active"} or legacy_status in {"confirmed", "active"}
+
+
+def _generate_booking_invite_code(db: Session) -> str:
+    for _ in range(10):
+        code = secrets.token_urlsafe(6).replace("-", "").replace("_", "").upper()[:8]
+        exists = db.query(BookingInvite).filter(BookingInvite.code == code).first()
+        if not exists:
+            return code
+    raise ValueError("Unable to generate unique invite code")
+
+
+def _are_users_friends(db: Session, user_a_id: int, user_b_id: int) -> bool:
+    low_id, high_id = (user_a_id, user_b_id) if user_a_id < user_b_id else (user_b_id, user_a_id)
+    friendship = (
+        db.query(Friendship)
+        .filter(Friendship.user_low_id == low_id, Friendship.user_high_id == high_id)
+        .first()
+    )
+    return friendship is not None
+
+
+def _increment_friendship_streak(db: Session, user_a_id: int, user_b_id: int):
+    low_id, high_id = (user_a_id, user_b_id) if user_a_id < user_b_id else (user_b_id, user_a_id)
+    friendship = (
+        db.query(Friendship)
+        .filter(Friendship.user_low_id == low_id, Friendship.user_high_id == high_id)
+        .first()
+    )
+    if not friendship:
+        return
+
+    friendship.current_streak = (friendship.current_streak or 0) + 1
+    friendship.best_streak = max(friendship.best_streak or 0, friendship.current_streak)
+    friendship.last_activity_at = datetime.utcnow()
+
+
+def _respond_to_booking_invite(invite: BookingInvite, current_user: User, action: str, db: Session):
+    action = action.strip().lower()
+    if action not in {"accept", "reject"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid action")
+
+    if invite.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This invite has already been handled")
+
+    invite.status = "accepted" if action == "accept" else "rejected"
+    invite.responded_at = datetime.utcnow()
+
+    if action == "accept" and invite.invitee_user_id:
+        _increment_friendship_streak(db, invite.inviter_user_id, invite.invitee_user_id)
+
+    db.commit()
+    db.refresh(invite)
+
+    create_notification(
+        db,
+        NotificationCreate(
+            user_id=invite.inviter_user_id,
+            title="Booking invite response",
+            message=(
+                f"{current_user.full_name} accepted your booking invite code {invite.code}."
+                if action == "accept"
+                else f"{current_user.full_name} rejected your booking invite code {invite.code}."
+            ),
+            type="booking_invite_result",
+            related_id=invite.booking_id,
+        ),
+    )
+
+    return {
+        "invite_id": invite.id,
+        "booking_id": invite.booking_id,
+        "code": invite.code,
+        "status": invite.status,
+        "message": "Booking invite accepted" if action == "accept" else "Booking invite rejected",
+        "responded_at": invite.responded_at,
+    }
 
 
 def calculate_multi_tier_price(start_time: str, end_time: str, time_slots: list) -> float:
@@ -604,6 +700,232 @@ async def get_my_bookings_history(
 
     result.sort(key=lambda item: (item.booking_date, item.start_time), reverse=True)
     return result
+
+
+@router.post("/{booking_id}/invite-codes", response_model=BookingInviteCodeCreateResponse)
+async def create_booking_invite_code(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    booking = court_crud.get_booking(db, booking_id)
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    if booking.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed for this booking")
+
+    if not _is_invitable_booking(booking):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invite code is only available for confirmed bookings",
+        )
+
+    code = _generate_booking_invite_code(db)
+    invite = BookingInvite(
+        booking_id=booking.id,
+        inviter_user_id=current_user.id,
+        code=code,
+        status="pending",
+    )
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+
+    return {
+        "booking_id": invite.booking_id,
+        "code": invite.code,
+        "status": invite.status,
+        "created_at": invite.created_at,
+    }
+
+
+@router.post("/invite-codes/preview", response_model=BookingInviteCodePreviewResponse)
+async def preview_booking_invite_code(
+    payload: BookingInviteCodePreviewRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invite = db.query(BookingInvite).filter(BookingInvite.code == payload.code.strip().upper()).first()
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite code not found")
+
+    booking = court_crud.get_booking(db, invite.booking_id)
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    inviter = get_user_by_id(db, invite.inviter_user_id)
+    individual_court = court_crud.get_individual_court(db, booking.individual_court_id)
+    parent_court = court_crud.get_court(db, individual_court.court_id) if individual_court else None
+
+    if invite.inviter_user_id == current_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot use your own invite code")
+
+    if invite.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This invite code has already been used")
+
+    return {
+        "booking_id": booking.id,
+        "code": invite.code,
+        "court_name": parent_court.name if parent_court else "N/A",
+        "booking_date": booking.booking_date,
+        "start_time": booking.start_time,
+        "end_time": booking.end_time,
+        "inviter_name": inviter.full_name if inviter else "Unknown",
+        "status": invite.status,
+    }
+
+
+@router.post("/invite-codes/respond", response_model=BookingInviteCodeActionResponse)
+async def respond_booking_invite_code(
+    payload: BookingInviteCodeActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invite = db.query(BookingInvite).filter(BookingInvite.code == payload.code.strip().upper()).first()
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite code not found")
+
+    if invite.inviter_user_id == current_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot respond to your own invite")
+
+    if invite.invitee_user_id and invite.invitee_user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This invite code is assigned to another user")
+
+    invite.invitee_user_id = current_user.id
+    result = _respond_to_booking_invite(invite, current_user, payload.action, db)
+    return {
+        "booking_id": result["booking_id"],
+        "code": result["code"],
+        "status": result["status"],
+        "message": result["message"],
+        "responded_at": result["responded_at"],
+    }
+
+
+@router.post("/invite-codes/send", response_model=BookingInviteSendResponse)
+async def send_booking_invite_to_friend(
+    payload: BookingInviteSendRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invite = db.query(BookingInvite).filter(BookingInvite.code == payload.code.strip().upper()).first()
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite code not found")
+
+    if invite.inviter_user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only send your own invite code")
+
+    if invite.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This invite code has already been used")
+
+    if payload.friend_user_id == current_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot invite yourself")
+
+    if not _are_users_friends(db, current_user.id, payload.friend_user_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You can only invite users from your friend list")
+
+    booking = court_crud.get_booking(db, invite.booking_id)
+    if not booking or not _is_invitable_booking(booking):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This booking is not eligible for invitations")
+
+    if invite.invitee_user_id and invite.invitee_user_id != payload.friend_user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This invite code was already sent to another friend")
+
+    invite.invitee_user_id = payload.friend_user_id
+    db.commit()
+    db.refresh(invite)
+
+    individual_court = court_crud.get_individual_court(db, booking.individual_court_id)
+    parent_court = court_crud.get_court(db, individual_court.court_id) if individual_court else None
+    court_name = parent_court.name if parent_court else "your booking"
+
+    create_notification(
+        db,
+        NotificationCreate(
+            user_id=payload.friend_user_id,
+            title="Booking invite",
+            message=f"{current_user.full_name} invited you to join booking at {court_name}.",
+            type="booking_invite_received",
+            related_id=invite.id,
+        ),
+    )
+
+    return {
+        "invite_id": invite.id,
+        "booking_id": invite.booking_id,
+        "code": invite.code,
+        "invitee_user_id": payload.friend_user_id,
+        "status": invite.status,
+        "message": "Invite sent successfully",
+    }
+
+
+@router.post("/invite-codes/{invite_id}/respond", response_model=BookingInviteNotificationActionResponse)
+async def respond_booking_invite_from_notification(
+    invite_id: int,
+    payload: BookingInviteNotificationActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invite = db.query(BookingInvite).filter(BookingInvite.id == invite_id).first()
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
+
+    if invite.invitee_user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not the receiver of this invite")
+
+    result = _respond_to_booking_invite(invite, current_user, payload.action, db)
+    return result
+
+
+@router.get("/invite-codes/{invite_id}/details", response_model=BookingInviteDetailResponse)
+async def get_booking_invite_details(
+    invite_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invite = db.query(BookingInvite).filter(BookingInvite.id == invite_id).first()
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
+
+    if current_user.id not in {invite.inviter_user_id, invite.invitee_user_id}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to view this invite")
+
+    booking = court_crud.get_booking(db, invite.booking_id)
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    individual_court = court_crud.get_individual_court(db, booking.individual_court_id)
+    parent_court = court_crud.get_court(db, individual_court.court_id) if individual_court else None
+    inviter = get_user_by_id(db, invite.inviter_user_id)
+    invitee = get_user_by_id(db, invite.invitee_user_id) if invite.invitee_user_id else None
+
+    location = (
+        f"{parent_court.address}, {parent_court.district}, {parent_court.city}"
+        if parent_court
+        else "N/A"
+    )
+    court_name = (
+        f"{parent_court.name} - {individual_court.name}"
+        if parent_court and individual_court
+        else (parent_court.name if parent_court else "N/A")
+    )
+
+    return {
+        "invite_id": invite.id,
+        "booking_id": invite.booking_id,
+        "code": invite.code,
+        "status": invite.status,
+        "court_name": court_name,
+        "location": location,
+        "booking_date": booking.booking_date,
+        "start_time": booking.start_time,
+        "end_time": booking.end_time,
+        "total_price": float(booking.total_price) if booking.total_price is not None else None,
+        "inviter_name": inviter.full_name if inviter else "Unknown",
+        "invitee_name": invitee.full_name if invitee else None,
+    }
 
 
 @router.put("/{booking_id}", response_model=Booking)

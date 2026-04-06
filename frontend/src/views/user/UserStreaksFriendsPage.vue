@@ -19,6 +19,10 @@ const toast = useToast()
 const isLoading = ref(false)
 const isSending = ref(false)
 const showAddModal = ref(false)
+const showInviteModal = ref(false)
+const selectedFriend = ref<FriendUser | null>(null)
+const inviteCode = ref('')
+const isInviting = ref(false)
 const friendEmail = ref('')
 const friends = ref<FriendItem[]>([])
 
@@ -43,6 +47,17 @@ const closeAddModal = () => {
   showAddModal.value = false
 }
 
+const openInviteModal = (friend: FriendUser) => {
+  selectedFriend.value = friend
+  inviteCode.value = ''
+  showInviteModal.value = true
+}
+
+const closeInviteModal = () => {
+  showInviteModal.value = false
+  selectedFriend.value = null
+}
+
 const submitAddFriend = async () => {
   if (!friendEmail.value.trim()) {
     toast.error('Please enter an email')
@@ -63,6 +78,34 @@ const submitAddFriend = async () => {
     toast.error(message)
   } finally {
     isSending.value = false
+  }
+}
+
+const submitInviteToFriend = async () => {
+  if (!selectedFriend.value) {
+    return
+  }
+
+  if (!inviteCode.value.trim()) {
+    toast.error('Please enter an invite code')
+    return
+  }
+
+  isInviting.value = true
+  try {
+    await axiosInstance.post('/bookings/invite-codes/send', {
+      code: inviteCode.value.trim(),
+      friend_user_id: selectedFriend.value.id,
+    })
+    toast.success(`Invite sent to ${selectedFriend.value.full_name}`)
+    closeInviteModal()
+  } catch (error: unknown) {
+    const message = isAxiosError(error)
+      ? error.response?.data?.detail || 'Unable to send invite'
+      : 'Unable to send invite'
+    toast.error(message)
+  } finally {
+    isInviting.value = false
   }
 }
 
@@ -114,6 +157,7 @@ onUnmounted(() => {
             <th>Friend</th>
             <th>Email</th>
             <th>Friends Since</th>
+            <th>Invite</th>
           </tr>
         </thead>
         <tbody>
@@ -126,10 +170,46 @@ onUnmounted(() => {
             </td>
             <td class="email-cell">{{ friend.user.email }}</td>
             <td>{{ formatDate(friend.since) }}</td>
+            <td>
+              <button type="button" class="invite-btn" @click="openInviteModal(friend.user)">
+                Invite
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showInviteModal" class="modal-overlay" @click.self="closeInviteModal">
+          <div class="modal-card">
+            <h3>Invite Friend To Booking</h3>
+            <p v-if="selectedFriend">
+              Send a booking invite to <strong>{{ selectedFriend.full_name }}</strong
+              >.
+            </p>
+            <p>Use an invite code you already created from Booking History.</p>
+            <input
+              v-model="inviteCode"
+              type="text"
+              placeholder="Enter invite code (e.g. AB12CD34)"
+            />
+            <div class="modal-actions">
+              <button type="button" class="btn cancel" @click="closeInviteModal">Cancel</button>
+              <button
+                type="button"
+                class="btn submit"
+                :disabled="isInviting"
+                @click="submitInviteToFriend"
+              >
+                {{ isInviting ? 'Sending...' : 'Send Invite' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <Teleport to="body">
       <Transition name="modal">
@@ -212,7 +292,7 @@ onUnmounted(() => {
 .friends-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 680px;
+  min-width: 760px;
   background: white;
 }
 
@@ -268,6 +348,21 @@ onUnmounted(() => {
 
 .email-cell {
   color: #475569;
+}
+
+.invite-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: linear-gradient(135deg, #2d5016 0%, #4a7c2c 100%);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.invite-btn:hover {
+  opacity: 0.95;
 }
 
 .modal-overlay {

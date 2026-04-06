@@ -15,6 +15,21 @@ interface Notification {
   related_id: number | null
 }
 
+interface BookingInviteDetails {
+  invite_id: number
+  booking_id: number
+  code: string
+  status: string
+  court_name: string
+  location: string
+  booking_date: string
+  start_time: string
+  end_time: string
+  total_price: number | null
+  inviter_name: string
+  invitee_name: string | null
+}
+
 const authStore = useAuthStore()
 const toast = useToast()
 const notifications = ref<Notification[]>([])
@@ -24,6 +39,11 @@ const triggerRef = ref<HTMLElement | null>(null)
 const dropdownStyle = ref<Record<string, string>>({})
 const handledFriendRequestIds = ref<number[]>([])
 const processingFriendRequestId = ref<number | null>(null)
+const handledBookingInviteIds = ref<number[]>([])
+const processingBookingInviteId = ref<number | null>(null)
+const showDetailsModal = ref(false)
+const loadingDetailsInviteId = ref<number | null>(null)
+const bookingInviteDetails = ref<BookingInviteDetails | null>(null)
 let pollingInterval: ReturnType<typeof setInterval> | null = null
 
 const updateDropdownPosition = () => {
@@ -31,7 +51,10 @@ const updateDropdownPosition = () => {
 
   const rect = triggerRef.value.getBoundingClientRect()
   const dropdownWidth = Math.min(380, window.innerWidth - 20)
-  const left = Math.max(10, Math.min(rect.right - dropdownWidth, window.innerWidth - dropdownWidth - 10))
+  const left = Math.max(
+    10,
+    Math.min(rect.right - dropdownWidth, window.innerWidth - dropdownWidth - 10),
+  )
 
   dropdownStyle.value = {
     position: 'fixed',
@@ -86,7 +109,11 @@ const markAllAsRead = async () => {
 }
 
 const handleNotificationClick = async (notification: Notification) => {
-  if (notification.type === 'friend_request_received') return
+  if (
+    notification.type === 'friend_request_received' ||
+    notification.type === 'booking_invite_received'
+  )
+    return
   await markAsRead(notification.id)
 }
 
@@ -105,9 +132,12 @@ const respondFriendRequest = async (notification: Notification, action: 'accept'
     const targetNotification = notifications.value.find((item) => item.id === notification.id)
     if (targetNotification) {
       targetNotification.type = 'friend_request_result'
-      targetNotification.title = action === 'accept' ? 'Friend request accepted' : 'Friend request rejected'
+      targetNotification.title =
+        action === 'accept' ? 'Friend request accepted' : 'Friend request rejected'
       targetNotification.message =
-        action === 'accept' ? 'You accepted this friend request.' : 'You rejected this friend request.'
+        action === 'accept'
+          ? 'You accepted this friend request.'
+          : 'You rejected this friend request.'
       if (!targetNotification.is_read) {
         targetNotification.is_read = true
         unreadCount.value = Math.max(0, unreadCount.value - 1)
@@ -134,6 +164,105 @@ const canShowFriendRequestActions = (notification: Notification) => {
   )
 }
 
+const respondBookingInvite = async (notification: Notification, action: 'accept' | 'reject') => {
+  if (!notification.related_id) return
+  if (processingBookingInviteId.value === notification.related_id) return
+
+  try {
+    processingBookingInviteId.value = notification.related_id
+    await axiosInstance.post(`/bookings/invite-codes/${notification.related_id}/respond`, {
+      action,
+    })
+
+    if (!handledBookingInviteIds.value.includes(notification.related_id)) {
+      handledBookingInviteIds.value = [...handledBookingInviteIds.value, notification.related_id]
+    }
+
+    const targetNotification = notifications.value.find((item) => item.id === notification.id)
+    if (targetNotification) {
+      targetNotification.type = 'booking_invite_result'
+      targetNotification.title =
+        action === 'accept' ? 'Booking invite accepted' : 'Booking invite rejected'
+      targetNotification.message =
+        action === 'accept'
+          ? 'You accepted this booking invitation.'
+          : 'You rejected this booking invitation.'
+      if (!targetNotification.is_read) {
+        targetNotification.is_read = true
+        unreadCount.value = Math.max(0, unreadCount.value - 1)
+      }
+    }
+
+    toast.success(action === 'accept' ? 'Booking invite accepted' : 'Booking invite rejected')
+  } catch (error: unknown) {
+    const message = isAxiosError(error)
+      ? error.response?.data?.detail || 'Unable to process booking invite'
+      : 'Unable to process booking invite'
+    toast.error(message)
+  } finally {
+    processingBookingInviteId.value = null
+  }
+}
+
+const canShowBookingInviteActions = (notification: Notification) => {
+  return (
+    notification.type === 'booking_invite_received' &&
+    Boolean(notification.related_id) &&
+    !handledBookingInviteIds.value.includes(notification.related_id as number)
+  )
+}
+
+const openBookingInviteDetails = async (notification: Notification) => {
+  if (!notification.related_id) return
+  if (loadingDetailsInviteId.value === notification.related_id) return
+
+  loadingDetailsInviteId.value = notification.related_id
+  try {
+    const response = await axiosInstance.get<BookingInviteDetails>(
+      `/bookings/invite-codes/${notification.related_id}/details`,
+    )
+    bookingInviteDetails.value = response.data
+    showDetailsModal.value = true
+  } catch (error: unknown) {
+    const message = isAxiosError(error)
+      ? error.response?.data?.detail || 'Unable to load booking details'
+      : 'Unable to load booking details'
+    toast.error(message)
+  } finally {
+    loadingDetailsInviteId.value = null
+  }
+}
+
+const closeBookingInviteDetails = () => {
+  showDetailsModal.value = false
+  bookingInviteDetails.value = null
+}
+
+const formatDetailsDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+const formatPrice = (price: number | null) => {
+  if (price === null || Number.isNaN(price)) {
+    return 'N/A'
+  }
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+  }).format(price)
+}
+
+const getInviteStatusClass = (status: string) => {
+  if (status === 'accepted') return 'accepted'
+  if (status === 'rejected') return 'rejected'
+  return 'pending'
+}
+
 const toggleDropdown = () => {
   showDropdown.value = !showDropdown.value
   if (showDropdown.value) {
@@ -148,6 +277,10 @@ const getNotificationIcon = (type: string) => {
       return '🤝'
     case 'friend_request_result':
       return '💬'
+    case 'booking_invite_received':
+      return '🎫'
+    case 'booking_invite_result':
+      return '📨'
     case 'request_created':
       return '📝'
     case 'request_approved':
@@ -176,7 +309,10 @@ const formatTime = (dateString: string) => {
 
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
-  if (!target.closest('.notification-bell-container') && !target.closest('.notification-dropdown')) {
+  if (
+    !target.closest('.notification-bell-container') &&
+    !target.closest('.notification-dropdown')
+  ) {
     showDropdown.value = false
   }
 }
@@ -201,7 +337,12 @@ onUnmounted(() => {
 
 <template>
   <div class="notification-bell-container">
-    <button ref="triggerRef" class="notification-bell" :class="{ active: showDropdown }" @click="toggleDropdown">
+    <button
+      ref="triggerRef"
+      class="notification-bell"
+      :class="{ active: showDropdown }"
+      @click="toggleDropdown"
+    >
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           stroke-linecap="round"
@@ -218,7 +359,9 @@ onUnmounted(() => {
         <div v-if="showDropdown" class="notification-dropdown" :style="dropdownStyle">
           <div class="dropdown-header">
             <h3>Notifications</h3>
-            <button v-if="unreadCount > 0" class="mark-all-btn" @click="markAllAsRead">Mark all as read</button>
+            <button v-if="unreadCount > 0" class="mark-all-btn" @click="markAllAsRead">
+              Mark all as read
+            </button>
           </div>
 
           <div class="notification-list">
@@ -253,12 +396,118 @@ onUnmounted(() => {
                       Reject
                     </button>
                   </div>
+                  <div v-if="canShowBookingInviteActions(notification)" class="actions">
+                    <button
+                      type="button"
+                      class="action-btn details"
+                      :disabled="loadingDetailsInviteId === notification.related_id"
+                      @click.stop="openBookingInviteDetails(notification)"
+                    >
+                      {{
+                        loadingDetailsInviteId === notification.related_id
+                          ? 'Loading...'
+                          : 'Details'
+                      }}
+                    </button>
+                    <button
+                      type="button"
+                      class="action-btn accept"
+                      :disabled="processingBookingInviteId === notification.related_id"
+                      @click.stop="respondBookingInvite(notification, 'accept')"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      class="action-btn reject"
+                      :disabled="processingBookingInviteId === notification.related_id"
+                      @click.stop="respondBookingInvite(notification, 'reject')"
+                    >
+                      Reject
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
 
             <div v-else class="empty-state">
               <p>No notifications</p>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <transition name="dropdown">
+        <div
+          v-if="showDetailsModal"
+          class="details-overlay"
+          @click.self="closeBookingInviteDetails"
+        >
+          <div class="details-modal" v-if="bookingInviteDetails">
+            <div class="details-header">
+              <div class="details-title-block">
+                <span class="details-kicker">INVITATION DETAILS</span>
+                <h3>Booking Invite</h3>
+                <p class="details-subtitle">Review full booking information before you respond.</p>
+              </div>
+              <button type="button" class="details-close" @click="closeBookingInviteDetails">
+                Close
+              </button>
+            </div>
+
+            <div class="details-top-row">
+              <div class="details-pill code">Code: {{ bookingInviteDetails.code }}</div>
+              <div
+                class="details-pill status"
+                :class="getInviteStatusClass(bookingInviteDetails.status)"
+              >
+                {{ bookingInviteDetails.status }}
+              </div>
+            </div>
+
+            <div class="details-section">
+              <h4>Booking</h4>
+              <div class="details-grid">
+                <div class="details-item wide">
+                  <span class="label">Court</span>
+                  <strong>{{ bookingInviteDetails.court_name }}</strong>
+                </div>
+                <div class="details-item wide">
+                  <span class="label">Location</span>
+                  <strong>{{ bookingInviteDetails.location }}</strong>
+                </div>
+                <div class="details-item">
+                  <span class="label">Date</span>
+                  <strong>{{ formatDetailsDate(bookingInviteDetails.booking_date) }}</strong>
+                </div>
+                <div class="details-item">
+                  <span class="label">Time</span>
+                  <strong
+                    >{{ bookingInviteDetails.start_time }} -
+                    {{ bookingInviteDetails.end_time }}</strong
+                  >
+                </div>
+                <div class="details-item">
+                  <span class="label">Total Price</span>
+                  <strong>{{ formatPrice(bookingInviteDetails.total_price) }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="details-section">
+              <h4>People</h4>
+              <div class="people-grid">
+                <div class="person-card inviter">
+                  <span class="role">Inviter</span>
+                  <strong>{{ bookingInviteDetails.inviter_name }}</strong>
+                </div>
+                <div class="person-card invitee">
+                  <span class="role">Invitee</span>
+                  <strong>{{ bookingInviteDetails.invitee_name || 'Pending' }}</strong>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -431,6 +680,204 @@ onUnmounted(() => {
 .action-btn.reject {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.action-btn.details {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.details-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30000;
+  padding: 20px;
+}
+
+.details-modal {
+  width: min(620px, 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.details-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.details-kicker {
+  display: inline-block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.details-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.3rem;
+}
+
+.details-subtitle {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.details-close {
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.details-top-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.details-pill {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.details-pill.code {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.details-pill.status {
+  background: #e5e7eb;
+  color: #334155;
+}
+
+.details-pill.status.accepted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.details-pill.status.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.details-pill.status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.details-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  background: white;
+}
+
+.details-section + .details-section {
+  margin-top: 10px;
+}
+
+.details-section h4 {
+  margin: 0 0 10px;
+  color: #1f2937;
+  font-size: 0.98rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.details-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.details-item.wide {
+  grid-column: 1 / -1;
+}
+
+.details-item .label {
+  display: block;
+  color: #64748b;
+  font-size: 0.76rem;
+  margin-bottom: 4px;
+}
+
+.details-item strong {
+  color: #0f172a;
+  font-size: 0.92rem;
+}
+
+.people-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.person-card {
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.person-card.inviter {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.person-card.invitee {
+  background: #fefce8;
+  border-color: #fde68a;
+}
+
+.person-card .role {
+  display: block;
+  color: #64748b;
+  font-size: 0.76rem;
+  margin-bottom: 4px;
+}
+
+.person-card strong {
+  color: #0f172a;
+}
+
+@media (max-width: 768px) {
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .details-item.wide {
+    grid-column: auto;
+  }
+
+  .people-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .empty-state {

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, JSON, Enum as SQLEnum, Numeric
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, JSON, Enum as SQLEnum, Numeric, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -111,3 +111,25 @@ class Booking(Base):
     # Relationships
     individual_court = relationship("IndividualCourt", back_populates="bookings")
     user = relationship("User", back_populates="bookings")
+
+
+class BookingInvite(Base):
+    """Single-use invitation code tied to a confirmed/active booking."""
+
+    __tablename__ = "booking_invites"
+    __table_args__ = (
+        UniqueConstraint("code", name="uq_booking_invites_code"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=False, index=True)
+    inviter_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    invitee_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    code = Column(String(16), nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="pending")  # pending, accepted, rejected
+    responded_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    booking = relationship("Booking")
+    inviter = relationship("User", foreign_keys=[inviter_user_id])
+    invitee = relationship("User", foreign_keys=[invitee_user_id])

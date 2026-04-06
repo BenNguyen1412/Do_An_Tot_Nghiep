@@ -37,6 +37,8 @@ interface BookingHistoryApiItem {
 const toast = useToast()
 const bookings = ref<Booking[]>([])
 const isLoading = ref(false)
+const creatingInviteForBookingId = ref<number | null>(null)
+const generatedInviteCodes = ref<Record<number, string>>({})
 
 const activeTab = ref<'all' | 'confirmed' | 'completed' | 'cancelled'>('all')
 
@@ -69,6 +71,45 @@ const fetchBookingHistory = async () => {
     toast.error('Cannot load booking history')
   } finally {
     isLoading.value = false
+  }
+}
+
+const createInviteCode = async (bookingId: number) => {
+  if (creatingInviteForBookingId.value === bookingId) {
+    return
+  }
+
+  creatingInviteForBookingId.value = bookingId
+  try {
+    const response = await axiosInstance.post(`/bookings/${bookingId}/invite-codes`)
+    generatedInviteCodes.value = {
+      ...generatedInviteCodes.value,
+      [bookingId]: response.data.code,
+    }
+    toast.success('Invite code created')
+  } catch (error: unknown) {
+    const message =
+      error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+          'Unable to create invite code'
+        : 'Unable to create invite code'
+    toast.error(message)
+  } finally {
+    creatingInviteForBookingId.value = null
+  }
+}
+
+const copyInviteCode = async (bookingId: number) => {
+  const code = generatedInviteCodes.value[bookingId]
+  if (!code) {
+    return
+  }
+
+  try {
+    await navigator.clipboard.writeText(code)
+    toast.success('Invite code copied')
+  } catch {
+    toast.error('Unable to copy invite code')
   }
 }
 
@@ -293,6 +334,28 @@ const getStatusInfo = (status: string) => {
                       />
                     </svg>
                     <span>{{ formatPrice(booking.total_price) }}</span>
+                  </div>
+                </div>
+
+                <div v-if="booking.status === 'confirmed'" class="booking-actions">
+                  <button
+                    type="button"
+                    class="action-btn invite"
+                    :disabled="creatingInviteForBookingId === booking.id"
+                    @click="createInviteCode(booking.id)"
+                  >
+                    {{
+                      creatingInviteForBookingId === booking.id
+                        ? 'Creating...'
+                        : 'Create Invite Code'
+                    }}
+                  </button>
+
+                  <div v-if="generatedInviteCodes[booking.id]" class="invite-code-box">
+                    <span class="invite-code-text">{{ generatedInviteCodes[booking.id] }}</span>
+                    <button type="button" class="copy-btn" @click="copyInviteCode(booking.id)">
+                      Copy
+                    </button>
                   </div>
                 </div>
               </div>
@@ -625,6 +688,11 @@ const getStatusInfo = (status: string) => {
   gap: 6px;
 }
 
+.action-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .action-btn svg {
   width: 16px;
   height: 16px;
@@ -649,6 +717,52 @@ const getStatusInfo = (status: string) => {
 .action-btn.cancel:hover {
   background: #fecaca;
   border-color: #fca5a5;
+}
+
+.action-btn.invite {
+  background: linear-gradient(135deg, #2d5016 0%, #4a7c2c 100%);
+  color: white;
+}
+
+.action-btn.accept {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.action-btn.reject {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.invite-code-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed #86efac;
+  background: #f0fdf4;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.invite-code-text {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #14532d;
+}
+
+.copy-btn {
+  border: none;
+  background: #166534;
+  color: white;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 /* Transitions */
