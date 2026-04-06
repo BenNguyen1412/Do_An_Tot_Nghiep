@@ -243,7 +243,7 @@ onUnmounted(() => {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   min-width: 280px;
   overflow: hidden;
-  z-index: 1000;
+  z-index: 11000;
 }
 
 .dropdown-header {

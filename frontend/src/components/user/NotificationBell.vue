@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { isAxiosError } from 'axios'
 import axiosInstance from '@/utils/axios'
 import { useAuthStore } from '@/stores/auth'
@@ -20,15 +20,32 @@ const toast = useToast()
 const notifications = ref<Notification[]>([])
 const unreadCount = ref(0)
 const showDropdown = ref(false)
+const triggerRef = ref<HTMLElement | null>(null)
+const dropdownStyle = ref<Record<string, string>>({})
 const handledFriendRequestIds = ref<number[]>([])
 const processingFriendRequestId = ref<number | null>(null)
 let pollingInterval: ReturnType<typeof setInterval> | null = null
 
+const updateDropdownPosition = () => {
+  if (!triggerRef.value) return
+
+  const rect = triggerRef.value.getBoundingClientRect()
+  const dropdownWidth = Math.min(380, window.innerWidth - 20)
+  const left = Math.max(10, Math.min(rect.right - dropdownWidth, window.innerWidth - dropdownWidth - 10))
+
+  dropdownStyle.value = {
+    position: 'fixed',
+    top: `${rect.bottom + 8}px`,
+    left: `${left}px`,
+    width: `${dropdownWidth}px`,
+    maxHeight: '500px',
+    zIndex: '20000',
+  }
+}
+
 const fetchNotifications = async () => {
   const token = localStorage.getItem('token')
-  if (!authStore.user || !token) {
-    return
-  }
+  if (!authStore.user || !token) return
 
   try {
     const [notifResponse, countResponse] = await Promise.all([
@@ -39,9 +56,7 @@ const fetchNotifications = async () => {
     unreadCount.value = countResponse.data.count
   } catch (error) {
     const err = error as { response?: { status?: number } }
-    if (err?.response?.status === 401) {
-      return
-    }
+    if (err?.response?.status === 401) return
   }
 }
 
@@ -71,20 +86,13 @@ const markAllAsRead = async () => {
 }
 
 const handleNotificationClick = async (notification: Notification) => {
-  if (notification.type === 'friend_request_received') {
-    return
-  }
+  if (notification.type === 'friend_request_received') return
   await markAsRead(notification.id)
 }
 
 const respondFriendRequest = async (notification: Notification, action: 'accept' | 'reject') => {
-  if (!notification.related_id) {
-    return
-  }
-
-  if (processingFriendRequestId.value === notification.related_id) {
-    return
-  }
+  if (!notification.related_id) return
+  if (processingFriendRequestId.value === notification.related_id) return
 
   try {
     processingFriendRequestId.value = notification.related_id
@@ -97,12 +105,9 @@ const respondFriendRequest = async (notification: Notification, action: 'accept'
     const targetNotification = notifications.value.find((item) => item.id === notification.id)
     if (targetNotification) {
       targetNotification.type = 'friend_request_result'
-      targetNotification.title =
-        action === 'accept' ? 'Friend request accepted' : 'Friend request rejected'
+      targetNotification.title = action === 'accept' ? 'Friend request accepted' : 'Friend request rejected'
       targetNotification.message =
-        action === 'accept'
-          ? 'You accepted this friend request.'
-          : 'You rejected this friend request.'
+        action === 'accept' ? 'You accepted this friend request.' : 'You rejected this friend request.'
       if (!targetNotification.is_read) {
         targetNotification.is_read = true
         unreadCount.value = Math.max(0, unreadCount.value - 1)
@@ -133,6 +138,7 @@ const toggleDropdown = () => {
   showDropdown.value = !showDropdown.value
   if (showDropdown.value) {
     fetchNotifications()
+    nextTick(updateDropdownPosition)
   }
 }
 
@@ -170,7 +176,7 @@ const formatTime = (dateString: string) => {
 
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
-  if (!target.closest('.notification-bell-container')) {
+  if (!target.closest('.notification-bell-container') && !target.closest('.notification-dropdown')) {
     showDropdown.value = false
   }
 }
@@ -179,6 +185,8 @@ onMounted(() => {
   fetchNotifications()
   pollingInterval = setInterval(fetchNotifications, 30000)
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('resize', updateDropdownPosition)
+  window.addEventListener('scroll', updateDropdownPosition, true)
 })
 
 onUnmounted(() => {
@@ -186,12 +194,14 @@ onUnmounted(() => {
     clearInterval(pollingInterval)
   }
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('resize', updateDropdownPosition)
+  window.removeEventListener('scroll', updateDropdownPosition, true)
 })
 </script>
 
 <template>
   <div class="notification-bell-container">
-    <button class="notification-bell" @click="toggleDropdown" :class="{ active: showDropdown }">
+    <button ref="triggerRef" class="notification-bell" :class="{ active: showDropdown }" @click="toggleDropdown">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           stroke-linecap="round"
@@ -203,64 +213,64 @@ onUnmounted(() => {
       <span v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
     </button>
 
-    <transition name="dropdown">
-      <div v-if="showDropdown" class="notification-dropdown">
-        <div class="dropdown-header">
-          <h3>Notifications</h3>
-          <button v-if="unreadCount > 0" @click="markAllAsRead" class="mark-all-btn">
-            Mark all as read
-          </button>
-        </div>
+    <Teleport to="body">
+      <transition name="dropdown">
+        <div v-if="showDropdown" class="notification-dropdown" :style="dropdownStyle">
+          <div class="dropdown-header">
+            <h3>Notifications</h3>
+            <button v-if="unreadCount > 0" class="mark-all-btn" @click="markAllAsRead">Mark all as read</button>
+          </div>
 
-        <div class="notification-list">
-          <template v-if="notifications.length > 0">
-            <div
-              v-for="notification in notifications"
-              :key="notification.id"
-              class="notification-item"
-              :class="{ unread: !notification.is_read }"
-              @click="handleNotificationClick(notification)"
-            >
-              <div class="notification-icon">{{ getNotificationIcon(notification.type) }}</div>
-              <div class="notification-content">
-                <h4>{{ notification.title }}</h4>
-                <p>{{ notification.message }}</p>
-                <span class="notification-time">{{ formatTime(notification.created_at) }}</span>
-                <div v-if="canShowFriendRequestActions(notification)" class="actions">
-                  <button
-                    type="button"
-                    class="action-btn accept"
-                    :disabled="processingFriendRequestId === notification.related_id"
-                    @click.stop="respondFriendRequest(notification, 'accept')"
-                  >
-                    Accept
-                  </button>
-                  <button
-                    type="button"
-                    class="action-btn reject"
-                    :disabled="processingFriendRequestId === notification.related_id"
-                    @click.stop="respondFriendRequest(notification, 'reject')"
-                  >
-                    Reject
-                  </button>
+          <div class="notification-list">
+            <template v-if="notifications.length > 0">
+              <div
+                v-for="notification in notifications"
+                :key="notification.id"
+                class="notification-item"
+                :class="{ unread: !notification.is_read }"
+                @click="handleNotificationClick(notification)"
+              >
+                <div class="notification-icon">{{ getNotificationIcon(notification.type) }}</div>
+                <div class="notification-content">
+                  <h4>{{ notification.title }}</h4>
+                  <p>{{ notification.message }}</p>
+                  <span class="notification-time">{{ formatTime(notification.created_at) }}</span>
+                  <div v-if="canShowFriendRequestActions(notification)" class="actions">
+                    <button
+                      type="button"
+                      class="action-btn accept"
+                      :disabled="processingFriendRequestId === notification.related_id"
+                      @click.stop="respondFriendRequest(notification, 'accept')"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      class="action-btn reject"
+                      :disabled="processingFriendRequestId === notification.related_id"
+                      @click.stop="respondFriendRequest(notification, 'reject')"
+                    >
+                      Reject
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </template>
+            </template>
 
-          <div v-else class="empty-state">
-            <p>No notifications</p>
+            <div v-else class="empty-state">
+              <p>No notifications</p>
+            </div>
           </div>
         </div>
-      </div>
-    </transition>
+      </transition>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
 .notification-bell-container {
   position: relative;
-  z-index: 10000;
+  z-index: 1;
 }
 
 .notification-bell {
@@ -308,15 +318,11 @@ onUnmounted(() => {
 }
 
 .notification-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 380px;
   max-height: 500px;
   background: white;
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  z-index: 10000;
+  z-index: 20000;
   overflow: hidden;
 }
 
