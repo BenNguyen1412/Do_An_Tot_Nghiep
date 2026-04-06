@@ -159,6 +159,7 @@ const respondFriendRequest = async (notification: Notification, action: 'accept'
 const canShowFriendRequestActions = (notification: Notification) => {
   return (
     notification.type === 'friend_request_received' &&
+    !notification.is_read &&
     Boolean(notification.related_id) &&
     !handledFriendRequestIds.value.includes(notification.related_id as number)
   )
@@ -207,6 +208,7 @@ const respondBookingInvite = async (notification: Notification, action: 'accept'
 const canShowBookingInviteActions = (notification: Notification) => {
   return (
     notification.type === 'booking_invite_received' &&
+    !notification.is_read &&
     Boolean(notification.related_id) &&
     !handledBookingInviteIds.value.includes(notification.related_id as number)
   )

@@ -13,6 +13,7 @@ from app.core.security import get_current_user, get_current_owner
 from app.models.user import User
 from app.models.court import PaymentMethod, BookingInvite
 from app.models.friend import Friendship
+from app.models.notification import Notification
 from app.schemas.court import (
     BookingCreate,
     Booking,
@@ -146,6 +147,13 @@ def _respond_to_booking_invite(invite: BookingInvite, current_user: User, action
 
     if action == "accept" and invite.invitee_user_id:
         _increment_friendship_streak(db, invite.inviter_user_id, invite.invitee_user_id)
+
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.type == "booking_invite_received",
+        Notification.related_id == invite.id,
+        Notification.is_read.is_(False),
+    ).update({"is_read": True}, synchronize_session=False)
 
     db.commit()
     db.refresh(invite)
