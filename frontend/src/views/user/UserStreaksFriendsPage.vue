@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { isAxiosError } from 'axios'
 import axiosInstance from '@/utils/axios'
 import { useToast } from 'vue-toastification'
@@ -8,6 +8,7 @@ interface FriendUser {
   id: number
   full_name: string
   email: string
+  avatar_url?: string | null
 }
 
 interface FriendItem {
@@ -25,6 +26,10 @@ const inviteCode = ref('')
 const isInviting = ref(false)
 const friendEmail = ref('')
 const friends = ref<FriendItem[]>([])
+
+const backendOrigin = computed(() =>
+  (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(/\/api\/?$/, ''),
+)
 
 const loadFriends = async () => {
   isLoading.value = true
@@ -123,6 +128,13 @@ const getInitials = (fullName: string) => {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
 }
 
+const getAvatarSrc = (avatarUrl?: string | null) => {
+  if (!avatarUrl) return ''
+  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) return avatarUrl
+  if (avatarUrl.startsWith('/')) return `${backendOrigin.value}${avatarUrl}`
+  return `${backendOrigin.value}/${avatarUrl}`
+}
+
 const handleFriendsUpdated = () => {
   loadFriends()
 }
@@ -164,7 +176,15 @@ onUnmounted(() => {
           <tr v-for="friend in friends" :key="friend.user.id">
             <td>
               <div class="friend-cell">
-                <div class="avatar">{{ getInitials(friend.user.full_name) }}</div>
+                <div class="avatar">
+                  <img
+                    v-if="getAvatarSrc(friend.user.avatar_url)"
+                    :src="getAvatarSrc(friend.user.avatar_url)"
+                    :alt="friend.user.full_name"
+                    class="avatar-image"
+                  />
+                  <span v-else>{{ getInitials(friend.user.full_name) }}</span>
+                </div>
                 <span class="friend-name">{{ friend.user.full_name }}</span>
               </div>
             </td>
@@ -325,7 +345,7 @@ onUnmounted(() => {
 .avatar {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 50%;
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   color: white;
   font-weight: 800;
@@ -333,6 +353,13 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .friend-cell {

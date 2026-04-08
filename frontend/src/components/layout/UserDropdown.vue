@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import UserProfileModal from '@/components/user/UserProfileModal.vue'
@@ -11,6 +11,19 @@ const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const showProfileModal = ref(false)
 const showBookingModal = ref(false)
+
+const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(
+  /\/api\/?$/,
+  '',
+)
+
+const avatarSrc = computed(() => {
+  const raw = authStore.user?.avatar_url
+  if (!raw) return ''
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+  if (raw.startsWith('/')) return `${backendOrigin}${raw}`
+  return `${backendOrigin}/${raw}`
+})
 
 const toggleDropdown = () => {
   isOpen.value = !isOpen.value
@@ -52,7 +65,9 @@ onUnmounted(() => {
   <div class="user-dropdown" ref="dropdownRef">
     <button class="dropdown-trigger" @click="toggleDropdown">
       <div class="user-avatar">
+        <img v-if="avatarSrc" :src="avatarSrc" alt="User avatar" class="avatar-image" />
         <svg
+          v-else
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -84,7 +99,9 @@ onUnmounted(() => {
         <div class="dropdown-header">
           <div class="user-info">
             <div class="user-avatar-large">
+              <img v-if="avatarSrc" :src="avatarSrc" alt="User avatar" class="avatar-large-image" />
               <svg
+                v-else
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -216,6 +233,13 @@ onUnmounted(() => {
   color: white;
 }
 
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .user-name {
   max-width: 150px;
   overflow: hidden;
@@ -266,6 +290,13 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.avatar-large-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .user-avatar-large svg {

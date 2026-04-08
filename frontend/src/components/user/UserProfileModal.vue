@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import axiosInstance from '@/utils/axios'
 import { useToast } from 'vue-toastification'
@@ -18,9 +18,24 @@ const toast = useToast()
 
 const isEditing = ref(false)
 const isSaving = ref(false)
+const isUploadingAvatar = ref(false)
+const avatarInputRef = ref<HTMLInputElement | null>(null)
 const editForm = ref({
   full_name: '',
   phone_number: '',
+})
+
+const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(
+  /\/api\/?$/,
+  '',
+)
+
+const avatarSrc = computed(() => {
+  const raw = authStore.user?.avatar_url
+  if (!raw) return ''
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+  if (raw.startsWith('/')) return `${backendOrigin}${raw}`
+  return `${backendOrigin}/${raw}`
 })
 
 const startEdit = () => {
@@ -75,6 +90,62 @@ const saveChanges = async () => {
     toast.error(errorMessage)
   } finally {
     isSaving.value = false
+  }
+}
+
+const triggerAvatarPicker = () => {
+  if (authStore.user?.role !== 'user') {
+    toast.error('Avatar update is only available for user accounts')
+    return
+  }
+  avatarInputRef.value?.click()
+}
+
+const handleAvatarSelected = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) {
+    return
+  }
+
+  if (!file.type.startsWith('image/')) {
+    toast.error('Please select an image file')
+    input.value = ''
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('Avatar must be 5MB or smaller')
+    input.value = ''
+    return
+  }
+
+  isUploadingAvatar.value = true
+  try {
+    const formData = new FormData()
+    formData.append('avatar', file)
+
+    const response = await axiosInstance.post('/users/me/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+
+    if (authStore.user) {
+      authStore.user.avatar_url = response.data.avatar_url
+      localStorage.setItem('user', JSON.stringify(authStore.user))
+    }
+
+    toast.success('Avatar updated successfully')
+    emit('update')
+  } catch (error: unknown) {
+    const errorMessage =
+      (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+      'Failed to upload avatar'
+    toast.error(errorMessage)
+  } finally {
+    isUploadingAvatar.value = false
+    input.value = ''
   }
 }
 
@@ -140,21 +211,72 @@ const getRoleName = (role: string | undefined) => {
           <div class="modal-body">
             <!-- Avatar Section -->
             <div class="avatar-section">
-              <div class="avatar-large">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+              <div class="avatar-wrap">
+                <div class="avatar-large">
+                  <img v-if="avatarSrc" :src="avatarSrc" alt="User avatar" class="avatar-image" />
+                  <svg
+                    v-else
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </div>
+                <button
+                  type="button"
+                  class="avatar-upload-icon-btn"
+                  :disabled="isUploadingAvatar"
+                  @click="triggerAvatarPicker"
+                  title="Update avatar"
                 >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
+                  <svg
+                    v-if="!isUploadingAvatar"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L12.828 14H10v-2.828l7.586-7.586z"
+                    />
+                  </svg>
+                  <svg
+                    v-else
+                    class="animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <circle
+                      class="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      stroke-width="4"
+                    />
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                </button>
               </div>
+              <input
+                ref="avatarInputRef"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                class="avatar-file-input"
+                @change="handleAvatarSelected"
+              />
               <div class="role-badge">{{ getRoleName(authStore.user?.role) }}</div>
             </div>
 
@@ -449,6 +571,17 @@ const getRoleName = (role: string | undefined) => {
   box-shadow: 0 8px 24px rgba(45, 80, 22, 0.3);
 }
 
+.avatar-wrap {
+  position: relative;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 .avatar-large svg {
   width: 50px;
   height: 50px;
@@ -463,6 +596,43 @@ const getRoleName = (role: string | undefined) => {
   font-weight: 600;
   font-size: 0.85rem;
   box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+}
+
+.avatar-upload-icon-btn {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  border: 2px solid #ffffff;
+  background: #2d5016;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.avatar-upload-icon-btn:hover {
+  background: #3f6c20;
+  transform: translateY(-1px);
+}
+
+.avatar-upload-icon-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.avatar-upload-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.avatar-file-input {
+  display: none;
 }
 
 /* Info Section */

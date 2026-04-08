@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppHeader from '@/components/layout/AppHeader.vue'
@@ -7,6 +7,19 @@ import NotificationBell from '@/components/user/NotificationBell.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
+
+const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(
+  /\/api\/?$/,
+  '',
+)
+
+const avatarSrc = computed(() => {
+  const raw = authStore.user?.avatar_url
+  if (!raw) return ''
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+  if (raw.startsWith('/')) return `${backendOrigin}${raw}`
+  return `${backendOrigin}/${raw}`
+})
 
 const isSidebarOpen = ref(true)
 
@@ -127,7 +140,9 @@ const isActive = (path: string) => route.path === path
 
           <div class="user-info">
             <div class="user-avatar">
+              <img v-if="avatarSrc" :src="avatarSrc" alt="User avatar" class="user-avatar-image" />
               <svg
+                v-else
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -380,16 +395,24 @@ const isActive = (path: string) => route.path === path
   border-radius: 12px;
 }
 
+.user-avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .user-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border-radius: 50%;
+  background: #e5e7eb;
+  border: 1px solid #d1d5db;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.25);
+  color: #6b7280;
 }
 
 .user-avatar svg {

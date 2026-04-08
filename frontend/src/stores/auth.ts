@@ -8,6 +8,7 @@ interface User {
   full_name: string
   role: string
   phone_number?: string | null
+  avatar_url?: string | null
   is_active: boolean
 
   // Bank account fields (for owners)

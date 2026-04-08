@@ -22,6 +22,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     phone_number: Optional[str] = None
+    avatar_url: Optional[str] = None
     password: Optional[str] = None
     
     # Bank account fields (for owners)
@@ -35,6 +36,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     phone_number: Optional[str] = None
+    avatar_url: Optional[str] = None
     is_active: bool
     role: UserRole
     

@@ -16,6 +16,7 @@ class FriendUser(BaseModel):
     id: int
     full_name: str
     email: str
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True

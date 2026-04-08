@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -7,6 +10,14 @@ from app.schemas.user import UserResponse, UserListResponse, UserUpdate
 from app.crud import user as crud_user
 
 router = APIRouter()
+
+ALLOWED_AVATAR_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024
+
+
+def _get_role_value(user: User) -> str:
+    role = getattr(user, "role", None)
+    return getattr(role, "value", str(role))
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_profile(current_user: User = Depends(get_current_user)):
@@ -38,6 +49,59 @@ async def update_current_user_profile(
             )
     
     user = crud_user.update_user(db, current_user.id, update_data)
+    return user
+
+
+@router.post("/me/avatar", response_model=UserResponse)
+async def upload_user_avatar(
+    avatar: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Upload avatar image for user accounts."""
+    if _get_role_value(current_user) != "user":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only user accounts can update avatar",
+        )
+
+    file_ext = Path(avatar.filename or "").suffix.lower()
+    if file_ext not in ALLOWED_AVATAR_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only JPG, JPEG, PNG and WEBP files are allowed",
+        )
+
+    file_bytes = await avatar.read()
+    if not file_bytes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Avatar file is empty")
+
+    if len(file_bytes) > MAX_AVATAR_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Avatar must be 5MB or smaller",
+        )
+
+    avatars_dir = Path("uploads") / "avatars"
+    avatars_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = f"user_{current_user.id}_{uuid4().hex}{file_ext}"
+    destination = avatars_dir / filename
+    destination.write_bytes(file_bytes)
+
+    old_avatar_url = current_user.avatar_url
+    new_avatar_url = f"/uploads/avatars/{filename}"
+
+    user = crud_user.update_user(db, current_user.id, {"avatar_url": new_avatar_url})
+
+    if old_avatar_url and old_avatar_url.startswith("/uploads/avatars/"):
+        old_file = Path(old_avatar_url.lstrip("/"))
+        if old_file.exists() and old_file.is_file():
+            try:
+                old_file.unlink()
+            except Exception:
+                pass
+
     return user
 
 
