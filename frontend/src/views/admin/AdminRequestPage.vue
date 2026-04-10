@@ -333,7 +333,7 @@
                 <img
                   v-for="(image, index) in parsedImages"
                   :key="index"
-                  :src="`http://localhost:8000${image}`"
+                  :src="resolveImageUrl(image)"
                   :alt="`Court image ${Number(index) + 1}`"
                   class="court-image"
                 />
@@ -367,7 +367,7 @@
                 <div class="info-item full-width">
                   <label>Image</label>
                   <img
-                    :src="`http://localhost:8000${selectedRequest.image_url}`"
+                    :src="resolveImageUrl(selectedRequest.image_url)"
                     alt="Advertisement"
                     class="court-image"
                   />
@@ -448,6 +448,17 @@ import axiosInstance from '@/utils/axios'
 import { useToast } from 'vue-toastification'
 
 const toast = useToast()
+const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(
+  /\/api\/?$/,
+  '',
+)
+
+const resolveImageUrl = (imagePath: string) => {
+  if (!imagePath) return ''
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath
+  if (imagePath.startsWith('/')) return `${backendOrigin}${imagePath}`
+  return `${backendOrigin}/${imagePath}`
+}
 
 interface CourtRequest {
   request_type: 'court'

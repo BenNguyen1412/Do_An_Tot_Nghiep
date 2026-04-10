@@ -262,7 +262,7 @@
                   <img
                     v-for="(image, index) in selectedCourt.images"
                     :key="index"
-                    :src="`http://localhost:8000${image}`"
+                    :src="resolveImageUrl(image)"
                     :alt="`Court image ${index + 1}`"
                     class="court-image"
                   />
@@ -326,6 +326,18 @@
 import { ref, onMounted, computed } from 'vue'
 import AdminDashboardLayout from '@/layouts/AdminDashboardLayout.vue'
 import axiosInstance from '@/utils/axios'
+
+const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(
+  /\/api\/?$/,
+  '',
+)
+
+const resolveImageUrl = (imagePath: string) => {
+  if (!imagePath) return ''
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath
+  if (imagePath.startsWith('/')) return `${backendOrigin}${imagePath}`
+  return `${backendOrigin}/${imagePath}`
+}
 
 interface TimeSlot {
   start_time: string

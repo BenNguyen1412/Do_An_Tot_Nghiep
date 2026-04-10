@@ -3,6 +3,11 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axiosInstance from '@/utils/axios'
 
+const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(
+  /\/api\/?$/,
+  '',
+)
+
 interface TimeSlot {
   start_time: string
   end_time: string
@@ -96,10 +101,13 @@ const getBadgeText = (quantity: number) => {
 const getCourtImage = (court: Court) => {
   if (court.images && court.images.length > 0) {
     const imagePath = court.images[0]
-    if (imagePath.startsWith('/')) {
-      return `http://localhost:8000${imagePath}`
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath
     }
-    return imagePath
+    if (imagePath.startsWith('/')) {
+      return `${backendOrigin}${imagePath}`
+    }
+    return `${backendOrigin}/${imagePath}`
   }
   return 'https://i.pinimg.com/1200x/0e/c0/4d/0ec04dde4f138cac5ec5e928edef20e9.jpg'
 }

@@ -9,6 +9,10 @@ import AppFooter from '@/components/layout/AppFooter.vue'
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(
+  /\/api\/?$/,
+  '',
+)
 
 interface TimeSlot {
   start_time: string
@@ -75,10 +79,13 @@ const courtImages = computed(() => {
     return ['https://i.pinimg.com/1200x/0e/c0/4d/0ec04dde4f138cac5ec5e928edef20e9.jpg']
   }
   return court.value.images.map((img) => {
-    if (img.startsWith('/')) {
-      return `http://localhost:8000${img}`
+    if (img.startsWith('http://') || img.startsWith('https://')) {
+      return img
     }
-    return img
+    if (img.startsWith('/')) {
+      return `${backendOrigin}${img}`
+    }
+    return `${backendOrigin}/${img}`
   })
 })
 

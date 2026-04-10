@@ -6,6 +6,35 @@ import axiosInstance from '@/utils/axios'
 
 const toast = useToast()
 const authStore = useAuthStore()
+const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(
+  /\/api\/?$/,
+  '',
+)
+
+const resolveImageUrl = (imagePath: string) => {
+  if (!imagePath) return ''
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath
+  if (imagePath.startsWith('/')) return `${backendOrigin}${imagePath}`
+  return `${backendOrigin}/${imagePath}`
+}
+
+const toRelativeImagePath = (url: string) => {
+  if (!url) return ''
+  if (url.startsWith('/')) return url
+  if (url.startsWith(backendOrigin)) {
+    const relative = url.slice(backendOrigin.length)
+    return relative.startsWith('/') ? relative : `/${relative}`
+  }
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const parsed = new URL(url)
+      return parsed.pathname.startsWith('/uploads/') ? parsed.pathname : ''
+    } catch {
+      return ''
+    }
+  }
+  return ''
+}
 
 // Time slots for pricing
 interface TimeSlot {
@@ -130,7 +159,7 @@ const fetchApprovedCourt = async () => {
 
       // Load existing images
       if (court.images && court.images.length > 0) {
-        imagePreviews.value = court.images.map((img: string) => `http://localhost:8000${img}`)
+        imagePreviews.value = court.images.map((img: string) => resolveImageUrl(img))
       }
     }
   } catch (error) {
@@ -463,8 +492,8 @@ const handleSubmit = async () => {
 
     // Merge new images with existing ones
     const existingImages = imagePreviews.value
-      .filter((url) => url.startsWith('http://localhost:8000'))
-      .map((url) => url.replace('http://localhost:8000', ''))
+      .map((url) => toRelativeImagePath(url))
+      .filter((url) => Boolean(url))
 
     const allImages = [...existingImages, ...imageUrls]
 
