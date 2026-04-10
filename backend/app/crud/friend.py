@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
 from sqlalchemy import and_, or_, func
@@ -6,8 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.models.friend import FriendRequest, Friendship
 from app.models.user import User
+from app.models.notification import Notification
 from app.schemas.notification import NotificationCreate
 from app.crud.notification import create_notification
+
+
+STREAK_WARNING_TYPE = "friend_streak_warning"
+STREAK_WARNING_DAYS = 5
+STREAK_EXPIRY_DAYS = 7
 
 
 def _normalize_pair(user_a_id: int, user_b_id: int) -> tuple[int, int]:
@@ -17,6 +23,114 @@ def _normalize_pair(user_a_id: int, user_b_id: int) -> tuple[int, int]:
 def _user_role_value(user: User) -> str:
     role = getattr(user, "role", None)
     return getattr(role, "value", str(role))
+
+
+def _to_naive_utc(value: Optional[datetime]) -> Optional[datetime]:
+    if value is None:
+        return None
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
+def _apply_streak_expiry(friendship: Friendship, now_utc: datetime) -> bool:
+    """Reset expired streaks and update best_streak when needed."""
+    last_activity = _to_naive_utc(friendship.last_activity_at)
+    if not last_activity:
+        return False
+
+    if now_utc - last_activity < timedelta(days=STREAK_EXPIRY_DAYS):
+        return False
+
+    current_streak = friendship.current_streak or 0
+    best_streak = friendship.best_streak or 0
+    has_changes = False
+
+    if current_streak > best_streak:
+        friendship.best_streak = current_streak
+        has_changes = True
+
+    if current_streak != 0:
+        friendship.current_streak = 0
+        has_changes = True
+
+    return has_changes
+
+
+def touch_friendship_invite_activity(
+    db: Session,
+    user_a_id: int,
+    user_b_id: int,
+    activity_time: Optional[datetime] = None,
+) -> Optional[Friendship]:
+    """Update the last invite activity timestamp for a friendship pair."""
+    friendship = get_friendship(db, user_a_id, user_b_id)
+    if not friendship:
+        return None
+
+    now_utc = _to_naive_utc(activity_time) or datetime.utcnow()
+    _apply_streak_expiry(friendship, now_utc)
+    friendship.last_activity_at = now_utc
+    db.flush()
+    return friendship
+
+
+def _create_streak_warning_notifications(
+    db: Session,
+    friendship: Friendship,
+    warning_anchor: datetime,
+):
+    user_low = db.query(User).filter(User.id == friendship.user_low_id).first()
+    user_high = db.query(User).filter(User.id == friendship.user_high_id).first()
+    if not user_low or not user_high:
+        return
+
+    pairs = [
+        (user_low.id, user_high.full_name),
+        (user_high.id, user_low.full_name),
+    ]
+
+    for recipient_id, friend_name in pairs:
+        exists = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == recipient_id,
+                Notification.type == STREAK_WARNING_TYPE,
+                Notification.related_id == friendship.id,
+                Notification.created_at >= warning_anchor,
+            )
+            .first()
+        )
+        if exists:
+            continue
+
+        create_notification(
+            db,
+            NotificationCreate(
+                user_id=recipient_id,
+                title="Streak ending soon",
+                message=f"Your streak with {friend_name} is about to end. Create an invite now to keep it alive.",
+                type=STREAK_WARNING_TYPE,
+                related_id=friendship.id,
+            ),
+        )
+
+
+def refresh_friendship_streak_state(db: Session, friendship: Friendship) -> bool:
+    """Apply streak expiry rules and trigger day-5 warning notifications."""
+    now_utc = datetime.utcnow()
+    has_changes = _apply_streak_expiry(friendship, now_utc)
+
+    last_activity_raw = friendship.last_activity_at
+    last_activity = _to_naive_utc(last_activity_raw)
+    if not last_activity:
+        return has_changes
+
+    elapsed = now_utc - last_activity
+    if timedelta(days=STREAK_WARNING_DAYS) <= elapsed < timedelta(days=STREAK_EXPIRY_DAYS):
+        _create_streak_warning_notifications(db, friendship, last_activity_raw or now_utc)
+
+    return has_changes
 
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:

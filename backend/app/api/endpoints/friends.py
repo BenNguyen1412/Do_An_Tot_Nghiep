@@ -81,6 +81,14 @@ async def get_my_friends(
     _require_user_role(current_user)
 
     friendships = friend_crud.list_friends(db, current_user.id)
+    has_streak_updates = False
+    for friendship in friendships:
+        if friend_crud.refresh_friendship_streak_state(db, friendship):
+            has_streak_updates = True
+
+    if has_streak_updates:
+        db.commit()
+
     items = []
     for friendship in friendships:
         friend_user = friend_crud.resolve_friend_user(db, friendship, current_user.id)

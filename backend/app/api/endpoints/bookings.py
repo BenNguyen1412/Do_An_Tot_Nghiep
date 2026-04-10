@@ -34,6 +34,7 @@ from app.schemas.court import (
     BookingInviteDetailResponse,
 )
 from app.crud import court as court_crud
+from app.crud import friend as friend_crud
 from app.crud.user import get_user_by_id
 from app.crud.notification import create_notification
 from app.core.vietqr_service import VietQRService
@@ -131,7 +132,6 @@ def _increment_friendship_streak(db: Session, user_a_id: int, user_b_id: int):
 
     friendship.current_streak = (friendship.current_streak or 0) + 1
     friendship.best_streak = max(friendship.best_streak or 0, friendship.current_streak)
-    friendship.last_activity_at = datetime.utcnow()
 
 
 def _respond_to_booking_invite(invite: BookingInvite, current_user: User, action: str, db: Session):
@@ -801,6 +801,7 @@ async def respond_booking_invite_code(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This invite code is assigned to another user")
 
     invite.invitee_user_id = current_user.id
+    friend_crud.touch_friendship_invite_activity(db, invite.inviter_user_id, current_user.id)
     result = _respond_to_booking_invite(invite, current_user, payload.action, db)
     return {
         "booking_id": result["booking_id"],
@@ -841,6 +842,7 @@ async def send_booking_invite_to_friend(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This invite code was already sent to another friend")
 
     invite.invitee_user_id = payload.friend_user_id
+    friend_crud.touch_friendship_invite_activity(db, current_user.id, payload.friend_user_id)
     db.commit()
     db.refresh(invite)
 
