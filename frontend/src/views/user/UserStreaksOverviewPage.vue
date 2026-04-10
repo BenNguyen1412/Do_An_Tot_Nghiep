@@ -471,12 +471,15 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 10000;
 }
 
 .streak-modal {
   width: 100%;
   max-width: 760px;
+  max-height: calc(100dvh - 40px);
   background:
     radial-gradient(circle at 18% 16%, rgba(45, 212, 191, 0.2), transparent 46%),
     radial-gradient(circle at 88% 84%, rgba(14, 165, 233, 0.22), transparent 48%),
@@ -490,6 +493,7 @@ onUnmounted(() => {
     0 24px 80px rgba(2, 6, 23, 0.72),
     inset 0 1px 0 rgba(226, 232, 240, 0.18);
   overflow: hidden;
+  overflow-y: auto;
 }
 
 .streak-modal::after {
@@ -573,6 +577,7 @@ onUnmounted(() => {
 .streak-capture-area {
   display: grid;
   gap: 0;
+  min-width: 0;
 }
 
 .neon-emblem {
@@ -837,9 +842,16 @@ onUnmounted(() => {
     padding: 16px;
   }
 
+  .modal-overlay {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
   .streak-modal {
     max-width: 100%;
+    max-height: calc(100dvh - 24px);
     padding: 20px 14px 20px;
+    border-radius: 20px;
   }
 
   .modal-headline {
@@ -867,6 +879,7 @@ onUnmounted(() => {
   .players-row {
     gap: 12px;
     margin-top: 14px;
+    flex-wrap: wrap;
   }
 
   .player-avatar-wrap {
@@ -894,6 +907,88 @@ onUnmounted(() => {
   .no-streak-state {
     width: 100px;
     height: 100px;
+  }
+}
+
+@media (max-width: 640px), (max-height: 740px) {
+  .modal-head {
+    margin-bottom: 12px;
+    gap: 6px;
+  }
+
+  .status-pill {
+    font-size: 0.7rem;
+    padding: 5px 10px;
+  }
+
+  .modal-headline {
+    font-size: 0.96rem;
+    line-height: 1.25;
+  }
+
+  .modal-subline {
+    font-size: 0.78rem;
+  }
+
+  .score-ball {
+    width: min(66vw, 190px);
+    height: min(66vw, 190px);
+  }
+
+  .score-days {
+    font-size: clamp(3rem, 11vw, 4.2rem);
+  }
+
+  .score-label {
+    font-size: clamp(1.2rem, 5.6vw, 1.6rem);
+  }
+
+  .players-row {
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .player-avatar-wrap {
+    width: 64px;
+    height: 64px;
+  }
+
+  .pickleball-mark {
+    width: 76px;
+    height: 76px;
+  }
+
+  .modal-note {
+    margin-top: 12px;
+    font-size: 0.88rem;
+    line-height: 1.35;
+    padding: 10px 12px;
+  }
+
+  .metric-grid {
+    margin-top: 12px;
+    gap: 8px;
+  }
+
+  .metric-card {
+    padding: 9px;
+  }
+
+  .metric-value {
+    font-size: 0.92rem;
+  }
+
+  .no-streak-box {
+    padding: 14px;
+  }
+
+  .no-streak-title {
+    font-size: 1rem;
+  }
+
+  .no-streak-box p {
+    font-size: 0.9rem;
+    line-height: 1.4;
   }
 }
 </style>

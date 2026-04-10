@@ -37,7 +37,7 @@ const menuItems = [
   {
     id: 'streaks',
     label: 'Streaks',
-    icon: 'fire',
+    icon: 'streaks-image',
     path: '/user/streaks/overview',
   },
 ]
@@ -105,6 +105,12 @@ const isActive = (path: string) => route.path === path
                 d="M12 3c0 3.5-3 5-3 8a3 3 0 106 0c0-1.5-.6-2.7-1.7-3.9M9 14a3 3 0 006 0c0 1.7-1.3 3-3 3s-3-1.3-3-3z"
               />
             </svg>
+            <img
+              v-else-if="item.icon === 'streaks-image'"
+              src="/streaks.jpg"
+              alt="Streaks"
+              class="nav-icon-image"
+            />
           </span>
           <transition name="fade">
             <span v-if="isSidebarOpen" class="nav-label">{{ item.label }}</span>
@@ -303,6 +309,18 @@ const isActive = (path: string) => route.path === path
 .nav-icon {
   font-size: 1.5rem;
   flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
 }
 
 .nav-label {
