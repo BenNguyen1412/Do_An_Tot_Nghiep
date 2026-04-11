@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app.core.database import SessionLocal
-from app.models.court import Booking, Court, IndividualCourt
+from app.models.court import Booking, BookingInvite, Court, IndividualCourt
 
 
 def _delete_court_images() -> int:
@@ -31,6 +31,9 @@ def delete_all_courts() -> tuple[int, int, int, int]:
     """Delete all bookings, individual courts, courts, and related uploaded images."""
     db = SessionLocal()
     try:
+        invite_count = db.query(BookingInvite).count()
+        db.query(BookingInvite).delete()
+
         bookings_count = db.query(Booking).count()
         db.query(Booking).delete()
 
@@ -44,6 +47,7 @@ def delete_all_courts() -> tuple[int, int, int, int]:
 
         image_count = _delete_court_images()
 
+        print(f"Deleted booking invite(s): {invite_count}")
         print(f"Deleted booking(s): {bookings_count}")
         print(f"Deleted individual court(s): {individual_count}")
         print(f"Deleted court(s): {courts_count}")
