@@ -16,10 +16,10 @@ from app.schemas.notification import (
 )
 from app.crud import notification as notification_crud
 from app.crud import court as court_crud
+from app.core.storage import ensure_uploads_subdir
 import json
 import os
 import uuid
-from pathlib import Path
 
 router = APIRouter()
 
@@ -206,8 +206,7 @@ async def create_advertisement_request(
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Image file is required")
 
-    upload_dir = Path("uploads/advertisements")
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    upload_dir = ensure_uploads_subdir("advertisements")
 
     file_ext = os.path.splitext(image.filename or "")[1] or ".jpg"
     unique_filename = f"{uuid.uuid4()}{file_ext}"
@@ -377,8 +376,7 @@ async def upload_images(
         )
     
     # Create uploads directory if it doesn't exist
-    upload_dir = Path("uploads/courts")
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    upload_dir = ensure_uploads_subdir("courts")
     
     image_urls = []
     for image in images:

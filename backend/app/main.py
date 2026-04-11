@@ -5,7 +5,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.api.api import api_router
 from app.api.endpoints import webhooks
-from pathlib import Path
+from app.core.storage import ensure_uploads_root
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -34,9 +34,8 @@ app.include_router(api_router, prefix="/api")
 app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 
 # Mount static files for uploads
-uploads_dir = Path("uploads")
-uploads_dir.mkdir(exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+uploads_dir = ensure_uploads_root()
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 @app.get("/")

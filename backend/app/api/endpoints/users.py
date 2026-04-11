@@ -8,6 +8,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.schemas.user import UserResponse, UserListResponse, UserUpdate
 from app.crud import user as crud_user
+from app.core.storage import ensure_uploads_subdir
 
 router = APIRouter()
 
@@ -82,8 +83,7 @@ async def upload_user_avatar(
             detail="Avatar must be 5MB or smaller",
         )
 
-    avatars_dir = Path("uploads") / "avatars"
-    avatars_dir.mkdir(parents=True, exist_ok=True)
+    avatars_dir = ensure_uploads_subdir("avatars")
 
     filename = f"user_{current_user.id}_{uuid4().hex}{file_ext}"
     destination = avatars_dir / filename
@@ -95,7 +95,8 @@ async def upload_user_avatar(
     user = crud_user.update_user(db, current_user.id, {"avatar_url": new_avatar_url})
 
     if old_avatar_url and old_avatar_url.startswith("/uploads/avatars/"):
-        old_file = Path(old_avatar_url.lstrip("/"))
+        old_filename = Path(old_avatar_url).name
+        old_file = avatars_dir / old_filename
         if old_file.exists() and old_file.is_file():
             try:
                 old_file.unlink()
