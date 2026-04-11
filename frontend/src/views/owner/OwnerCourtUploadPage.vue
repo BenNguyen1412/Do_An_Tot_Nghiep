@@ -55,14 +55,6 @@ const normalizeTimeInput = (value: string): string => {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
-const normalizeSlotTime = (slot: TimeSlot, field: 'startTime' | 'endTime') => {
-  slot[field] = normalizeTimeInput(slot[field])
-}
-
-const normalizeOperatingTime = (field: 'opening_time' | 'closing_time') => {
-  courtForm.value[field] = normalizeTimeInput(courtForm.value[field])
-}
-
 const isValidTimeValue = (value: string): boolean => {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || '').trim())
 }
@@ -846,30 +838,14 @@ const formatTimeWithPeriod = (time: string) => {
             <div class="slot-inputs">
               <div class="slot-input-group">
                 <label class="slot-label">From</label>
-                <input
-                  v-model="slot.startTime"
-                  type="text"
-                  class="slot-time-input"
-                  placeholder="HH:MM"
-                  pattern="[0-9]{2}:[0-9]{2}"
-                  inputmode="numeric"
-                  @blur="normalizeSlotTime(slot, 'startTime')"
-                />
+                <input v-model="slot.startTime" type="time" class="slot-time-input" step="60" />
               </div>
 
               <span class="slot-separator">→</span>
 
               <div class="slot-input-group">
                 <label class="slot-label">To</label>
-                <input
-                  v-model="slot.endTime"
-                  type="text"
-                  class="slot-time-input"
-                  placeholder="HH:MM"
-                  pattern="[0-9]{2}:[0-9]{2}"
-                  inputmode="numeric"
-                  @blur="normalizeSlotTime(slot, 'endTime')"
-                />
+                <input v-model="slot.endTime" type="time" class="slot-time-input" step="60" />
               </div>
 
               <div class="slot-input-group slot-price-group">
@@ -958,13 +934,10 @@ const formatTimeWithPeriod = (time: string) => {
             <label class="form-label">Opening time</label>
             <input
               v-model="courtForm.opening_time"
-              type="text"
+              type="time"
               class="form-input"
-              placeholder="HH:MM"
-              pattern="[0-9]{2}:[0-9]{2}"
-              inputmode="numeric"
               title="Ex: 06:00 (6 AM)"
-              @blur="normalizeOperatingTime('opening_time')"
+              step="60"
             />
           </div>
 
@@ -972,13 +945,10 @@ const formatTimeWithPeriod = (time: string) => {
             <label class="form-label">Closing time</label>
             <input
               v-model="courtForm.closing_time"
-              type="text"
+              type="time"
               class="form-input"
-              placeholder="HH:MM"
-              pattern="[0-9]{2}:[0-9]{2}"
-              inputmode="numeric"
               title="Ex: 22:00 (10 PM)"
-              @blur="normalizeOperatingTime('closing_time')"
+              step="60"
             />
           </div>
         </div>
