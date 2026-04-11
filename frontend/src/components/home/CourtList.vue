@@ -43,8 +43,12 @@ const isLoading = ref(false)
 const fetchCourts = async () => {
   isLoading.value = true
   try {
-    const response = await axiosInstance.get('/courts')
-    courts.value = response.data.slice(0, 3) // Get only first 3 courts
+    const response = await axiosInstance.get('/courts', {
+      params: {
+        limit: 3,
+      },
+    })
+    courts.value = response.data
   } catch (error) {
     console.error('Error fetching courts:', error)
   } finally {
@@ -194,7 +198,7 @@ onMounted(() => {
           @click="viewCourtDetails(court.id)"
         >
           <div class="court-image">
-            <img :src="getCourtImage(court)" :alt="court.name" />
+            <img :src="getCourtImage(court)" :alt="court.name" loading="lazy" decoding="async" />
             <div class="image-overlay">
               <button class="favorite-btn" @click.stop><i class="fas fa-heart"></i></button>
             </div>

@@ -255,9 +255,13 @@
                       v-for="detail in selectedRequest.changed_details"
                       :key="`${detail.field}-${detail.old_value}-${detail.new_value}`"
                     >
-                      <td>{{ detail.field }}</td>
-                      <td>{{ detail.old_value || '(empty)' }}</td>
-                      <td>{{ detail.new_value || '(empty)' }}</td>
+                      <td class="changed-field">{{ detail.field }}</td>
+                      <td class="changed-value">
+                        {{ formatChangedDetailValue(detail.field, detail.old_value) }}
+                      </td>
+                      <td class="changed-value">
+                        {{ formatChangedDetailValue(detail.field, detail.new_value) }}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -673,6 +677,52 @@ const formatPrice = (price: number) => {
   }).format(price)
 }
 
+const formatChangedDetailValue = (field: string, value?: string) => {
+  const rawValue = (value || '').trim()
+  if (!rawValue) return '(empty)'
+
+  const tryParseJson = () => {
+    try {
+      return JSON.parse(rawValue)
+    } catch {
+      return null
+    }
+  }
+
+  if (field === 'Images') {
+    const parsed = tryParseJson()
+    if (Array.isArray(parsed)) {
+      if (parsed.length === 0) return '(no images)'
+      return parsed.map((item, index) => `${index + 1}. ${String(item)}`).join('\n')
+    }
+  }
+
+  if (field === 'Time Slots & Pricing') {
+    const parsed = tryParseJson()
+    if (Array.isArray(parsed)) {
+      if (parsed.length === 0) return '(no slots)'
+      return parsed
+        .map((slot: { start_time?: string; end_time?: string; price?: number }) => {
+          const start = slot.start_time || '--:--'
+          const end = slot.end_time || '--:--'
+          const price = Number(slot.price || 0)
+          return `${start} - ${end}: ${formatPrice(price)}`
+        })
+        .join('\n')
+    }
+  }
+
+  if (field === 'Facilities') {
+    const parsed = tryParseJson()
+    if (Array.isArray(parsed)) {
+      if (parsed.length === 0) return '(none)'
+      return parsed.join(', ')
+    }
+  }
+
+  return rawValue
+}
+
 // Pagination methods
 const goToPage = (page: number) => {
   currentPage.value = page
@@ -977,6 +1027,49 @@ onMounted(() => {
   font-size: 15px;
   color: #1f2937;
   vertical-align: middle;
+}
+
+.changed-table-wrapper {
+  overflow-x: auto;
+}
+
+.changed-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.changed-table thead {
+  background: #f8fafc;
+}
+
+.changed-table th,
+.changed-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px;
+  vertical-align: top;
+}
+
+.changed-table th {
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.changed-field {
+  min-width: 140px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.changed-value {
+  color: #1f2937;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .request-name {

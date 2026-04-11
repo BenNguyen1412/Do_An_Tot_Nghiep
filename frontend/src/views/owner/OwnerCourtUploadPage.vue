@@ -28,12 +28,48 @@ const toRelativeImagePath = (url: string) => {
   if (url.startsWith('http://') || url.startsWith('https://')) {
     try {
       const parsed = new URL(url)
-      return parsed.pathname.startsWith('/uploads/') ? parsed.pathname : ''
+      if (parsed.pathname.startsWith('/uploads/')) {
+        return parsed.pathname
+      }
+      // Keep external CDN URLs (e.g. Cloudinary) unchanged.
+      return url
     } catch {
       return ''
     }
   }
   return ''
+}
+
+const normalizeTimeInput = (value: string): string => {
+  const cleaned = String(value || '').trim()
+  if (!cleaned) return ''
+
+  const matched = cleaned.match(/^(\d{1,2})(?::?(\d{1,2}))?$/)
+  if (!matched) return cleaned
+
+  const hour = Number(matched[1])
+  const minute = Number(matched[2] ?? '0')
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return cleaned
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return cleaned
+
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
+const normalizeSlotTime = (slot: TimeSlot, field: 'startTime' | 'endTime') => {
+  slot[field] = normalizeTimeInput(slot[field])
+}
+
+const normalizeOperatingTime = (field: 'opening_time' | 'closing_time') => {
+  courtForm.value[field] = normalizeTimeInput(courtForm.value[field])
+}
+
+const isValidTimeValue = (value: string): boolean => {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || '').trim())
+}
+
+const isSlotFilled = (slot: TimeSlot): boolean => {
+  const hasPrice = Number(slot.price) > 0
+  return isValidTimeValue(slot.startTime) && isValidTimeValue(slot.endTime) && hasPrice
 }
 
 // Time slots for pricing
@@ -302,6 +338,14 @@ const resetForm = () => {
 }
 
 const validateForm = () => {
+  // Normalize manual inputs before validating and rendering conditions.
+  courtForm.value.opening_time = normalizeTimeInput(courtForm.value.opening_time)
+  courtForm.value.closing_time = normalizeTimeInput(courtForm.value.closing_time)
+  timeSlots.value.forEach((slot) => {
+    slot.startTime = normalizeTimeInput(slot.startTime)
+    slot.endTime = normalizeTimeInput(slot.endTime)
+  })
+
   if (!courtForm.value.name.trim()) {
     toast.error('Please enter court name')
     return false
@@ -337,6 +381,10 @@ const validateForm = () => {
       toast.error('Please enter start and end time for all slots')
       return false
     }
+    if (!isValidTimeValue(slot.startTime) || !isValidTimeValue(slot.endTime)) {
+      toast.error('Time format must be HH:MM (e.g. 06:00, 18:30)')
+      return false
+    }
     if (slot.startTime >= slot.endTime) {
       toast.error(`End time (${slot.endTime}) must be later than start time (${slot.startTime})`)
       return false
@@ -350,6 +398,14 @@ const validateForm = () => {
   // Validate time slots coverage
   if (!courtForm.value.opening_time || !courtForm.value.closing_time) {
     toast.error('Please enter opening and closing time')
+    return false
+  }
+
+  if (
+    !isValidTimeValue(courtForm.value.opening_time) ||
+    !isValidTimeValue(courtForm.value.closing_time)
+  ) {
+    toast.error('Opening and closing time must be HH:MM (e.g. 06:00, 22:00)')
     return false
   }
 
@@ -784,7 +840,7 @@ const formatTimeWithPeriod = (time: string) => {
             :key="slot.id"
             class="time-slot-item"
             :class="{
-              filled: slot.startTime && slot.endTime && slot.price && parseFloat(slot.price) > 0,
+              filled: isSlotFilled(slot),
             }"
           >
             <div class="slot-inputs">
@@ -792,12 +848,12 @@ const formatTimeWithPeriod = (time: string) => {
                 <label class="slot-label">From</label>
                 <input
                   v-model="slot.startTime"
-                  type="time"
+                  type="text"
                   class="slot-time-input"
-                  placeholder="Start"
+                  placeholder="HH:MM"
                   pattern="[0-9]{2}:[0-9]{2}"
-                  step="3600"
-                  lang="vi-VN"
+                  inputmode="numeric"
+                  @blur="normalizeSlotTime(slot, 'startTime')"
                 />
               </div>
 
@@ -807,12 +863,12 @@ const formatTimeWithPeriod = (time: string) => {
                 <label class="slot-label">To</label>
                 <input
                   v-model="slot.endTime"
-                  type="time"
+                  type="text"
                   class="slot-time-input"
-                  placeholder="End"
+                  placeholder="HH:MM"
                   pattern="[0-9]{2}:[0-9]{2}"
-                  step="3600"
-                  lang="vi-VN"
+                  inputmode="numeric"
+                  @blur="normalizeSlotTime(slot, 'endTime')"
                 />
               </div>
 
@@ -853,10 +909,7 @@ const formatTimeWithPeriod = (time: string) => {
               </svg>
             </button>
 
-            <div
-              v-if="slot.startTime && slot.endTime && slot.price && parseFloat(slot.price) > 0"
-              class="slot-preview"
-            >
+            <div v-if="isSlotFilled(slot)" class="slot-preview">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
@@ -905,12 +958,13 @@ const formatTimeWithPeriod = (time: string) => {
             <label class="form-label">Opening time</label>
             <input
               v-model="courtForm.opening_time"
-              type="time"
+              type="text"
               class="form-input"
+              placeholder="HH:MM"
               pattern="[0-9]{2}:[0-9]{2}"
-              step="3600"
-              lang="vi-VN"
+              inputmode="numeric"
               title="Ex: 06:00 (6 AM)"
+              @blur="normalizeOperatingTime('opening_time')"
             />
           </div>
 
@@ -918,12 +972,13 @@ const formatTimeWithPeriod = (time: string) => {
             <label class="form-label">Closing time</label>
             <input
               v-model="courtForm.closing_time"
-              type="time"
+              type="text"
               class="form-input"
+              placeholder="HH:MM"
               pattern="[0-9]{2}:[0-9]{2}"
-              step="3600"
-              lang="vi-VN"
+              inputmode="numeric"
               title="Ex: 22:00 (10 PM)"
+              @blur="normalizeOperatingTime('closing_time')"
             />
           </div>
         </div>
