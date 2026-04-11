@@ -2,13 +2,13 @@
 Booking endpoints with VietQR payment integration
 """
 import secrets
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 
-from app.core.database import get_db
+from app.core.database import get_db, SessionLocal
 from app.core.security import get_current_user, get_current_owner
 from app.models.user import User
 from app.models.court import PaymentMethod, BookingInvite
@@ -49,6 +49,48 @@ from app.core.email_service import send_booking_qr_email
 from app.schemas.notification import NotificationCreate
 
 router = APIRouter()
+
+
+def _send_confirm_payment_email(
+    booking_id: int,
+    customer_email: str,
+    customer_name: str,
+    booking_info_url: str,
+    qr_image_url: str,
+    court_name: str,
+    individual_court_name: str,
+    booking_date_str: str,
+    start_time: str,
+    end_time: str,
+    total_price_str: str,
+) -> None:
+    db = SessionLocal()
+    try:
+        booking = court_crud.get_booking(db, booking_id)
+        if not booking:
+            return
+
+        sent_ok, sent_msg = send_booking_qr_email(
+            to_email=customer_email,
+            customer_name=customer_name,
+            booking_id=booking_id,
+            qr_image_url=qr_image_url,
+            booking_info_url=booking_info_url,
+            court_name=court_name,
+            individual_court_name=individual_court_name,
+            booking_date=booking_date_str,
+            start_time=start_time,
+            end_time=end_time,
+            total_price=total_price_str,
+            smtp_timeout=10.0,
+        )
+
+        booking.payment_note = f"EMAIL_SENT: {sent_msg}" if sent_ok else f"EMAIL_FAILED: {sent_msg}"
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
 
 
 def _normalize_status_value(raw_status: object) -> str:
@@ -511,6 +553,7 @@ async def manual_verify_payment(
 @router.post("/{booking_id}/confirm-payment", response_model=Booking)
 async def confirm_payment(
     booking_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_owner)  # Only owner can confirm
 ):
@@ -558,8 +601,7 @@ async def confirm_payment(
     db.commit()
     db.refresh(booking)
 
-    # Build and send booking info QR email to customer.
-    # Keep confirm successful even if email fails, but persist the result for UI/debugging.
+    # Build email payload and send it in the background so the request returns quickly.
     customer = get_user_by_id(db, booking.user_id)
     customer_email = booking.customer_email or (customer.email if customer else None)
     customer_name = booking.customer_name or (customer.full_name if customer else "Khách hàng")
@@ -575,21 +617,21 @@ async def confirm_payment(
         booking_date_str = booking.booking_date.strftime("%d/%m/%Y") if booking.booking_date else "N/A"
         total_price_str = f"{int(float(booking.total_price or 0)):,}".replace(",", ".")
 
-        sent_ok, sent_msg = send_booking_qr_email(
-            to_email=customer_email,
-            customer_name=customer_name,
-            booking_id=booking.id,
-            qr_image_url=qr_image_url,
-            booking_info_url=booking_info_url,
-            court_name=parent_court.name,
-            individual_court_name=individual_court.name,
-            booking_date=booking_date_str,
-            start_time=booking.start_time,
-            end_time=booking.end_time,
-            total_price=total_price_str,
+        background_tasks.add_task(
+            _send_confirm_payment_email,
+            booking.id,
+            customer_email,
+            customer_name,
+            booking_info_url,
+            qr_image_url,
+            parent_court.name,
+            individual_court.name,
+            booking_date_str,
+            booking.start_time,
+            booking.end_time,
+            total_price_str,
         )
-
-        booking.payment_note = f"EMAIL_SENT: {sent_msg}" if sent_ok else f"EMAIL_FAILED: {sent_msg}"
+        booking.payment_note = "EMAIL_QUEUED"
     else:
         booking.payment_note = "EMAIL_FAILED: Missing customer email or court information"
 

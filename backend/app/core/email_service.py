@@ -27,6 +27,7 @@ def send_booking_qr_email(
     start_time: str,
     end_time: str,
     total_price: str,
+    smtp_timeout: float = 10.0,
 ) -> tuple[bool, str]:
     """Send booking confirmation email with QR code image to customer."""
     if not is_email_configured():
@@ -112,12 +113,12 @@ def send_booking_qr_email(
 
     try:
         if settings.SMTP_USE_TLS:
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+          with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=smtp_timeout) as server:
                 server.starttls()
                 server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 server.send_message(msg)
         else:
-            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+          with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=smtp_timeout) as server:
                 server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 server.send_message(msg)
         return True, "Email sent successfully"
