@@ -6,6 +6,11 @@ This guide deploys:
 - Database (PostgreSQL) on Render
 - Frontend (Vue + Vite) on Vercel
 
+Image storage choices:
+
+- Option A: Render Persistent Disk (`UPLOADS_ROOT_DIR`) for local file storage.
+- Option B (recommended free tier): Cloudinary storage, save returned URL in PostgreSQL.
+
 ## Prerequisites
 
 - Source code already pushed to GitHub
@@ -29,7 +34,14 @@ This guide deploys:
   - Build Command: pip install -r requirements.txt
   - Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
-3. Set Backend Environment Variables
+3. Create Persistent Disk for Uploads (required for avatars/court images)
+
+- In Render backend service, open Disks -> Add Disk.
+- Mount Path: /var/data/uploads
+- Size: choose based on your image volume.
+- This prevents uploaded files from disappearing after restart/redeploy.
+
+4. Set Backend Environment Variables
    Use values from backend/.env.example:
 
 - DB_HOST, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD
@@ -39,9 +51,14 @@ This guide deploys:
 - DEBUG=False
 - BACKEND_PUBLIC_BASE_URL=https://<your-backend>.onrender.com
 - BACKEND_CORS_ORIGINS=https://<your-frontend>.vercel.app,http://localhost:5173
+- UPLOADS_ROOT_DIR=/var/data/uploads
+- CLOUDINARY_CLOUD_NAME=<your-cloud-name>
+- CLOUDINARY_API_KEY=<your-api-key>
+- CLOUDINARY_API_SECRET=<your-api-secret>
+- CLOUDINARY_FOLDER=pickleball
 - SMTP\_\* (optional, for emails)
 
-4. Verify Backend
+5. Verify Backend
 
 - Open https://<your-backend>.onrender.com/health
 - Expect: {"status":"healthy"}
@@ -105,3 +122,15 @@ After frontend has final URL:
 
 - Cause: SMTP env not configured
 - Fix: set SMTP\_\* variables or disable email-dependent flows
+
+5. Uploaded images disappear after restart/redeploy
+
+- Cause: files were stored in container local filesystem (ephemeral).
+- Fix: mount a Render Persistent Disk and set UPLOADS_ROOT_DIR=/var/data/uploads.
+- Note: images already lost from previous restarts must be uploaded again.
+
+6. Want fully free image storage without server disk
+
+- Use Cloudinary free plan and set CLOUDINARY_* env vars.
+- Backend will upload avatars/court images/advertisement images to Cloudinary and store returned HTTPS URL in DB.
+- You can leave UPLOADS_ROOT_DIR empty when using only Cloudinary.

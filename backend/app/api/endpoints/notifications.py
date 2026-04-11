@@ -16,10 +16,8 @@ from app.schemas.notification import (
 )
 from app.crud import notification as notification_crud
 from app.crud import court as court_crud
-from app.core.storage import ensure_uploads_subdir
+from app.core.cloudinary_storage import upload_image_to_cloudinary
 import json
-import os
-import uuid
 
 router = APIRouter()
 
@@ -206,17 +204,10 @@ async def create_advertisement_request(
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Image file is required")
 
-    upload_dir = ensure_uploads_subdir("advertisements")
-
-    file_ext = os.path.splitext(image.filename or "")[1] or ".jpg"
-    unique_filename = f"{uuid.uuid4()}{file_ext}"
-    file_path = upload_dir / unique_filename
-
-    with open(file_path, "wb") as f:
-        content = await image.read()
-        f.write(content)
-
-    image_url = f"/uploads/advertisements/{unique_filename}"
+    image_url = await upload_image_to_cloudinary(
+        image,
+        subfolder="advertisements",
+    )
 
     request_data = AdvertisementRequestCreate(
         name=name,
@@ -375,23 +366,15 @@ async def upload_images(
             detail="Only owners can upload images",
         )
     
-    # Create uploads directory if it doesn't exist
-    upload_dir = ensure_uploads_subdir("courts")
-    
     image_urls = []
     for image in images:
-        # Generate unique filename
-        file_ext = os.path.splitext(image.filename)[1]
-        unique_filename = f"{uuid.uuid4()}{file_ext}"
-        file_path = upload_dir / unique_filename
-        
-        # Save file
-        with open(file_path, "wb") as f:
-            content = await image.read()
-            f.write(content)
-        
-        # Generate URL (relative path from backend root)
-        image_url = f"/uploads/courts/{unique_filename}"
+        if not image.content_type or not image.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="All uploaded files must be images")
+
+        image_url = await upload_image_to_cloudinary(
+            image,
+            subfolder="courts",
+        )
         image_urls.append(image_url)
     
     return {"urls": image_urls}

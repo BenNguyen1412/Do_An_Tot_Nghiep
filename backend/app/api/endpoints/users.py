@@ -8,7 +8,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.schemas.user import UserResponse, UserListResponse, UserUpdate
 from app.crud import user as crud_user
-from app.core.storage import ensure_uploads_subdir
+from app.core.cloudinary_storage import upload_image_to_cloudinary
 
 router = APIRouter()
 
@@ -83,25 +83,15 @@ async def upload_user_avatar(
             detail="Avatar must be 5MB or smaller",
         )
 
-    avatars_dir = ensure_uploads_subdir("avatars")
-
-    filename = f"user_{current_user.id}_{uuid4().hex}{file_ext}"
-    destination = avatars_dir / filename
-    destination.write_bytes(file_bytes)
-
-    old_avatar_url = current_user.avatar_url
-    new_avatar_url = f"/uploads/avatars/{filename}"
+    avatar.file.seek(0)
+    public_id = f"user_{current_user.id}_{uuid4().hex}"
+    new_avatar_url = await upload_image_to_cloudinary(
+        avatar,
+        subfolder="avatars",
+        public_id_prefix=public_id,
+    )
 
     user = crud_user.update_user(db, current_user.id, {"avatar_url": new_avatar_url})
-
-    if old_avatar_url and old_avatar_url.startswith("/uploads/avatars/"):
-        old_filename = Path(old_avatar_url).name
-        old_file = avatars_dir / old_filename
-        if old_file.exists() and old_file.is_file():
-            try:
-                old_file.unlink()
-            except Exception:
-                pass
 
     return user
 

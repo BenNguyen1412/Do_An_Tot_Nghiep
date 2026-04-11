@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     # Public URL used in QR links
     BACKEND_PUBLIC_BASE_URL: str = "http://localhost:8000"
 
+    # Optional absolute uploads directory for persistent storage in production
+    UPLOADS_ROOT_DIR: Optional[str] = None
+
+    # Cloudinary settings (recommended for free persistent image hosting)
+    CLOUDINARY_CLOUD_NAME: Optional[str] = None
+    CLOUDINARY_API_KEY: Optional[str] = None
+    CLOUDINARY_API_SECRET: Optional[str] = None
+    CLOUDINARY_FOLDER: str = "pickleball"
+
     # SMTP settings for transactional email
     SMTP_HOST: Optional[str] = None
     SMTP_PORT: int = 587
