@@ -43,7 +43,28 @@ async def upload_image_to_cloudinary(
     if not file_bytes:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty")
 
-    ext = _normalized_extension(file.filename or "")
+    return upload_image_bytes_to_cloudinary(
+        file_bytes,
+        filename=file.filename or "",
+        subfolder=subfolder,
+        public_id_prefix=public_id_prefix,
+    )
+
+
+def upload_image_bytes_to_cloudinary(
+    file_bytes: bytes,
+    *,
+    filename: str,
+    subfolder: str,
+    public_id_prefix: Optional[str] = None,
+) -> str:
+    """Upload raw image bytes to Cloudinary and return secure URL."""
+    _ensure_cloudinary_configured()
+
+    if not file_bytes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty")
+
+    ext = _normalized_extension(filename)
     base_folder = settings.CLOUDINARY_FOLDER.strip("/")
     target_folder = f"{base_folder}/{subfolder.strip('/')}" if base_folder else subfolder.strip("/")
 

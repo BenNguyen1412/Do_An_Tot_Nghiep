@@ -8,7 +8,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.schemas.user import UserResponse, UserListResponse, UserUpdate
 from app.crud import user as crud_user
-from app.core.cloudinary_storage import upload_image_to_cloudinary
+from app.core.cloudinary_storage import upload_image_bytes_to_cloudinary
 
 router = APIRouter()
 
@@ -83,10 +83,10 @@ async def upload_user_avatar(
             detail="Avatar must be 5MB or smaller",
         )
 
-    avatar.file.seek(0)
     public_id = f"user_{current_user.id}_{uuid4().hex}"
-    new_avatar_url = await upload_image_to_cloudinary(
-        avatar,
+    new_avatar_url = upload_image_bytes_to_cloudinary(
+        file_bytes,
+        filename=avatar.filename or "",
         subfolder="avatars",
         public_id_prefix=public_id,
     )
