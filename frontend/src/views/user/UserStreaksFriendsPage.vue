@@ -477,4 +477,57 @@ onUnmounted(() => {
     align-items: flex-start;
   }
 }
+
+@media (max-width: 768px) {
+  .panel {
+    padding: 16px;
+  }
+
+  .panel-head h2 {
+    font-size: 1.2rem;
+  }
+
+  .panel-head p {
+    font-size: 0.88rem;
+  }
+
+  .friends-table {
+    min-width: 640px;
+  }
+
+  .friends-table thead th,
+  .friends-table tbody td {
+    padding: 10px;
+    font-size: 0.84rem;
+  }
+
+  .modal-card {
+    max-width: 100%;
+    padding: 16px;
+  }
+
+  .modal-actions {
+    justify-content: stretch;
+  }
+
+  .btn {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .friends-table {
+    min-width: 560px;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .friend-cell {
+    gap: 8px;
+  }
+}
 </style>

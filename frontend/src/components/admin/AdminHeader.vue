@@ -178,4 +178,56 @@ const getRoleDisplay = (role?: string) => {
   color: #6b7280;
   line-height: 1;
 }
+
+@media (max-width: 1024px) {
+  .admin-header {
+    height: auto;
+  }
+
+  .header-content {
+    padding: 12px 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .header-actions {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .header-content {
+    padding: 10px 12px;
+  }
+
+  .breadcrumb {
+    display: none;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  .header-actions {
+    gap: 10px;
+  }
+
+  .user-info {
+    padding: 6px 10px 6px 6px;
+  }
+
+  .user-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 12px;
+  }
+
+  .user-details {
+    display: none;
+  }
+}
 </style>

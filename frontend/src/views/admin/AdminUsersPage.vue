@@ -157,7 +157,8 @@
             <div class="modal-body">
               <p>
                 Are you sure you want to delete user
-                <strong>{{ userToDelete?.full_name }}</strong>?
+                <strong>{{ userToDelete?.full_name }}</strong
+                >?
               </p>
               <p class="warning-text">This action cannot be undone.</p>
             </div>
@@ -402,6 +403,7 @@ onMounted(() => {
   padding: 32px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   border: 1px solid #f0f0f0;
+  overflow-x: auto;
 }
 
 .card-header {
@@ -928,6 +930,7 @@ onMounted(() => {
 
   .users-table {
     font-size: 13px;
+    min-width: 720px;
   }
 
   .users-table th,
@@ -979,6 +982,7 @@ onMounted(() => {
 
   .users-table {
     font-size: 12px;
+    min-width: 640px;
   }
 
   .users-table th,

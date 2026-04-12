@@ -940,6 +940,7 @@ onMounted(() => {
   padding: 32px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   border: 1px solid #f0f0f0;
+  overflow-x: auto;
 }
 
 .card-header {
@@ -1802,6 +1803,7 @@ onMounted(() => {
 
   .request-table {
     font-size: 13px;
+    min-width: 760px;
   }
 
   .request-table th,
@@ -1862,6 +1864,10 @@ onMounted(() => {
   .refresh-btn {
     font-size: 0.85rem;
     padding: 8px 14px;
+  }
+
+  .request-table {
+    min-width: 680px;
   }
 
   .request-table {

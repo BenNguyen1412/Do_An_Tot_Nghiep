@@ -40,4 +40,25 @@ import AdminHeader from '@/components/admin/AdminHeader.vue'
   overflow-y: auto;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
 }
+
+@media (max-width: 1024px) {
+  .admin-dashboard-layout {
+    flex-direction: column;
+  }
+
+  .main-content {
+    margin-left: 0;
+    min-height: auto;
+  }
+
+  .content-area {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .content-area {
+    padding: 16px 12px;
+  }
+}
 </style>

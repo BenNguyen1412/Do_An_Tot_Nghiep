@@ -481,9 +481,7 @@ const saveCourtName = async (court: CourtItem) => {
       }
     } else {
       const errorMsg =
-        typeof err.response?.data?.detail === 'string'
-          ? err.response.data.detail
-          : 'Update failed'
+        typeof err.response?.data?.detail === 'string' ? err.response.data.detail : 'Update failed'
       toast.error(errorMsg)
     }
   }
@@ -1136,7 +1134,9 @@ const refreshCourts = async () => {
           />
         </svg>
         <p class="empty-text">No courts available</p>
-        <p class="empty-hint">Upload courts and set court quantity to generate the list automatically</p>
+        <p class="empty-hint">
+          Upload courts and set court quantity to generate the list automatically
+        </p>
       </div>
     </div>
   </div>
@@ -1722,7 +1722,7 @@ const refreshCourts = async () => {
   }
 
   .courts-table {
-    min-width: 800px;
+    min-width: 640px;
     font-size: 13px;
   }
 
@@ -1779,6 +1779,7 @@ const refreshCourts = async () => {
 
   .courts-table {
     font-size: 12px;
+    min-width: 560px;
   }
 
   .courts-table th,

@@ -818,4 +818,63 @@ const goToUserLogin = () => {
     margin-bottom: 40px;
   }
 }
+
+@media (max-width: 480px) {
+  .admin-login-page {
+    padding: 12px;
+  }
+
+  .admin-login-container {
+    border-radius: 16px;
+    min-height: auto;
+  }
+
+  .form-section {
+    padding: 20px 12px;
+  }
+
+  .form-container {
+    max-width: 100%;
+  }
+
+  .welcome-title {
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+  }
+
+  .welcome-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .security-notice {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+
+  .form-input {
+    padding: 12px 42px 12px 42px;
+    font-size: 0.9rem;
+  }
+
+  .input-icon-left {
+    left: 14px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .input-icon-right {
+    right: 12px;
+  }
+
+  .submit-btn {
+    padding: 12px;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+  }
+
+  .back-section {
+    margin-top: 16px;
+    padding-top: 14px;
+  }
+}
 </style>

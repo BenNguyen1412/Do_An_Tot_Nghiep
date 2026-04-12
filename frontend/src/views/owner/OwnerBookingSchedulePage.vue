@@ -1542,6 +1542,7 @@ onMounted(() => {
 
   .filter-group {
     width: 100%;
+    min-width: 0;
   }
 
   .bookings-grid {
@@ -1611,6 +1612,67 @@ onMounted(() => {
 
   .modal-bookings-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .booking-schedule-container {
+    padding: 0.75rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .calendar-navigation {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+    padding: 1rem 0.75rem;
+  }
+
+  .current-month {
+    text-align: center;
+    font-size: 1.05rem;
+  }
+
+  .nav-btn {
+    width: 100%;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .calendar-section {
+    padding: 1rem 0.65rem;
+  }
+
+  .calendar-header,
+  .calendar-grid {
+    gap: 0.35rem;
+  }
+
+  .calendar-weekday {
+    font-size: 0.62rem;
+    padding: 0.45rem 0.2rem;
+  }
+
+  .calendar-day {
+    min-height: 52px;
+    padding: 0.35rem;
+  }
+
+  .booking-indicator {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.3rem;
+  }
+
+  .modal-header,
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .booking-card {
+    padding: 0.9rem;
   }
 }
 </style>

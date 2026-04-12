@@ -842,6 +842,16 @@ onUnmounted(() => {
     padding: 16px;
   }
 
+  .friends-streak-table {
+    min-width: 680px;
+  }
+
+  .friends-streak-table thead th,
+  .friends-streak-table tbody td {
+    padding: 10px;
+    font-size: 0.84rem;
+  }
+
   .modal-overlay {
     align-items: flex-start;
     padding: 12px;
@@ -911,6 +921,14 @@ onUnmounted(() => {
 }
 
 @media (max-width: 640px), (max-height: 740px) {
+  .overview-page {
+    padding: 12px;
+  }
+
+  .friends-streak-table {
+    min-width: 560px;
+  }
+
   .modal-head {
     margin-bottom: 12px;
     gap: 6px;

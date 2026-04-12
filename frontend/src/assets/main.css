@@ -19,6 +19,12 @@ body {
   min-height: 100vh;
 }
 
+html,
+body {
+  width: 100%;
+  overflow-x: hidden;
+}
+
 /* Toast z-index fix */
 .Vue-Toastification__container {
   z-index: 99999 !important;
@@ -100,4 +106,16 @@ input,
 textarea,
 select {
   font-family: inherit;
+}
+
+@media (max-width: 1024px) {
+  .container {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 0 12px;
+  }
 }

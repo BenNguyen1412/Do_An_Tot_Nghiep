@@ -1134,10 +1134,16 @@ onMounted(() => {
 
   .district-filter {
     width: 100%;
+    min-width: 0;
   }
 
   .district-filter-wrap {
     width: 100%;
+    min-width: 0;
+  }
+
+  .search-box {
+    min-width: 0;
   }
 
   .courts-section {

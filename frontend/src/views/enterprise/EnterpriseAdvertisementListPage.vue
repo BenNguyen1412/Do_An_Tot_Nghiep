@@ -539,12 +539,34 @@ onMounted(() => {
   .table-wrap {
     border-radius: 10px;
   }
+
+  .ads-table {
+    min-width: 760px;
+  }
 }
 
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .ads-table {
+    min-width: 640px;
+  }
+
+  .ads-table thead th,
+  .ads-table tbody td {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .ad-description {
+    max-width: 220px;
+  }
+
+  .ad-actions {
+    gap: 6px;
   }
 
   .btn {
@@ -554,6 +576,17 @@ onMounted(() => {
 
   .modal-content {
     width: 95%;
+  }
+}
+
+@media (max-width: 480px) {
+  .ads-table {
+    min-width: 560px;
+  }
+
+  .table-thumb {
+    width: 64px;
+    height: 44px;
   }
 }
 </style>
