@@ -310,4 +310,42 @@ const quickLinks = [
     text-align: center;
   }
 }
+
+@media (max-width: 480px) {
+  .footer-main {
+    padding: 30px 14px 24px;
+  }
+
+  .footer-container {
+    gap: 24px;
+  }
+
+  .logo-row {
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .company-name {
+    font-size: 1.2rem;
+  }
+
+  .footer-description,
+  .contact-item,
+  .footer-link {
+    font-size: 0.9rem;
+  }
+
+  .footer-bottom {
+    padding: 12px 14px;
+  }
+
+  .copyright {
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+}
 </style>

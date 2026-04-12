@@ -280,6 +280,27 @@ onUnmounted(() => {
   }
 }
 
+@media (max-width: 480px) {
+  .notification-dropdown {
+    top: 52px;
+    right: 6px;
+    left: 6px;
+    max-height: calc(100vh - 64px);
+  }
+
+  .dropdown-header {
+    padding: 12px 14px;
+  }
+
+  .dropdown-header h3 {
+    font-size: 1rem;
+  }
+
+  .notification-item {
+    padding: 12px 14px;
+  }
+}
+
 .dropdown-header {
   padding: 16px 20px;
   border-bottom: 2px solid #f3f4f6;

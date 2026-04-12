@@ -2782,6 +2782,44 @@ onMounted(() => {
     font-size: 1.5rem;
   }
 
+  .picker-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .date-picker {
+    gap: 10px;
+  }
+
+  .date-nav-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .date-nav-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .time-slot-btn {
+    min-height: 48px;
+    padding: 12px 8px;
+  }
+
+  .slot-time {
+    font-size: 0.92rem;
+  }
+
+  .navigation-container {
+    flex-direction: column;
+  }
+
+  .nav-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .info-grid {
     grid-template-columns: 1fr;
     gap: 20px;
@@ -2869,22 +2907,31 @@ onMounted(() => {
 }
 
 @media (max-width: 480px) {
+  .main-section,
+  .navigation-section {
+    padding: 14px 10px;
+  }
+
+  .selection-panel {
+    padding: 14px;
+  }
+
   .time-slots-grid {
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    gap: 6px;
   }
 
   .dates-container {
-    gap: 8px;
+    gap: 6px;
   }
 
   .date-card {
-    min-width: 70px;
-    padding: 10px 6px;
+    min-width: 64px;
+    padding: 8px 5px;
   }
 
   .date-number {
-    font-size: 1.3rem;
+    font-size: 1.15rem;
   }
 
   .section-title {
@@ -2901,6 +2948,57 @@ onMounted(() => {
 
   .section-heading {
     font-size: 0.9rem;
+  }
+
+  .time-slot-btn {
+    min-height: 44px;
+    padding: 10px 6px;
+  }
+
+  .slot-time {
+    font-size: 0.84rem;
+  }
+
+  .payment-status-banner {
+    padding: 14px 12px;
+    gap: 10px;
+  }
+
+  .status-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .status-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .status-title {
+    font-size: 1.02rem;
+  }
+
+  .status-subtitle {
+    font-size: 0.82rem;
+  }
+
+  .payment-content {
+    padding: 14px 10px;
+    gap: 18px;
+  }
+
+  .qr-code-container {
+    padding: 14px 10px;
+  }
+
+  .qr-code-image {
+    max-width: 220px;
+    padding: 10px;
+  }
+
+  .verify-payment-btn {
+    font-size: 0.92rem;
+    padding: 12px 14px;
   }
 }
 </style>

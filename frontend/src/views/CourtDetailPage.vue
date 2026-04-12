@@ -1495,6 +1495,7 @@ onMounted(() => {
 
   .tabs {
     overflow-x: auto;
+    scrollbar-width: thin;
   }
 
   .tab-btn {
@@ -1521,6 +1522,51 @@ onMounted(() => {
   }
 }
 
+@media (max-width: 640px) {
+  .main-content {
+    padding: 16px 12px;
+  }
+
+  .content-wrapper {
+    gap: 16px;
+  }
+
+  .contact-item {
+    align-items: flex-start;
+    font-size: 0.92rem;
+    word-break: break-word;
+  }
+
+  .tabs {
+    margin-bottom: 20px;
+  }
+
+  .tab-btn {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+
+  .pricing-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .rating-item {
+    grid-template-columns: 64px 1fr 36px;
+    gap: 10px;
+  }
+
+  .rating-label,
+  .rating-value {
+    font-size: 0.82rem;
+  }
+
+  .booking-note {
+    align-items: flex-start;
+    line-height: 1.45;
+  }
+}
+
 @media (max-width: 480px) {
   .carousel-container {
     height: 200px;
@@ -1537,11 +1583,26 @@ onMounted(() => {
   }
 
   .court-title {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
   }
 
   .rating-score {
-    font-size: 3rem;
+    font-size: 2.5rem;
+  }
+
+  .badge {
+    font-size: 0.74rem;
+    padding: 5px 10px;
+  }
+
+  .info-column,
+  .booking-card {
+    padding: 14px;
+  }
+
+  .book-now-btn {
+    padding: 14px;
+    font-size: 0.95rem;
   }
 }
 </style>

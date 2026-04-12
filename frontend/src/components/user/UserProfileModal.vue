@@ -842,4 +842,46 @@ const getRoleName = (role: string | undefined) => {
     flex: unset;
   }
 }
+
+@media (max-width: 480px) {
+  .modal-header,
+  .modal-body {
+    padding: 14px;
+  }
+
+  .modal-title {
+    font-size: 1.1rem;
+  }
+
+  .header-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .profile-avatar {
+    width: 84px;
+    height: 84px;
+  }
+
+  .profile-name {
+    font-size: 1.05rem;
+  }
+
+  .profile-email {
+    font-size: 0.84rem;
+    word-break: break-word;
+  }
+
+  .form-group label,
+  .form-input {
+    font-size: 0.88rem;
+  }
+
+  .btn-edit,
+  .btn-save,
+  .btn-cancel {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>

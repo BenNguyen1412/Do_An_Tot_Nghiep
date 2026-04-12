@@ -572,24 +572,26 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .app-header {
-    padding: 14px 16px;
+    padding: 12px 12px;
   }
 
   .header-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
   }
 
   .logo-section {
     flex: 0 0 auto;
-    padding: 8px 16px;
-    gap: 12px;
+    padding: 6px 10px;
+    gap: 8px;
+    border-radius: 12px;
   }
 
   .logo-icon {
-    width: 50px;
-    height: 50px;
+    width: 42px;
+    height: 42px;
   }
 
   .logo-icon img {
@@ -611,38 +613,43 @@ onUnmounted(() => {
   }
 
   .main-nav {
+    grid-column: 1 / -1;
     width: 100%;
-    justify-content: center;
+    justify-content: flex-start;
     order: 3;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    padding-bottom: 2px;
   }
 
   .nav-link {
-    padding: 8px 16px;
+    padding: 7px 12px;
     font-size: 0.85rem;
+    flex: 0 0 auto;
   }
 
   .sign-in-btn {
-    padding: 10px 20px;
+    padding: 9px 14px;
     font-size: 0.85rem;
   }
 }
 
 @media (max-width: 640px) {
   .logo-section {
-    padding: 6px 12px;
-    gap: 10px;
+    padding: 5px 8px;
+    gap: 6px;
   }
 
   .logo-icon {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
   }
 
   .brand {
-    font-size: 0.9rem;
-    letter-spacing: 1px;
+    font-size: 0.82rem;
+    letter-spacing: 0.6px;
   }
 
   .pickleball {
@@ -650,24 +657,24 @@ onUnmounted(() => {
   }
 
   .nav-link {
-    padding: 8px 14px;
-    font-size: 0.8rem;
+    padding: 7px 10px;
+    font-size: 0.76rem;
   }
 }
 
 @media (max-width: 480px) {
   .app-header {
-    padding: 12px;
+    padding: 10px 8px;
   }
 
   .logo-section {
-    padding: 6px 10px;
-    gap: 8px;
+    padding: 4px 6px;
+    gap: 6px;
   }
 
   .logo-icon {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
   }
 
   .logo-text {
@@ -675,13 +682,14 @@ onUnmounted(() => {
   }
 
   .main-nav {
-    gap: 6px;
+    gap: 4px;
   }
 
   .nav-link {
-    padding: 8px 12px;
-    font-size: 0.75rem;
+    padding: 6px 9px;
+    font-size: 0.7rem;
     letter-spacing: 0.3px;
+    border-radius: 8px;
   }
 
   .sign-in-btn span {

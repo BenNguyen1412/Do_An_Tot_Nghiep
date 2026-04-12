@@ -419,4 +419,28 @@ onUnmounted(() => {
     min-width: 260px;
   }
 }
+
+@media (max-width: 480px) {
+  .dropdown-menu {
+    right: -8px;
+    min-width: min(92vw, 260px);
+  }
+
+  .dropdown-item {
+    padding: 10px 12px;
+    font-size: 0.9rem;
+  }
+
+  .dropdown-header {
+    padding: 12px;
+  }
+
+  .user-full-name {
+    font-size: 0.95rem;
+  }
+
+  .user-email {
+    font-size: 0.8rem;
+  }
+}
 </style>

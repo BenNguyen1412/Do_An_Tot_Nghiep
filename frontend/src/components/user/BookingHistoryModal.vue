@@ -821,4 +821,34 @@ const getStatusInfo = (status: string) => {
     flex-direction: column;
   }
 }
+
+@media (max-width: 480px) {
+  .modal-header,
+  .modal-body {
+    padding: 14px;
+  }
+
+  .tab-btn {
+    min-width: 96px;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+
+  .booking-card {
+    padding: 12px;
+  }
+
+  .booking-title {
+    font-size: 0.95rem;
+  }
+
+  .booking-detail-item {
+    font-size: 0.84rem;
+  }
+
+  .status-badge {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+  }
+}
 </style>
