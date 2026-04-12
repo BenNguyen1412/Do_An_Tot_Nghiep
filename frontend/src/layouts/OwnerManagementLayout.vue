@@ -497,17 +497,24 @@ const isActive = (path: string) => {
 /* Responsive */
 @media (max-width: 1024px) {
   .sidebar {
-    width: 70px;
+    width: 260px;
     top: 110px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 950;
   }
 
   .sidebar.collapsed {
-    width: 0;
-    overflow: hidden;
+    width: 260px;
+    transform: translateX(-100%);
+  }
+
+  .sidebar:not(.collapsed) {
+    transform: translateX(0);
   }
 
   .main-wrapper {
-    margin-left: 70px;
+    margin-left: 0;
   }
 
   .sidebar.collapsed ~ .main-wrapper {
@@ -521,13 +528,12 @@ const isActive = (path: string) => {
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 0;
-    overflow: hidden;
+    width: 240px;
     top: 110px;
   }
 
   .sidebar.collapsed {
-    width: 0;
+    width: 240px;
   }
 
   .main-wrapper {
@@ -544,6 +550,26 @@ const isActive = (path: string) => {
 
   .main-content {
     padding: 20px;
+  }
+
+  .top-bar {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .top-bar {
+    padding: 12px;
+  }
+
+  .top-bar-title h1 {
+    font-size: 1rem;
+  }
+
+  .sidebar,
+  .sidebar.collapsed {
+    width: 220px;
+    top: 104px;
   }
 }
 </style>

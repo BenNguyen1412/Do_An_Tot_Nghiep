@@ -454,12 +454,21 @@ const isActive = (path: string) => {
 /* Responsive */
 @media (max-width: 1024px) {
   .sidebar {
-    width: 70px;
-    left: -220px;
+    width: 260px;
+    left: 0;
+    top: 110px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 950;
   }
 
   .sidebar.collapsed {
-    width: 70px;
+    width: 260px;
+    transform: translateX(-100%);
+  }
+
+  .sidebar:not(.collapsed) {
+    transform: translateX(0);
   }
 
   .main-wrapper {
@@ -473,8 +482,13 @@ const isActive = (path: string) => {
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 0;
-    left: -280px;
+    width: 240px;
+    left: 0;
+    top: 110px;
+  }
+
+  .sidebar.collapsed {
+    width: 240px;
   }
 
   .top-bar {
@@ -487,6 +501,23 @@ const isActive = (path: string) => {
 
   .main-content {
     padding: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .top-bar {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .top-bar-title h1 {
+    font-size: 0.95rem;
+  }
+
+  .sidebar,
+  .sidebar.collapsed {
+    width: 220px;
+    top: 104px;
   }
 }
 </style>

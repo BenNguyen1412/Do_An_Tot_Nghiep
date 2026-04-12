@@ -475,7 +475,21 @@ const isActive = (path: string) => route.path === path
 
 @media (max-width: 1024px) {
   .sidebar {
-    display: none;
+    display: flex;
+    width: 260px;
+    top: 112px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 950;
+  }
+
+  .sidebar.collapsed {
+    width: 260px;
+    transform: translateX(-100%);
+  }
+
+  .sidebar:not(.collapsed) {
+    transform: translateX(0);
   }
 
   .main-wrapper,
@@ -492,11 +506,39 @@ const isActive = (path: string) => route.path === path
   }
 
   .toggle-btn {
-    display: none;
+    display: flex;
   }
 
   .top-bar-right {
     gap: 10px;
+  }
+
+  .main-content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .top-bar {
+    height: 68px;
+    padding: 0 12px;
+  }
+
+  .top-bar-title h1 {
+    font-size: 1rem;
+  }
+
+  .user-details {
+    display: none;
+  }
+
+  .sidebar {
+    top: 104px;
+    width: 240px;
+  }
+
+  .sidebar.collapsed {
+    width: 240px;
   }
 }
 </style>

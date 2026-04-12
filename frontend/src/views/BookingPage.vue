@@ -2820,6 +2820,62 @@ onMounted(() => {
     justify-content: center;
   }
 
+  .details-title {
+    padding: 1rem 1.25rem;
+    font-size: 0.92rem;
+    gap: 0.5rem;
+  }
+
+  .details-title svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .details-content {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .detail-value {
+    padding-left: 0;
+    font-size: 0.95rem;
+    word-break: break-word;
+  }
+
+  .time-range {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .price-breakdown {
+    padding: 1rem;
+  }
+
+  .breakdown-item {
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .breakdown-item span:first-child {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
+
+  .breakdown-item span:last-child {
+    white-space: nowrap;
+  }
+
+  .breakdown-total {
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .total-amount {
+    font-size: 1.35rem;
+    white-space: nowrap;
+  }
+
   .info-grid {
     grid-template-columns: 1fr;
     gap: 20px;
@@ -2940,6 +2996,47 @@ onMounted(() => {
 
   .picker-label {
     font-size: 1rem;
+  }
+
+  .details-title {
+    padding: 0.85rem 0.9rem;
+    font-size: 0.84rem;
+  }
+
+  .details-content {
+    padding: 0.85rem;
+    gap: 0.85rem;
+  }
+
+  .detail-label {
+    font-size: 0.75rem;
+  }
+
+  .detail-value {
+    font-size: 0.88rem;
+  }
+
+  .time-start,
+  .time-end {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.84rem;
+  }
+
+  .price-breakdown {
+    padding: 0.85rem;
+  }
+
+  .breakdown-header,
+  .breakdown-item {
+    font-size: 0.8rem;
+  }
+
+  .breakdown-total span:first-child {
+    font-size: 0.85rem;
+  }
+
+  .total-amount {
+    font-size: 1.12rem;
   }
 
   .confirmation-card {
