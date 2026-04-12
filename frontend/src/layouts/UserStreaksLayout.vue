@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppHeader from '@/components/layout/AppHeader.vue'
@@ -21,10 +21,28 @@ const avatarSrc = computed(() => {
   return `${backendOrigin}/${raw}`
 })
 
+const MOBILE_BREAKPOINT = 1024
 const isSidebarOpen = ref(true)
+const isMobileView = ref(false)
+
+const updateViewportState = () => {
+  const isMobile = window.innerWidth <= MOBILE_BREAKPOINT
+  isMobileView.value = isMobile
+  isSidebarOpen.value = !isMobile
+}
 
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
+}
+
+const closeSidebar = () => {
+  if (isMobileView.value) {
+    isSidebarOpen.value = false
+  }
+}
+
+const handleNavClick = () => {
+  closeSidebar()
 }
 
 const menuItems = [
@@ -43,11 +61,27 @@ const menuItems = [
 ]
 
 const isActive = (path: string) => route.path === path
+
+watch([isSidebarOpen, isMobileView], ([open, mobile]) => {
+  document.body.style.overflow = mobile && open ? 'hidden' : ''
+})
+
+onMounted(() => {
+  updateViewportState()
+  window.addEventListener('resize', updateViewportState)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateViewportState)
+  document.body.style.overflow = ''
+})
 </script>
 
 <template>
   <div class="user-streaks-layout">
     <AppHeader />
+
+    <div v-if="isMobileView && isSidebarOpen" class="sidebar-backdrop" @click="closeSidebar"></div>
 
     <aside class="sidebar" :class="{ collapsed: !isSidebarOpen }">
       <div class="sidebar-header">
@@ -71,6 +105,7 @@ const isActive = (path: string) => route.path === path
           :to="item.path"
           class="nav-item"
           :class="{ active: isActive(item.path) }"
+          @click="handleNavClick"
         >
           <span class="nav-icon">
             <svg
@@ -183,6 +218,13 @@ const isActive = (path: string) => route.path === path
   flex-direction: column;
   min-height: 100vh;
   background: #f8fafc;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1100;
 }
 
 .sidebar {
@@ -477,10 +519,12 @@ const isActive = (path: string) => route.path === path
   .sidebar {
     display: flex;
     width: 260px;
-    top: 112px;
+    top: 0;
+    bottom: 0;
+    height: 100dvh;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
-    z-index: 950;
+    z-index: 1200;
   }
 
   .sidebar.collapsed {
@@ -533,7 +577,7 @@ const isActive = (path: string) => route.path === path
   }
 
   .sidebar {
-    top: 104px;
+    top: 0;
     width: 240px;
   }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppHeader from '@/components/layout/AppHeader.vue'
@@ -7,10 +7,28 @@ import NotificationBell from '@/components/owner/NotificationBell.vue'
 const route = useRoute()
 const authStore = useAuthStore()
 
+const MOBILE_BREAKPOINT = 1024
 const isSidebarOpen = ref(true)
+const isMobileView = ref(false)
+
+const updateViewportState = () => {
+  const isMobile = window.innerWidth <= MOBILE_BREAKPOINT
+  isMobileView.value = isMobile
+  isSidebarOpen.value = !isMobile
+}
 
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
+}
+
+const closeSidebar = () => {
+  if (isMobileView.value) {
+    isSidebarOpen.value = false
+  }
+}
+
+const handleNavClick = () => {
+  closeSidebar()
 }
 
 const menuItems = [
@@ -43,12 +61,28 @@ const menuItems = [
 const isActive = (path: string) => {
   return route.path === path
 }
+
+watch([isSidebarOpen, isMobileView], ([open, mobile]) => {
+  document.body.style.overflow = mobile && open ? 'hidden' : ''
+})
+
+onMounted(() => {
+  updateViewportState()
+  window.addEventListener('resize', updateViewportState)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateViewportState)
+  document.body.style.overflow = ''
+})
 </script>
 
 <template>
   <div class="owner-management-layout">
     <!-- Header -->
     <AppHeader :showManagement="true" />
+
+    <div v-if="isMobileView && isSidebarOpen" class="sidebar-backdrop" @click="closeSidebar"></div>
 
     <!-- Sidebar -->
     <aside class="sidebar" :class="{ collapsed: !isSidebarOpen }">
@@ -73,6 +107,7 @@ const isActive = (path: string) => {
           :to="item.path"
           class="nav-item"
           :class="{ active: isActive(item.path) }"
+          @click="handleNavClick"
         >
           <span class="nav-icon">
             <svg
@@ -210,6 +245,13 @@ const isActive = (path: string) => {
   flex-direction: column;
   min-height: 100vh;
   background: #f8fafc;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1100;
 }
 
 /* Sidebar */
@@ -498,10 +540,12 @@ const isActive = (path: string) => {
 @media (max-width: 1024px) {
   .sidebar {
     width: 260px;
-    top: 110px;
+    top: 0;
+    bottom: 0;
+    height: 100dvh;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
-    z-index: 950;
+    z-index: 1200;
   }
 
   .sidebar.collapsed {
@@ -529,7 +573,7 @@ const isActive = (path: string) => {
 @media (max-width: 768px) {
   .sidebar {
     width: 240px;
-    top: 110px;
+    top: 0;
   }
 
   .sidebar.collapsed {
@@ -569,7 +613,7 @@ const isActive = (path: string) => {
   .sidebar,
   .sidebar.collapsed {
     width: 220px;
-    top: 104px;
+    top: 0;
   }
 }
 </style>
