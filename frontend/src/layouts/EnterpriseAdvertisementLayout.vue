@@ -222,15 +222,17 @@ onUnmounted(() => {
   box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
   position: fixed;
   left: 0;
-  top: 130px;
+  top: 0;
   bottom: 0;
+  height: 100dvh;
+  padding-top: 130px;
   z-index: 800;
 }
 
 @media (max-width: 1440px) {
   .sidebar {
     width: 240px;
-    top: 110px;
+    padding-top: 110px;
   }
 
   .sidebar.collapsed {
@@ -501,6 +503,7 @@ onUnmounted(() => {
     top: 0;
     bottom: 0;
     height: 100dvh;
+    padding-top: 0;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     z-index: 1200;
@@ -529,6 +532,7 @@ onUnmounted(() => {
     width: 240px;
     left: 0;
     top: 0;
+    padding-top: 0;
   }
 
   .sidebar.collapsed {
@@ -562,6 +566,7 @@ onUnmounted(() => {
   .sidebar.collapsed {
     width: 220px;
     top: 0;
+    padding-top: 0;
   }
 }
 </style>
