@@ -6,12 +6,13 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database Settings
-    DB_HOST: str = "localhost"
+    DB_HOST: str = "aws-1-ap-southeast-1.pooler.supabase.com"
     DB_PORT: str = "5432"
     DB_DATABASE: str = "postgres"
-    DB_USER: str = "postgres"
-    DB_PASSWORD: str = "141204"
-    
+    DB_USER: str = "postgres.pllocixdeiaxknuipixo"
+    DB_PASSWORD: str = "mizugakitsukasa1412"
+    PGSSLMODE: str = "require"
+
     # JWT Settings
     SECRET_KEY: str = "OceXRNLlufuBtERHT-pXEgsa_v5KFCA7Ny12PPDCOTI"
     ALGORITHM: str = "HS256"
