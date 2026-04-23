@@ -3,10 +3,18 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_admin
 from app.models.user import User
-from app.schemas.user import UserResponse, UserListResponse, UserUpdate
+from app.models.notification import CourtRequest, AdvertisementRequest
+from app.schemas.user import (
+    UserResponse,
+    UserListResponse,
+    UserUpdate,
+    AdminActivityItem,
+    AdminRecentActivityResponse,
+)
 from app.crud import user as crud_user
 from app.core.cloudinary_storage import upload_image_bytes_to_cloudinary
 
@@ -113,6 +121,138 @@ async def get_users(
         "users": users,
         "total": total
     }
+
+
+@router.get("/admin/recent-activity", response_model=AdminRecentActivityResponse)
+async def get_admin_recent_activity(
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Get recent admin dashboard activity from real user/request data."""
+    items: list[AdminActivityItem] = []
+
+    recent_users = (
+        db.query(User)
+        .filter(User.role != "admin")
+        .order_by(User.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    for user in recent_users:
+        if not user.created_at:
+            continue
+        role_value = getattr(user.role, "value", str(user.role))
+        items.append(
+            AdminActivityItem(
+                type="user_registered",
+                title="New user registered",
+                description=f"{user.full_name} ({role_value})",
+                occurred_at=user.created_at,
+                icon="👥",
+                color="blue",
+            )
+        )
+
+    recent_court_requests = db.query(CourtRequest).order_by(CourtRequest.created_at.desc()).limit(limit).all()
+    for request in recent_court_requests:
+        occurred_at = request.reviewed_at or request.created_at
+        if not occurred_at:
+            continue
+
+        status_text = (request.status or "pending").lower()
+        if status_text == "approved":
+            title = f"Court '{request.name}' was approved"
+            color = "green"
+        elif status_text == "rejected":
+            title = f"Court '{request.name}' was rejected"
+            color = "orange"
+        else:
+            title = f"Court request '{request.name}' is pending"
+            color = "orange"
+
+        items.append(
+            AdminActivityItem(
+                type=f"court_request_{status_text}",
+                title=title,
+                description="Court listing review",
+                occurred_at=occurred_at,
+                icon="🏸",
+                color=color,
+            )
+        )
+
+    recent_ad_requests = (
+        db.query(AdvertisementRequest).order_by(AdvertisementRequest.created_at.desc()).limit(limit).all()
+    )
+    for request in recent_ad_requests:
+        occurred_at = request.reviewed_at or request.created_at
+        if not occurred_at:
+            continue
+
+        status_text = (request.status or "pending").lower()
+        if status_text == "approved":
+            title = f"Advertisement '{request.name}' was approved"
+            color = "green"
+        elif status_text == "rejected":
+            title = f"Advertisement '{request.name}' was rejected"
+            color = "orange"
+        else:
+            title = f"Advertisement request '{request.name}' is pending"
+            color = "orange"
+
+        items.append(
+            AdminActivityItem(
+                type=f"advertisement_request_{status_text}",
+                title=title,
+                description="Advertisement review",
+                occurred_at=occurred_at,
+                icon="📣",
+                color=color,
+            )
+        )
+
+    pending_court_count = db.query(func.count(CourtRequest.id)).filter(CourtRequest.status == "pending").scalar() or 0
+    pending_ad_count = (
+        db.query(func.count(AdvertisementRequest.id))
+        .filter(AdvertisementRequest.status == "pending")
+        .scalar()
+        or 0
+    )
+    total_pending = pending_court_count + pending_ad_count
+    if total_pending > 0:
+        latest_pending_court = (
+            db.query(CourtRequest.created_at)
+            .filter(CourtRequest.status == "pending")
+            .order_by(CourtRequest.created_at.desc())
+            .first()
+        )
+        latest_pending_ad = (
+            db.query(AdvertisementRequest.created_at)
+            .filter(AdvertisementRequest.status == "pending")
+            .order_by(AdvertisementRequest.created_at.desc())
+            .first()
+        )
+        latest_pending_time = None
+        for row in [latest_pending_court, latest_pending_ad]:
+            if row and row[0] and (latest_pending_time is None or row[0] > latest_pending_time):
+                latest_pending_time = row[0]
+
+        if latest_pending_time is not None:
+            items.append(
+                AdminActivityItem(
+                    type="requests_pending_summary",
+                    title=f"{total_pending} requests pending",
+                    description=f"Court: {pending_court_count}, Advertisement: {pending_ad_count}",
+                    occurred_at=latest_pending_time,
+                    icon="📋",
+                    color="orange",
+                )
+            )
+
+    items.sort(key=lambda item: item.occurred_at, reverse=True)
+
+    return AdminRecentActivityResponse(items=items[:limit])
 
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(user_id: int, db: Session = Depends(get_db)):

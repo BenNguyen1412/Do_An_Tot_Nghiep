@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
+from datetime import datetime
 from app.models.user import UserRole
 
 class UserBase(BaseModel):
@@ -52,6 +53,19 @@ class UserResponse(BaseModel):
 class UserListResponse(BaseModel):
     users: List[UserResponse]
     total: int
+
+
+class AdminActivityItem(BaseModel):
+    type: str
+    title: str
+    description: Optional[str] = None
+    occurred_at: datetime
+    icon: str
+    color: str
+
+
+class AdminRecentActivityResponse(BaseModel):
+    items: List[AdminActivityItem]
 
 class Token(BaseModel):
     access_token: str

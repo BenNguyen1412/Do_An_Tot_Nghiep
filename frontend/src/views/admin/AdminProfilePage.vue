@@ -221,30 +221,23 @@
       <div class="activity-card">
         <div class="card-header">
           <h2 class="card-title">📊 Recent Activity</h2>
-          <a href="#" class="view-all-link">View All →</a>
+          <a href="/admin/requests" class="view-all-link">View All →</a>
         </div>
         <div class="activity-list">
-          <div class="activity-item">
-            <div class="activity-icon blue">👥</div>
-            <div class="activity-content">
-              <div class="activity-title">New user registered</div>
-              <div class="activity-time">2 minutes ago</div>
-            </div>
+          <div v-if="isLoadingActivities" class="activity-empty">Loading recent activity...</div>
+          <div v-else-if="recentActivities.length === 0" class="activity-empty">
+            No recent activity yet.
           </div>
-          <div class="activity-item">
-            <div class="activity-icon green">
-              <img src="/logo-pickball.webp" alt="Court" class="activity-icon-image" />
-            </div>
+          <div
+            v-else
+            v-for="activity in recentActivities"
+            :key="activity.key"
+            class="activity-item"
+          >
+            <div class="activity-icon" :class="activity.color">{{ activity.icon }}</div>
             <div class="activity-content">
-              <div class="activity-title">Court B was approved</div>
-              <div class="activity-time">1 hour ago</div>
-            </div>
-          </div>
-          <div class="activity-item">
-            <div class="activity-icon orange">📋</div>
-            <div class="activity-content">
-              <div class="activity-title">3 new requests pending</div>
-              <div class="activity-time">3 hours ago</div>
+              <div class="activity-title">{{ activity.title }}</div>
+              <div class="activity-time">{{ formatTimeAgo(activity.occurred_at) }}</div>
             </div>
           </div>
         </div>
@@ -274,6 +267,8 @@ const totalUsers = ref(0)
 const activeUsers = ref(0)
 const inactiveUsers = ref(0)
 const isLoadingStats = ref(false)
+const recentActivities = ref<ActivityItem[]>([])
+const isLoadingActivities = ref(false)
 
 // Computed properties
 const userInitials = computed(() => {
@@ -370,6 +365,24 @@ interface User {
   is_active: boolean
 }
 
+interface RecentActivityItem {
+  type: string
+  title: string
+  description?: string
+  occurred_at: string
+  icon: string
+  color: string
+}
+
+interface ActivityItem {
+  key: string
+  type: string
+  title: string
+  occurred_at: string
+  icon: string
+  color: 'blue' | 'green' | 'orange'
+}
+
 // Load statistics
 const loadStats = async () => {
   console.log('🔄 Starting loadStats...')
@@ -424,9 +437,60 @@ const loadStats = async () => {
   }
 }
 
+const formatTimeAgo = (value: string) => {
+  const date = new Date(value)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+
+  if (diffMs < 0) {
+    return date.toLocaleString('vi-VN')
+  }
+
+  const diffMinutes = Math.floor(diffMs / (1000 * 60))
+  if (diffMinutes < 1) return 'Just now'
+  if (diffMinutes < 60) return `${diffMinutes} minutes ago`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} hours ago`
+
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays < 30) return `${diffDays} days ago`
+
+  return date.toLocaleDateString('vi-VN')
+}
+
+const loadRecentActivities = async () => {
+  isLoadingActivities.value = true
+
+  try {
+    const response = await axiosInstance.get('/users/admin/recent-activity', {
+      params: { limit: 8 },
+    })
+
+    const items: RecentActivityItem[] = response.data?.items || []
+    recentActivities.value = items.map((item, index) => {
+      const color = item.color === 'green' || item.color === 'orange' ? item.color : 'blue'
+      return {
+        key: `${item.type}-${item.occurred_at}-${index}`,
+        type: item.type,
+        title: item.title,
+        occurred_at: item.occurred_at,
+        icon: item.icon || '📌',
+        color,
+      }
+    })
+  } catch (error) {
+    console.error('❌ Load recent activity error:', error)
+    recentActivities.value = []
+  } finally {
+    isLoadingActivities.value = false
+  }
+}
+
 // Load stats on mount
 onMounted(() => {
   loadStats()
+  loadRecentActivities()
 })
 </script>
 
@@ -808,6 +872,14 @@ onMounted(() => {
 
 .activity-content {
   flex: 1;
+}
+
+.activity-empty {
+  padding: 18px;
+  border-radius: 12px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 14px;
 }
 
 .activity-title {
