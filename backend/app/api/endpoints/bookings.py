@@ -162,6 +162,22 @@ def _are_users_friends(db: Session, user_a_id: int, user_b_id: int) -> bool:
     return friendship is not None
 
 
+def _has_user_received_booking_invite(
+    db: Session,
+    booking_id: int,
+    invitee_user_id: int,
+    exclude_invite_id: Optional[int] = None,
+) -> bool:
+    """Return True if user has already received any invite for this booking."""
+    query = db.query(BookingInvite).filter(
+        BookingInvite.booking_id == booking_id,
+        BookingInvite.invitee_user_id == invitee_user_id,
+    )
+    if exclude_invite_id is not None:
+        query = query.filter(BookingInvite.id != exclude_invite_id)
+    return query.first() is not None
+
+
 def _increment_friendship_streak(db: Session, user_a_id: int, user_b_id: int):
     low_id, high_id = (user_a_id, user_b_id) if user_a_id < user_b_id else (user_b_id, user_a_id)
     friendship = (
@@ -842,6 +858,17 @@ async def respond_booking_invite_code(
     if invite.invitee_user_id and invite.invitee_user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This invite code is assigned to another user")
 
+    if _has_user_received_booking_invite(
+        db,
+        booking_id=invite.booking_id,
+        invitee_user_id=current_user.id,
+        exclude_invite_id=invite.id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You can only join this booking once. Please use a different friend for a new invite code.",
+        )
+
     invite.invitee_user_id = current_user.id
     friend_crud.touch_friendship_invite_activity(db, invite.inviter_user_id, current_user.id)
     result = _respond_to_booking_invite(invite, current_user, payload.action, db)
@@ -882,6 +909,17 @@ async def send_booking_invite_to_friend(
 
     if invite.invitee_user_id and invite.invitee_user_id != payload.friend_user_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This invite code was already sent to another friend")
+
+    if _has_user_received_booking_invite(
+        db,
+        booking_id=invite.booking_id,
+        invitee_user_id=payload.friend_user_id,
+        exclude_invite_id=invite.id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This friend has already received an invite for this booking. Please invite another friend.",
+        )
 
     invite.invitee_user_id = payload.friend_user_id
     friend_crud.touch_friendship_invite_activity(db, current_user.id, payload.friend_user_id)
