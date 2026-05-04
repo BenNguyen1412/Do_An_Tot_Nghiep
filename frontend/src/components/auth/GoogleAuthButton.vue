@@ -6,6 +6,34 @@ import { useAuthStore } from '@/stores/auth'
 
 type GoogleButtonText = 'signin_with' | 'signup_with' | 'continue_with'
 
+interface GoogleIdentityButtonOptions {
+  theme?: 'outline' | 'filled_blue' | 'filled_black'
+  size?: 'large' | 'medium' | 'small'
+  text?: GoogleButtonText
+  shape?: 'rectangular' | 'pill' | 'circle' | 'square'
+  width?: number
+}
+
+interface GoogleIdentityCredentialResponse {
+  credential?: string
+}
+
+interface GoogleIdentityService {
+  accounts: {
+    id: {
+      initialize: (options: {
+        client_id: string
+        callback: (response: GoogleIdentityCredentialResponse) => void | Promise<void>
+      }) => void
+      renderButton: (element: HTMLElement, options: GoogleIdentityButtonOptions) => void
+    }
+  }
+}
+
+interface GoogleIdentityWindow extends Window {
+  google?: GoogleIdentityService
+}
+
 const props = withDefaults(
   defineProps<{
     label: string
@@ -31,7 +59,7 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || ''
 let googleScriptPromise: Promise<void> | null = null
 
 const loadGoogleScript = () => {
-  if ((window as Window & { google?: unknown }).google) {
+  if ((window as GoogleIdentityWindow).google) {
     return Promise.resolve()
   }
 
@@ -84,7 +112,7 @@ const renderButton = async () => {
   try {
     await loadGoogleScript()
 
-    const google = (window as Window & { google?: any }).google
+    const google = (window as GoogleIdentityWindow).google
     if (!google?.accounts?.id) {
       throw new Error('Google Identity Services is unavailable')
     }
@@ -141,12 +169,15 @@ onMounted(() => {
       <span>OR</span>
     </div>
 
-    <div v-if="googleClientId" class="google-button-wrap">
-      <div ref="buttonContainer" class="google-button-container"></div>
+    <div class="google-button-wrap">
+      <div v-if="googleClientId" ref="buttonContainer" class="google-button-container"></div>
+      <button v-else type="button" class="google-fallback-btn" disabled>
+        Continue with Google
+      </button>
       <p v-if="isProcessing" class="google-loading">Processing Google sign-in...</p>
     </div>
 
-    <p v-else class="google-config-hint">
+    <p v-if="!googleClientId" class="google-config-hint">
       Set <strong>VITE_GOOGLE_CLIENT_ID</strong> in frontend .env to enable Google sign-in.
     </p>
 
@@ -185,6 +216,18 @@ onMounted(() => {
 
 .google-button-container {
   min-height: 44px;
+}
+
+.google-fallback-btn {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(45, 80, 22, 0.2);
+  border-radius: 999px;
+  background: #f7f9f5;
+  color: #6b7280;
+  font: inherit;
+  font-weight: 600;
+  cursor: not-allowed;
 }
 
 .google-loading,
