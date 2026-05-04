@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
+import GoogleAuthButton from '@/components/auth/GoogleAuthButton.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -290,6 +291,8 @@ const goToLogin = () => {
               <span v-else>CREATE</span>
             </button>
           </form>
+
+          <GoogleAuthButton label="Google sign-up" button-text="signup_with" />
 
           <!-- Login Link -->
           <div class="login-section">

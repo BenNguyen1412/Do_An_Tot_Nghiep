@@ -1,11 +1,71 @@
+from secrets import token_urlsafe
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
+
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.security import verify_password, create_access_token, get_password_hash
-from app.models.user import User
-from app.schemas.user import UserLogin, UserRegister, Token
+from app.models.user import User, UserRole
+from app.schemas.user import GoogleAuthRequest, UserLogin, UserRegister, Token
 
 router = APIRouter()
+
+
+def _serialize_user(user: User) -> dict:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "phone_number": user.phone_number,
+        "avatar_url": user.avatar_url,
+        "is_active": user.is_active,
+        "bank_account_number": user.bank_account_number,
+        "bank_account_name": user.bank_account_name,
+        "bank_name": user.bank_name,
+        "bank_code": user.bank_code,
+    }
+
+
+def _build_auth_response(user: User) -> dict:
+    access_token = create_access_token(data={"sub": user.email})
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": _serialize_user(user),
+    }
+
+
+def _verify_google_credential(credential: str) -> dict:
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google client ID is not configured",
+        )
+
+    try:
+        payload = google_id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google token không hợp lệ",
+        ) from exc
+
+    if not payload.get("email_verified"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google account has not been verified",
+        )
+
+    return payload
 
 @router.post("/login", response_model=Token)
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
@@ -36,28 +96,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
             detail="Tài khoản đã bị khóa"
         )
     
-    # Create token
-    access_token = create_access_token(data={"sub": user.email})
-    
-   
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.full_name,
-            "role": user.role,
-            "phone_number": user.phone_number,
-            "avatar_url": user.avatar_url,
-            "is_active": user.is_active,
-            "bank_account_number": user.bank_account_number,
-            "bank_account_name": user.bank_account_name,
-            "bank_name": user.bank_name,
-            "bank_code": user.bank_code
-        }
-    }
+    return _build_auth_response(user)
 
 @router.post("/register", response_model=Token)
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
@@ -74,7 +113,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
         )
     
     # Validate role
-    valid_roles = ['user', 'owner', 'enterprise']
+    valid_roles = [UserRole.user.value, UserRole.owner.value, UserRole.enterprise.value]
     if user_data.role not in valid_roles:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -97,23 +136,53 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
-    # Create token
-    access_token = create_access_token(data={"sub": new_user.email})
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {
-            "id": new_user.id,
-            "email": new_user.email,
-            "full_name": new_user.full_name,
-            "role": new_user.role,
-            "phone_number": new_user.phone_number,
-            "avatar_url": new_user.avatar_url,
-            "is_active": new_user.is_active,
-            "bank_account_number": new_user.bank_account_number,
-            "bank_account_name": new_user.bank_account_name,
-            "bank_name": new_user.bank_name,
-            "bank_code": new_user.bank_code
-        }
-    }
+    return _build_auth_response(new_user)
+
+
+@router.post("/google", response_model=Token)
+def google_auth(payload: GoogleAuthRequest, db: Session = Depends(get_db)):
+    google_payload = _verify_google_credential(payload.credential)
+
+    email = str(google_payload.get("email", "")).strip().lower()
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google account does not contain an email address",
+        )
+
+    full_name = str(google_payload.get("name") or email.split("@", 1)[0]).strip() or email.split("@", 1)[0]
+    avatar_url = google_payload.get("picture")
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if user:
+        if user.role != UserRole.user:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Google sign-in chỉ hỗ trợ tài khoản user",
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tài khoản đã bị khóa",
+            )
+
+        return _build_auth_response(user)
+
+    google_password = token_urlsafe(32)
+    new_user = User(
+        email=email,
+        hashed_password=get_password_hash(google_password),
+        full_name=full_name,
+        phone_number=None,
+        avatar_url=avatar_url,
+        role=UserRole.user,
+        is_active=True,
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return _build_auth_response(new_user)

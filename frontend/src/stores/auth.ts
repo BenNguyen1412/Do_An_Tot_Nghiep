@@ -24,6 +24,8 @@ interface LoginResponse {
   user: User
 }
 
+interface GoogleLoginResponse extends LoginResponse {}
+
 interface SignupData {
   email: string
   password: string
@@ -181,6 +183,62 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Login or register with Google
+  const loginWithGoogle = async (credential: string) => {
+    console.log('🔐 AUTH STORE - Google login called')
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+      console.log('📤 Sending POST request to /auth/google')
+
+      const response = await axiosInstance.post<GoogleLoginResponse>('/auth/google', {
+        credential,
+      })
+
+      console.log('📥 Response received:', response.status)
+
+      if (response.data) {
+        user.value = response.data.user
+        token.value = response.data.access_token
+
+        localStorage.setItem('token', token.value)
+        localStorage.setItem('user', JSON.stringify(user.value))
+
+        console.log('✅ Google login successful!')
+
+        return { success: true }
+      }
+
+      return { success: false, error: 'Google login failed' }
+    } catch (err: unknown) {
+      console.error('❌ Google login error:', err)
+
+      let errorMessage = 'Google login failed. Please try again.'
+
+      if (err && typeof err === 'object' && 'response' in err) {
+        const error = err as {
+          response?: {
+            status?: number
+            data?: { detail?: string }
+          }
+        }
+
+        const detail = error.response?.data?.detail
+
+        if (detail) {
+          errorMessage = detail
+        }
+      }
+
+      error.value = errorMessage
+      return { success: false, error: errorMessage }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // Update Profile
   const updateProfile = async (
     userId: number,
@@ -281,6 +339,7 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     signup,
     login,
+    loginWithGoogle,
     logout,
     updateProfile,
     initAuth,

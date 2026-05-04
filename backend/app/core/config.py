@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "OceXRNLlufuBtERHT-pXEgsa_v5KFCA7Ny12PPDCOTI"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # Google Sign-In
+    GOOGLE_CLIENT_ID: Optional[str] = None
     
     # Application Settings
     DEBUG: bool = True
