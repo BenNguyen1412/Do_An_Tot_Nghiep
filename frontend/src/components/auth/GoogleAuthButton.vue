@@ -267,6 +267,11 @@ onMounted(() => {
 .google-button-container {
   width: 100%;
   min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scaleX(var(--google-scale-x, 1)) scaleY(var(--google-scale-y, 1));
+  transform-origin: center;
 }
 
 .google-fallback-btn {

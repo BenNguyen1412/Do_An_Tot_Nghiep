@@ -170,18 +170,14 @@ def google_auth(payload: GoogleAuthRequest, db: Session = Depends(get_db)):
                 detail="Google sign-in/sign-up chỉ hỗ trợ user, owner, enterprise",
             )
 
-        if selected_role is not None and user.role != selected_role:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Role đã chọn không khớp với tài khoản hiện có",
-            )
-
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Tài khoản đã bị khóa",
             )
 
+        # For existing accounts, allow login regardless of selected role
+        # (only role-match is enforced during signup for new accounts)
         return _build_auth_response(user)
 
     if selected_role is None:
