@@ -58,6 +58,8 @@ const toast = useToast()
 const buttonContainer = ref<HTMLDivElement | null>(null)
 const isProcessing = ref(false)
 const scriptError = ref('')
+const googleScaleX = ref(1)
+const googleScaleY = ref(1.25)
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || ''
 
@@ -153,7 +155,13 @@ const renderButton = async () => {
           )
 
           if (result.success) {
-            if (props.selectedRole && authStore.user?.role !== props.selectedRole) {
+            // Only enforce role-match for signup (requireRoleSelection=true)
+            // For login (requireRoleSelection=false), allow any existing account
+            if (
+              props.requireRoleSelection &&
+              props.selectedRole &&
+              authStore.user?.role !== props.selectedRole
+            ) {
               authStore.logout()
               toast.error('❌ Account role does not match the selected role.', { timeout: 4000 })
               return
@@ -175,14 +183,16 @@ const renderButton = async () => {
       },
     })
 
-    const buttonWidth = Math.floor(buttonContainer.value.getBoundingClientRect().width) || 430
+    const desiredWidth = Math.floor(buttonContainer.value.getBoundingClientRect().width) || 430
+    const renderedWidth = Math.min(desiredWidth, 400)
+    googleScaleX.value = desiredWidth / renderedWidth
 
     google.accounts.id.renderButton(buttonContainer.value, {
       theme: 'outline',
       size: 'large',
       text: props.buttonText,
       shape: 'pill',
-      width: buttonWidth,
+      width: renderedWidth,
     })
   } catch (error) {
     console.error('Google sign-in initialization failed:', error)
@@ -202,7 +212,15 @@ onMounted(() => {
     </div>
 
     <div class="google-button-wrap">
-      <div v-if="googleClientId" ref="buttonContainer" class="google-button-container"></div>
+      <div
+        v-if="googleClientId"
+        ref="buttonContainer"
+        class="google-button-container"
+        :style="{
+          '--google-scale-x': String(googleScaleX),
+          '--google-scale-y': String(googleScaleY),
+        }"
+      ></div>
       <button v-else type="button" class="google-fallback-btn" disabled>
         Continue with Google
       </button>
