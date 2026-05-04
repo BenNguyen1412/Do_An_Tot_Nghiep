@@ -180,7 +180,7 @@ def test_google_auth_creates_user_with_user_role(monkeypatch):
     monkeypatch.setattr(auth, "get_password_hash", lambda password: "hashed-google-pass")
     monkeypatch.setattr(auth, "create_access_token", lambda data: "google-jwt-token")
 
-    result = auth.google_auth(GoogleAuthRequest(credential="google-token"), db)
+    result = auth.google_auth(GoogleAuthRequest(credential="google-token", role=UserRole.user), db)
 
     assert db.committed is True
     assert db.refreshed is True
@@ -193,7 +193,7 @@ def test_google_auth_creates_user_with_user_role(monkeypatch):
     assert result["user"]["role"] == UserRole.user
 
 
-def test_google_auth_rejects_non_user_account(monkeypatch):
+def test_google_auth_rejects_when_selected_role_mismatch_existing_account(monkeypatch):
     existing_user = _build_user(role=UserRole.owner)
     db = FakeDB(query_result=existing_user)
     monkeypatch.setattr(auth, "_verify_google_credential", lambda credential: {
@@ -204,6 +204,6 @@ def test_google_auth_rejects_non_user_account(monkeypatch):
     })
 
     with pytest.raises(HTTPException) as exc_info:
-        auth.google_auth(GoogleAuthRequest(credential="google-token"), db)
+        auth.google_auth(GoogleAuthRequest(credential="google-token", role=UserRole.user), db)
 
-    assert exc_info.value.status_code == 403
+    assert exc_info.value.status_code == 400

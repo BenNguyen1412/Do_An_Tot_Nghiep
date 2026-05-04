@@ -15,6 +15,7 @@ class UserLogin(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     credential: str
+    role: Optional[UserRole] = None
 
 class UserRegister(BaseModel):
     email: EmailStr

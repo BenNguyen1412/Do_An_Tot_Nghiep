@@ -34,6 +34,8 @@ interface SignupData {
   role: string
 }
 
+type AuthRole = 'user' | 'owner' | 'enterprise'
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const token = ref<string>('')
@@ -184,7 +186,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // Login or register with Google
-  const loginWithGoogle = async (credential: string) => {
+  const loginWithGoogle = async (credential: string, role?: AuthRole) => {
     console.log('🔐 AUTH STORE - Google login called')
 
     isLoading.value = true
@@ -195,6 +197,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       const response = await axiosInstance.post<GoogleLoginResponse>('/auth/google', {
         credential,
+        role,
       })
 
       console.log('📥 Response received:', response.status)

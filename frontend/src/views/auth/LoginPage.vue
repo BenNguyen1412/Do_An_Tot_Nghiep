@@ -261,7 +261,11 @@ const goToSignUp = () => {
             </button>
           </form>
 
-          <GoogleAuthButton label="Google sign-in" button-text="signin_with" />
+          <GoogleAuthButton
+            label="Google sign-in"
+            button-text="signin_with"
+            :selected-role="userType"
+          />
 
           <!-- Sign Up Link -->
           <div class="signup-section">

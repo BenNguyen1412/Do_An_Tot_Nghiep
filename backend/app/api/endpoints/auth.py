@@ -142,6 +142,14 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
 @router.post("/google", response_model=Token)
 def google_auth(payload: GoogleAuthRequest, db: Session = Depends(get_db)):
     google_payload = _verify_google_credential(payload.credential)
+    allowed_google_roles = {UserRole.user, UserRole.owner, UserRole.enterprise}
+    selected_role = payload.role
+
+    if selected_role is not None and selected_role not in allowed_google_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google sign-in/sign-up chỉ hỗ trợ user, owner, enterprise",
+        )
 
     email = str(google_payload.get("email", "")).strip().lower()
     if not email:
@@ -156,10 +164,16 @@ def google_auth(payload: GoogleAuthRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).first()
 
     if user:
-        if user.role != UserRole.user:
+        if user.role not in allowed_google_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Google sign-in chỉ hỗ trợ tài khoản user",
+                detail="Google sign-in/sign-up chỉ hỗ trợ user, owner, enterprise",
+            )
+
+        if selected_role is not None and user.role != selected_role:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Role đã chọn không khớp với tài khoản hiện có",
             )
 
         if not user.is_active:
@@ -170,6 +184,12 @@ def google_auth(payload: GoogleAuthRequest, db: Session = Depends(get_db)):
 
         return _build_auth_response(user)
 
+    if selected_role is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vui lòng chọn role trước khi đăng ký bằng Google",
+        )
+
     google_password = token_urlsafe(32)
     new_user = User(
         email=email,
@@ -177,7 +197,7 @@ def google_auth(payload: GoogleAuthRequest, db: Session = Depends(get_db)):
         full_name=full_name,
         phone_number=None,
         avatar_url=avatar_url,
-        role=UserRole.user,
+        role=selected_role,
         is_active=True,
     )
 

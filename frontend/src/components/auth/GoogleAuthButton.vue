@@ -5,6 +5,7 @@ import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 
 type GoogleButtonText = 'signin_with' | 'signup_with' | 'continue_with'
+type AccountRole = 'user' | 'owner' | 'enterprise'
 
 interface GoogleIdentityButtonOptions {
   theme?: 'outline' | 'filled_blue' | 'filled_black'
@@ -39,10 +40,14 @@ const props = withDefaults(
     label: string
     redirectTo?: string
     buttonText?: GoogleButtonText
+    selectedRole?: AccountRole | null
+    requireRoleSelection?: boolean
   }>(),
   {
-    redirectTo: '/user/home',
+    redirectTo: undefined,
     buttonText: 'continue_with',
+    selectedRole: null,
+    requireRoleSelection: false,
   },
 )
 
@@ -57,6 +62,16 @@ const scriptError = ref('')
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || ''
 
 let googleScriptPromise: Promise<void> | null = null
+
+const getRoleHomePath = (role?: string | null) => {
+  if (role === 'owner') {
+    return '/owner/home'
+  }
+  if (role === 'enterprise') {
+    return '/enterprise/home'
+  }
+  return '/user/home'
+}
 
 const loadGoogleScript = () => {
   if ((window as GoogleIdentityWindow).google) {
@@ -124,14 +139,29 @@ const renderButton = async () => {
           return
         }
 
+        if (props.requireRoleSelection && !props.selectedRole) {
+          toast.error('❌ Please select a role before Google sign-up.', { timeout: 4000 })
+          return
+        }
+
         isProcessing.value = true
 
         try {
-          const result = await authStore.loginWithGoogle(response.credential)
+          const result = await authStore.loginWithGoogle(
+            response.credential,
+            props.selectedRole || undefined,
+          )
 
           if (result.success) {
+            if (props.selectedRole && authStore.user?.role !== props.selectedRole) {
+              authStore.logout()
+              toast.error('❌ Account role does not match the selected role.', { timeout: 4000 })
+              return
+            }
+
             toast.success(`✅ ${props.label} successful!`, { timeout: 2000 })
-            await router.push(props.redirectTo)
+            const redirectPath = props.redirectTo || getRoleHomePath(authStore.user?.role || null)
+            await router.push(redirectPath)
             return
           }
 
@@ -145,12 +175,14 @@ const renderButton = async () => {
       },
     })
 
+    const buttonWidth = Math.floor(buttonContainer.value.getBoundingClientRect().width) || 430
+
     google.accounts.id.renderButton(buttonContainer.value, {
       theme: 'outline',
       size: 'large',
       text: props.buttonText,
       shape: 'pill',
-      width: buttonContainer.value.clientWidth || 360,
+      width: buttonWidth,
     })
   } catch (error) {
     console.error('Google sign-in initialization failed:', error)
@@ -215,12 +247,13 @@ onMounted(() => {
 }
 
 .google-button-container {
-  min-height: 44px;
+  width: 100%;
+  min-height: 52px;
 }
 
 .google-fallback-btn {
   width: 100%;
-  min-height: 44px;
+  min-height: 52px;
   border: 1px solid rgba(45, 80, 22, 0.2);
   border-radius: 999px;
   background: #f7f9f5;

@@ -10,7 +10,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const toast = useToast()
 
-const userType = ref<'user' | 'enterprise' | 'owner'>('user')
+const userType = ref<'user' | 'enterprise' | 'owner' | null>(null)
 
 // Check if role is passed via query parameter
 onMounted(() => {
@@ -49,6 +49,12 @@ const handleSignUp = async () => {
   if (password.value !== confirmPassword.value) {
     errorMessage.value = 'Password confirmation does not match'
     toast.error('Password confirmation does not match')
+    return
+  }
+
+  if (!userType.value) {
+    errorMessage.value = 'Please select your role before signing up'
+    toast.error('Please select your role before signing up')
     return
   }
 
@@ -292,7 +298,12 @@ const goToLogin = () => {
             </button>
           </form>
 
-          <GoogleAuthButton label="Google sign-up" button-text="signup_with" />
+          <GoogleAuthButton
+            label="Google sign-up"
+            button-text="signup_with"
+            :selected-role="userType"
+            :require-role-selection="true"
+          />
 
           <!-- Login Link -->
           <div class="login-section">

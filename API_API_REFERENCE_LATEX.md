@@ -21,8 +21,8 @@ Tài liệu này liệt kê các API chính của hệ thống theo dạng LaTeX
 
 \item \texttt{\textbf{POST /api/auth/google}} — Đăng nhập / đăng ký bằng Google
 \begin{itemize}[label=$\circ$]
-\item \textit{Body:} \verb|{credential}|
-\item \textit{Ghi chú:} Tài khoản Google luôn được tạo hoặc đăng nhập với vai trò \texttt{user}
+\item \textit{Body:} \verb|{credential, role?}|
+\item \textit{Ghi chú:} Hỗ trợ \texttt{user}, \texttt{owner}, \texttt{enterprise}; nếu là đăng ký mới bằng Google thì bắt buộc chọn role trước khi gửi
 \item \textit{Response:} JWT token và thông tin người dùng
 \end{itemize}
 \end{enumerate}
