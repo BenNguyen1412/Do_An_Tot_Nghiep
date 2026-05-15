@@ -18,7 +18,7 @@ interface Court {
   id: number
   name: string
   address: string
-  district: string
+  ward: string
   city: string
   description: string
   court_quantity: number
@@ -215,8 +215,8 @@ onMounted(() => {
               </span>
             </div>
 
-            <p class="court-district">
-              <i class="fas fa-map-marker-alt"></i> District {{ court.district }}, {{ court.city }}
+            <p class="court-ward">
+              <i class="fas fa-map-marker-alt"></i> Ward {{ court.ward }}, {{ court.city }}
             </p>
 
             <div class="court-footer">
@@ -520,7 +520,7 @@ onMounted(() => {
   font-size: 0.95rem;
 }
 
-.court-district {
+.court-ward {
   color: #666;
   margin: 0 0 20px 0;
   display: flex;
@@ -529,7 +529,7 @@ onMounted(() => {
   font-size: 1rem;
 }
 
-.court-district i {
+.court-ward i {
   color: #ff4757;
 }
 

@@ -26,7 +26,7 @@ entity courts {
 	owner_id
 	name
 	address
-	district
+	ward
 	city
 	description
 	court_quantity
@@ -103,7 +103,7 @@ entity court_requests {
 	reviewed_by
 	name
 	address
-	district
+	ward
 	city
 	description
 	court_quantity

@@ -81,7 +81,7 @@ def _seed_court_payload(index: int, quantity: int) -> CourtCreate:
     return CourtCreate(
         name=f"Court {index}",
         address=f"Address {index}",
-        district="District 1",
+        ward="Ward 1",
         city="Ho Chi Minh City",
         description=f"Description {index}",
         court_quantity=quantity,
@@ -131,7 +131,7 @@ def _seed_court_request(db, owner_id: int, index: int, *, status: str = "pending
         owner_id=owner_id,
         name=f"Request Court {index}",
         address=f"Request Address {index}",
-        district="District 1",
+        ward="Ward 1",
         city="Ho Chi Minh City",
         description=f"Request description {index}",
         court_quantity=2,
@@ -461,7 +461,7 @@ def _run_notification_case(db, case_id: int):
             CourtRequestCreate(
                 name=f"Court Request {case_id}",
                 address=f"Address {case_id}",
-                district="District 1",
+                ward="Ward 1",
                 city="Ho Chi Minh City",
                 description="Court description",
                 court_quantity=2,
@@ -530,7 +530,7 @@ def _run_notification_case(db, case_id: int):
             CourtRequestCreate(
                 name=f"Filter Court Request {case_id}",
                 address=f"Filter Address {case_id}",
-                district="District 1",
+                ward="Ward 1",
                 city="Ho Chi Minh City",
                 description="Filter description",
                 court_quantity=1,

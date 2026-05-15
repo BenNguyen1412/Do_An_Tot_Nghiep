@@ -183,8 +183,8 @@
                     <p>{{ selectedCourt.address }}</p>
                   </div>
                   <div class="info-item">
-                    <label>District</label>
-                    <p>District {{ selectedCourt.district }}</p>
+                    <label>Ward</label>
+                    <p>Ward {{ selectedCourt.ward }}</p>
                   </div>
                   <div class="info-item">
                     <label>City</label>
@@ -349,7 +349,7 @@ interface Court {
   id: number
   name: string
   address: string
-  district: string
+  ward: string
   city: string
   description: string
   court_quantity: number
@@ -422,7 +422,7 @@ const paginatedCourts = computed(() => {
 
 // Format location
 const getLocation = (court: Court) => {
-  return `${court.address}, District ${court.district}, ${court.city}`
+  return `${court.address}, Ward ${court.ward}, ${court.city}`
 }
 
 // Get status text

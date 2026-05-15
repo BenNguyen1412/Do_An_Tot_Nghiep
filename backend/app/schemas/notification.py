@@ -29,7 +29,7 @@ class Notification(NotificationBase):
 class CourtRequestBase(BaseModel):
     name: str
     address: str
-    district: str
+    ward: str
     city: str
     description: Optional[str] = None
     court_quantity: int

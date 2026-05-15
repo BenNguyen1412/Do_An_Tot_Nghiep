@@ -730,7 +730,7 @@ async def get_my_bookings_history(
         parent_court = court_crud.get_court(db, individual_court.court_id) if individual_court else None
 
         if parent_court:
-            location = f"{parent_court.address}, {parent_court.district}, {parent_court.city}"
+            location = f"{parent_court.address}, {parent_court.ward}, {parent_court.city}"
             court_name = f"{parent_court.name} - {individual_court.name}" if individual_court else parent_court.name
         else:
             location = "N/A"
@@ -992,7 +992,7 @@ async def get_booking_invite_details(
     invitee = get_user_by_id(db, invite.invitee_user_id) if invite.invitee_user_id else None
 
     location = (
-        f"{parent_court.address}, {parent_court.district}, {parent_court.city}"
+        f"{parent_court.address}, {parent_court.ward}, {parent_court.city}"
         if parent_court
         else "N/A"
     )

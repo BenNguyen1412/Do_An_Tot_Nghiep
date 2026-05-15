@@ -70,7 +70,7 @@ const quickLinks = [
           <div class="contact-info">
             <div class="contact-item">
               <span class="contact-icon"><i class="fas fa-map-marker-alt"></i></span>
-              <span>266 Ly Thuong Kiet, Dien Hong<br />District, HCMC</span>
+              <span>266 Ly Thuong Kiet, Dien Hong<br />Ward, HCMC</span>
             </div>
             <div class="contact-item">
               <span class="contact-icon"><i class="fas fa-envelope"></i></span>

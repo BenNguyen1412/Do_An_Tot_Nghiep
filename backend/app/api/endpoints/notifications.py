@@ -106,7 +106,7 @@ def _attach_court_request_metadata(db: Session, request: CourtRequest):
 
     _append_change("Court Name", court.name, request.name)
     _append_change("Address", court.address, request.address)
-    _append_change("District", court.district, request.district)
+    _append_change("Ward", court.ward, request.ward)
     _append_change("City", court.city, request.city)
     _append_change("Description", court.description, request.description)
     _append_change("Court Quantity", court.court_quantity, request.court_quantity)
@@ -550,7 +550,7 @@ async def update_court_request_status(
             update_data = CourtUpdate(
                 name=request.name,
                 address=request.address,
-                district=request.district,
+                ward=request.ward,
                 city=request.city,
                 description=request.description,
                 court_quantity=request.court_quantity,
@@ -575,7 +575,7 @@ async def update_court_request_status(
             court_data = CourtCreate(
                 name=request.name,
                 address=request.address,
-                district=request.district,
+                ward=request.ward,
                 city=request.city,
                 description=request.description,
                 court_quantity=request.court_quantity,

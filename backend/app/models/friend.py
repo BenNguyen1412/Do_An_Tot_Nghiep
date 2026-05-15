@@ -14,8 +14,8 @@ class FriendRequest(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     responded_at = Column(DateTime(timezone=True), nullable=True)
 
-    sender = relationship("User", foreign_keys=[sender_id])
-    receiver = relationship("User", foreign_keys=[receiver_id])
+    sender = relationship("User", foreign_keys=[sender_id], overlaps="sent_friend_requests")
+    receiver = relationship("User", foreign_keys=[receiver_id], overlaps="received_friend_requests")
 
 
 class Friendship(Base):
@@ -32,5 +32,5 @@ class Friendship(Base):
     last_activity_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    user_low = relationship("User", foreign_keys=[user_low_id])
-    user_high = relationship("User", foreign_keys=[user_high_id])
+    user_low = relationship("User", foreign_keys=[user_low_id], overlaps="friendships_as_low")
+    user_high = relationship("User", foreign_keys=[user_high_id], overlaps="friendships_as_high")

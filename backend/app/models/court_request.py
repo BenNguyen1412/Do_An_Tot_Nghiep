@@ -13,7 +13,7 @@ class CourtRequest(Base):
     # Court information
     name = Column(String(255), nullable=False)
     address = Column(String(500), nullable=False)
-    district = Column(String(100), nullable=False)
+    ward = Column(String(100), nullable=False)
     city = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     court_quantity = Column(Integer, nullable=False)

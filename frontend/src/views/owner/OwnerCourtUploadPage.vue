@@ -76,7 +76,7 @@ interface TimeSlot {
 const courtForm = ref({
   name: '',
   address: '',
-  district: '',
+  ward: '',
   city: '',
   description: '',
   court_quantity: 1,
@@ -161,7 +161,7 @@ const fetchApprovedCourt = async () => {
       courtForm.value = {
         name: court.name,
         address: court.address,
-        district: court.district,
+        ward: court.ward,
         city: court.city,
         description: court.description || '',
         court_quantity: court.court_quantity,
@@ -313,7 +313,7 @@ const resetForm = () => {
   courtForm.value = {
     name: '',
     address: '',
-    district: '',
+    ward: '',
     city: '',
     description: '',
     court_quantity: 1,
@@ -352,8 +352,8 @@ const validateForm = () => {
     return false
   }
 
-  if (!courtForm.value.district.trim()) {
-    toast.error('Please enter district')
+  if (!courtForm.value.ward.trim()) {
+    toast.error('Please enter ward')
     return false
   }
 
@@ -550,7 +550,7 @@ const handleSubmit = async () => {
     const courtRequestData = {
       name: courtForm.value.name,
       address: courtForm.value.address,
-      district: courtForm.value.district,
+      ward: courtForm.value.ward,
       city: courtForm.value.city,
       description: courtForm.value.description,
       court_quantity: courtForm.value.court_quantity,
@@ -736,12 +736,12 @@ const formatTimeWithPeriod = (time: string) => {
           </div>
 
           <div class="form-group">
-            <label class="form-label required">District</label>
+            <label class="form-label required">Ward</label>
             <input
-              v-model="courtForm.district"
+              v-model="courtForm.ward"
               type="text"
               class="form-input"
-              placeholder="Ex: District 1"
+              placeholder="Ex: Ward 1"
             />
           </div>
 

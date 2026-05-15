@@ -31,7 +31,7 @@ class CourtRequest(Base):
     # Court information (same as Court model)
     name = Column(String, nullable=False)
     address = Column(String, nullable=False)
-    district = Column(String, nullable=False)
+    ward = Column(String, nullable=False)
     city = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     court_quantity = Column(Integer, nullable=False, default=1)

@@ -32,7 +32,7 @@ interface Court {
   id: number
   name: string
   address: string
-  district: string
+  ward: string
   city: string
   description: string
   court_quantity: number
@@ -317,7 +317,7 @@ onMounted(() => {
                     d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
-                <span>{{ court.address }}, District {{ court.district }}, {{ court.city }}</span>
+                <span>{{ court.address }}, Ward {{ court.ward }}, {{ court.city }}</span>
               </div>
               <div class="contact-item" v-if="court.contact_email">
                 <svg

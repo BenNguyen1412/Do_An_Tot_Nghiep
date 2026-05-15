@@ -212,8 +212,8 @@
                   <p>{{ selectedRequest.address }}</p>
                 </div>
                 <div class="info-item">
-                  <label>District</label>
-                  <p>{{ selectedRequest.district }}</p>
+                  <label>Ward</label>
+                  <p>{{ selectedRequest.ward }}</p>
                 </div>
                 <div class="info-item">
                   <label>City</label>
@@ -476,7 +476,7 @@ interface CourtRequest {
   id: number
   name: string
   address: string
-  district: string
+  ward: string
   city: string
   description: string | null
   court_quantity: number

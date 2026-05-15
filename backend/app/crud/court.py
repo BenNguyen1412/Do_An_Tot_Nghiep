@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, func
 from typing import Optional, List
 from datetime import datetime, timedelta
@@ -90,7 +90,7 @@ def create_court(db: Session, court: CourtCreate, owner_id: int, images: Optiona
         owner_id=owner_id,
         name=court.name,
         address=court.address,
-        district=court.district,
+        ward=court.ward,
         city=court.city,
         description=court.description,
         court_quantity=court.court_quantity,
@@ -186,6 +186,7 @@ def get_individual_courts_by_court(db: Session, court_id: int) -> List[Individua
     return (
         db.query(IndividualCourt)
         .filter(IndividualCourt.court_id == court_id)
+        .options(joinedload(IndividualCourt.bookings))
         .order_by(IndividualCourt.id.asc())
         .all()
     )

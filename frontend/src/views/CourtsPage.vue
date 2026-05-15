@@ -18,7 +18,7 @@ interface Court {
   id: number
   name: string
   address: string
-  district: string
+  ward: string
   city: string
   description: string
   court_quantity: number
@@ -38,7 +38,7 @@ const router = useRouter()
 const courts = ref<Court[]>([])
 const isLoading = ref(false)
 const searchQuery = ref('')
-const selectedDistrict = ref<string>('')
+const selectedWard = ref<string>('')
 const selectedBookingDate = ref('')
 const selectedStartTime = ref('')
 const selectedEndTime = ref('')
@@ -95,7 +95,7 @@ const applyAvailabilitySearch = async () => {
   await fetchCourts()
 }
 
-// Filter courts based on search and district
+// Filter courts based on search and ward
 const filteredCourts = computed(() => {
   let filtered = courts.value
 
@@ -105,23 +105,23 @@ const filteredCourts = computed(() => {
     filtered = filtered.filter(
       (court) =>
         court.name.toLowerCase().includes(query) ||
-        court.district.toLowerCase().includes(query) ||
+        court.ward.toLowerCase().includes(query) ||
         court.city.toLowerCase().includes(query),
     )
   }
 
-  // Filter by district
-  if (selectedDistrict.value) {
-    filtered = filtered.filter((court) => court.district === selectedDistrict.value)
+  // Filter by ward
+  if (selectedWard.value) {
+    filtered = filtered.filter((court) => court.ward === selectedWard.value)
   }
 
   return filtered
 })
 
-// Get unique districts for filter
-const districts = computed(() => {
-  const uniqueDistricts = [...new Set(courts.value.map((court) => court.district))]
-  return uniqueDistricts.sort()
+// Get unique wards for filter
+const wards = computed(() => {
+  const uniqueWards = [...new Set(courts.value.map((court) => court.ward))]
+  return uniqueWards.sort()
 })
 
 // Get badge based on court quantity
@@ -242,16 +242,16 @@ onMounted(() => {
               <input
                 v-model="searchQuery"
                 type="text"
-                placeholder="Search by court name, district, or city..."
+                placeholder="Search by court name, ward, or city..."
                 class="search-input"
               />
             </div>
 
-            <div class="district-filter-wrap">
-              <select v-model="selectedDistrict" class="district-filter">
-                <option value="">All Districts</option>
-                <option v-for="district in districts" :key="district" :value="district">
-                  {{ district }}
+            <div class="ward-filter-wrap">
+              <select v-model="selectedWard" class="ward-filter">
+                <option value="">All Wards</option>
+                <option v-for="ward in wards" :key="ward" :value="ward">
+                  {{ ward }}
                 </option>
               </select>
             </div>
@@ -392,7 +392,7 @@ onMounted(() => {
                     d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
-                District {{ court.district }}, {{ court.city }}
+                Ward {{ court.ward }}, {{ court.city }}
               </p>
 
               <div class="court-details">
@@ -560,7 +560,7 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
-.district-filter-wrap {
+.ward-filter-wrap {
   min-width: 360px;
 }
 
@@ -715,7 +715,7 @@ onMounted(() => {
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
 }
 
-.district-filter {
+.ward-filter {
   padding: 14px 16px;
   border: none;
   border-radius: 10px;
@@ -730,7 +730,7 @@ onMounted(() => {
   min-width: 360px;
 }
 
-.district-filter:hover {
+.ward-filter:hover {
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.25);
 }
 
@@ -1132,12 +1132,12 @@ onMounted(() => {
     width: 100%;
   }
 
-  .district-filter {
+  .ward-filter {
     width: 100%;
     min-width: 0;
   }
 
-  .district-filter-wrap {
+  .ward-filter-wrap {
     width: 100%;
     min-width: 0;
   }

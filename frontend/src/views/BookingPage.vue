@@ -54,7 +54,7 @@ interface Court {
   id: number
   name: string
   address: string
-  district: string
+  ward: string
   city: string
   opening_time: string
   closing_time: string

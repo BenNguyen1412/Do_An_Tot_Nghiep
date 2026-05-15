@@ -38,7 +38,7 @@ class Court(Base):
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
     address = Column(String, nullable=False)
-    district = Column(String, nullable=False)
+    ward = Column(String, nullable=False)
     city = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     court_quantity = Column(Integer, nullable=False, default=1)  # Number of individual courts

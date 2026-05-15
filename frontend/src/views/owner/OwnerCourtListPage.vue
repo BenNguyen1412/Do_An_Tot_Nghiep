@@ -9,7 +9,7 @@ interface Court {
   id: number
   name: string
   address: string
-  district: string
+  ward: string
   city: string
   court_quantity: number
   opening_time: string
@@ -69,9 +69,27 @@ const getNormalizedBookingStatus = (booking: Booking): string => {
   return bookingStatus || status
 }
 
+const isBookingCurrentlyInProgress = (booking: Booking): boolean => {
+  const now = new Date()
+  const today = now.toISOString().split('T')[0]
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+  const bookingDate = booking.booking_date?.split('T')[0]
+
+  // Check if booking is today and within time range
+  if (bookingDate === today) {
+    return booking.start_time <= currentTime && currentTime < booking.end_time
+  }
+
+  return false
+}
+
 const isActiveBooking = (booking: Booking): boolean => {
   const status = getNormalizedBookingStatus(booking)
-  return status === 'active'
+  // Consider booking active if:
+  // 1. Status is 'active' OR
+  // 2. Status is 'confirmed' and it's currently within booking time range
+  return status === 'active' || (status === 'confirmed' && isBookingCurrentlyInProgress(booking))
 }
 
 // Real data from API

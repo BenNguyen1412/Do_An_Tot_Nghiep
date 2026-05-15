@@ -16,7 +16,7 @@ class TimeSlot(BaseModel):
 class CourtBase(BaseModel):
     name: str
     address: str
-    district: str
+    ward: str
     city: str
     description: Optional[str] = None
     court_quantity: int = Field(ge=1)
@@ -35,7 +35,7 @@ class CourtCreate(CourtBase):
 class CourtUpdate(BaseModel):
     name: Optional[str] = None
     address: Optional[str] = None
-    district: Optional[str] = None
+    ward: Optional[str] = None
     city: Optional[str] = None
     description: Optional[str] = None
     court_quantity: Optional[int] = Field(None, ge=1)
@@ -88,16 +88,41 @@ class IndividualCourt(IndividualCourtBase):
     
     @classmethod
     def from_orm(cls, obj):
+        from datetime import datetime as dt, timezone, timedelta
+        
         bookings = list(getattr(obj, 'bookings', []) or [])
 
-        # Keep availability computed from effective active status (legacy + new enum field).
-        has_active_bookings = any(
-            (
-                str(getattr(booking, 'status', '') or '').strip().lower() == 'active'
-                or str(getattr(getattr(booking, 'booking_status', ''), 'value', getattr(booking, 'booking_status', '')) or '').strip().lower() == 'active'
-            )
-            for booking in bookings
-        )
+        # Get current date and time in Vietnam timezone (UTC+7)
+        vn_tz = timezone(timedelta(hours=7))
+        now = dt.now(vn_tz)
+        today = now.date()
+        current_time = now.strftime("%H:%M")
+
+        # Check for active bookings
+        has_active_bookings = False
+        for booking in bookings:
+            status_str = str(getattr(booking, 'status', '') or '').strip().lower()
+            booking_status_obj = getattr(booking, 'booking_status', '')
+            booking_status_str = str(getattr(booking_status_obj, 'value', booking_status_obj) or '').strip().lower()
+            
+            # Status is 'active' - booking is confirmed and active
+            if status_str == 'active' or booking_status_str == 'active':
+                has_active_bookings = True
+                break
+            
+            # Status is 'confirmed' and booking is currently in progress (same day + within time range)
+            if status_str == 'confirmed' or booking_status_str == 'confirmed':
+                booking_date = getattr(booking, 'booking_date', None)
+                if booking_date:
+                    # Convert to date if it's a datetime
+                    booking_date_only = booking_date.date() if hasattr(booking_date, 'date') else booking_date
+                    if booking_date_only == today:
+                        start_time = getattr(booking, 'start_time', '')
+                        end_time = getattr(booking, 'end_time', '')
+                        # Check if current time is within booking range
+                        if start_time <= current_time < end_time:
+                            has_active_bookings = True
+                            break
         
         data = {
             'id': obj.id,
