@@ -69,9 +69,16 @@ const getNormalizedBookingStatus = (booking: Booking): string => {
   return bookingStatus || status
 }
 
+const getLocalDateString = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const isBookingCurrentlyInProgress = (booking: Booking): boolean => {
   const now = new Date()
-  const today = now.toISOString().split('T')[0]
+  const today = getLocalDateString(now)
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
   const bookingDate = booking.booking_date?.split('T')[0]
@@ -164,7 +171,7 @@ const generateCourts = (quantity: number) => {
 // Check if court is actually booked at current time
 const checkAndUpdateExpiredBookings = (courtData: IndividualCourt[]) => {
   const now = new Date()
-  const today = now.toISOString().split('T')[0]
+  const today = getLocalDateString(now)
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
   courtData.forEach((ic) => {
@@ -273,7 +280,9 @@ const fetchMyCourts = async () => {
                 ? {
                     phone: activeBooking.phone_number,
                     timeSlot: `${activeBooking.start_time} - ${activeBooking.end_time}`,
-                    bookingDate: new Date(activeBooking.booking_date).toLocaleDateString('vi-VN'),
+                    bookingDate: new Intl.DateTimeFormat('vi-VN', {
+                      timeZone: 'Asia/Ho_Chi_Minh',
+                    }).format(new Date(activeBooking.booking_date)),
                   }
                 : undefined,
             bookingId: activeBooking?.id,

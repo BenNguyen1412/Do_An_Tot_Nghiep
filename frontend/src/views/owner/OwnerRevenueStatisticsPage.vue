@@ -4,16 +4,6 @@ import axios from '@/utils/axios'
 import { useToast } from 'vue-toastification'
 import jsPDF from 'jspdf'
 
-// Filter states
-const timeFilter = ref<'day' | 'month' | 'year'>('month')
-const selectedDate = ref(new Date().toISOString().split('T')[0])
-const selectedMonth = ref(new Date().toISOString().slice(0, 7))
-const selectedYear = ref(new Date().getFullYear().toString())
-const isLoading = ref(false)
-const loadError = ref('')
-const isExportingPdf = ref(false)
-const toast = useToast()
-
 interface BookingItem {
   id: number
   booking_date: string
@@ -78,6 +68,31 @@ const toLocalDateString = (date: Date): string => {
   return `${year}-${month}-${day}`
 }
 
+const parseLocalDate = (dateText: string): Date => {
+  const [yearStr, monthStr, dayStr] = dateText.split('-')
+  const year = Number(yearStr)
+  const month = Number(monthStr)
+  const day = Number(dayStr)
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return new Date(dateText)
+  }
+
+  return new Date(year, month - 1, day)
+}
+
+// Filter states
+const timeFilter = ref<'day' | 'month' | 'year'>('month')
+const selectedDate = ref(toLocalDateString(new Date()))
+const selectedMonth = ref(
+  `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+)
+const selectedYear = ref(new Date().getFullYear().toString())
+const isLoading = ref(false)
+const loadError = ref('')
+const isExportingPdf = ref(false)
+const toast = useToast()
+
 const getSelectedDateRange = (): DateRange => {
   if (timeFilter.value === 'day') {
     const selected = selectedDate.value || toLocalDateString(new Date())
@@ -85,9 +100,8 @@ const getSelectedDateRange = (): DateRange => {
   }
 
   if (timeFilter.value === 'month') {
-    const [yearStr, monthStr] = (selectedMonth.value || new Date().toISOString().slice(0, 7)).split(
-      '-',
-    )
+    const fallbackMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+    const [yearStr, monthStr] = (selectedMonth.value || fallbackMonth).split('-')
     const year = Number(yearStr)
     const month = Number(monthStr)
 
@@ -110,8 +124,8 @@ const getSelectedDateRange = (): DateRange => {
 }
 
 const getPreviousDateRange = ({ startDate, endDate }: DateRange): DateRange => {
-  const start = new Date(startDate)
-  const end = new Date(endDate)
+  const start = parseLocalDate(startDate)
+  const end = parseLocalDate(endDate)
   const dayCount = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
 
   const prevEnd = new Date(start)
@@ -401,7 +415,7 @@ const exportReport = async () => {
       color: [71, 85, 105],
     })
 
-    addText(`Generated: ${new Date().toLocaleString('vi-VN')}`, titleX, cursorY + 22, {
+      addText(`Generated: ${toLocalDateString(new Date())}`, titleX, cursorY + 22, {
       size: 9,
       color: [107, 114, 128],
     })
@@ -608,7 +622,7 @@ const exportReport = async () => {
       align: 'center',
     })
 
-    pdf.save(`owner-revenue-report-${new Date().toISOString().slice(0, 10)}.pdf`)
+    pdf.save(`owner-revenue-report-${toLocalDateString(new Date())}.pdf`)
     toast.success('PDF report exported successfully.')
   } catch (error) {
     console.error('Error exporting PDF report:', error)
